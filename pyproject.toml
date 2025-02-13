@@ -1,0 +1,10 @@
+[project]
+name = "impulse"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "maya-stubs>=0.4.1",
+    "ruff>=0.9.6",
+]
