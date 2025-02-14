@@ -7,7 +7,8 @@ def generate_ribbon (
         cyclic: bool = False,
         local_space: bool = False, 
         control_joints: bool = False, 
-        number_of_controls: int = None
+        number_of_controls: int = None,
+        half_controls: bool = True
     ):
     ribbon_length: float = 2
     surface_shape = cmds.listRelatives(nurbs_surface_name, shapes=True)[0]
@@ -15,6 +16,8 @@ def generate_ribbon (
         ribbon_length = cmds.getAttr(str(surface_shape)+".minMaxRangeU")[0][1]
         if not number_of_controls:
             number_of_controls = int(ribbon_length)
+            if half_controls:
+                number_of_controls = int(number_of_controls/2)
 
         ribbon_object: str = cmds.duplicate(nurbs_surface_name, name=nurbs_surface_name+"_ribbon")[0]
         ribbon_group = cmds.group(ribbon_object, name=ribbon_object+"_GRP")
