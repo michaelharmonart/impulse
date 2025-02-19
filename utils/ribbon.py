@@ -9,9 +9,12 @@ def generate_ribbon (
         local_space: bool = False, 
         control_joints: bool = False, 
         number_of_controls: int = None,
-        half_controls: bool = True
+        half_controls: bool = True,
+        hide_surfaces: bool = False
     ):
     ribbon_length: float = 2
+
+    #Get the shape node and confirm it's a NURBS surface
     surface_shape = cmds.listRelatives(nurbs_surface_name, shapes=True)[0]
     if cmds.nodeType(surface_shape) == "nurbsSurface":
         if swap_uv:
@@ -25,7 +28,13 @@ def generate_ribbon (
             if half_controls:
                 number_of_controls = int(number_of_controls/2)
 
+       
         ribbon_object: str = cmds.duplicate(nurbs_surface_name, name=nurbs_surface_name+"_ribbon")[0]
+        if hide_surfaces:
+            cmds.hide(nurbs_surface_name)
+            cmds.hide(ribbon_object)
+        if not local_space:
+            cmds.setAttr(ribbon_object+".inheritsTransform", 0)
         ribbon_group = cmds.group(ribbon_object, name=ribbon_object+"_GRP")
 
         if control_joints:
@@ -43,6 +52,7 @@ def generate_ribbon (
                         print(u,v)
                     cmds.select(ribbon_group, replace=True)
                     joint_name = cmds.joint(position=position, radius=1, name=str(ribbon_object)+str(i+1)+"_ControlJoint")
+                    
             else:
                 for i in range(number_of_controls + 1):
                     control_spacing: float = (ribbon_length/(number_of_controls))
