@@ -1,11 +1,9 @@
 import maya.cmds as cmds
-import maya.mel as mel
-import utils.control_gen as control
 #This uses the UVPin command which has no flags, and depends on the settings you have set in the option box in maya. 
 
 def generate_ribbon (
         nurbs_surface_name: str, 
-        number_of_joints: int = 16,
+        number_of_joints: int = 8,
         cyclic: bool = False,
         swap_uv: bool = False,
         local_space: bool = False, 
@@ -32,16 +30,13 @@ def generate_ribbon (
 
        
         ribbon_object: str = cmds.duplicate(nurbs_surface_name, name=nurbs_surface_name+"_ribbon")[0]
-        ribbon_group = cmds.group(ribbon_object, name=ribbon_object+"_GRP")
-        
-        ctl_group = cmds.group(empty=True, parent=ribbon_group, name=ribbon_object+"_CTL")
-        
         if hide_surfaces:
             cmds.hide(nurbs_surface_name)
             cmds.hide(ribbon_object)
         if not local_space:
             cmds.setAttr(ribbon_object+".inheritsTransform", 0)
-       
+        ribbon_group = cmds.group(ribbon_object, name=ribbon_object+"_GRP")
+
         if control_joints:
             
             if cyclic:
@@ -51,15 +46,13 @@ def generate_ribbon (
                     v: float = ribbon_width/2
                     if swap_uv:
                         position = cmds.pointOnSurface(ribbon_object, position=True, parameterU=v, parameterV=u)
+                        print(u,v)
                     else:
                         position = cmds.pointOnSurface(ribbon_object, position=True, parameterU=u, parameterV=v)
+                        print(u,v)
                     cmds.select(ribbon_group, replace=True)
-                    joint_name = cmds.joint(position=position, radius=1, name=str(ribbon_object)+"_ControlJoint"+str(i+1)+"_JNT")
-                    ctl_name: str = control.generate_control(position, size= 0.2, parent=ribbon_group)
-                    ctl_name = cmds.rename(str(ribbon_object)+str(i+1)+"_CTL")
-                    cmds.parent(ctl_name, ctl_group)
-                    cmds.parentConstraint(ctl_name, joint_name, weight=1)
-                    cmds.parentConstraint(ctl_name, joint_name, weight=1)
+                    joint_name = cmds.joint(position=position, radius=1, name=str(ribbon_object)+str(i+1)+"_ControlJoint")
+                    
             else:
                 for i in range(number_of_controls + 1):
                     control_spacing: float = (ribbon_length/(number_of_controls))
@@ -70,11 +63,7 @@ def generate_ribbon (
                     else:
                         position = cmds.pointOnSurface(ribbon_object, position=True, parameterU=u, parameterV=v)
                     cmds.select(ribbon_group, replace=True)
-                    joint_name = cmds.joint(position=position, radius=1, name=str(ribbon_object)+"_ControlJoint"+str(i+1)+"_JNT")
-                    ctl_name: str = control.generate_control(position, size= 0.2, parent=ribbon_group)
-                    ctl_name = cmds.rename(str(ribbon_object)+str(i+1)+"_CTL")
-                    cmds.parent(ctl_name, ctl_group)
-                    cmds.parentConstraint(ctl_name, joint_name, weight=1)
+                    joint_name = cmds.joint(position=position, radius=1, name=str(ribbon_object)+str(i+1)+"_ControlJoint")
 
         if cyclic:
             for i in range(number_of_joints):
@@ -110,8 +99,8 @@ def generate_ribbon (
                 if not local_space:
                     cmds.setAttr(joint_name+".inheritsTransform", 0)
                
-def ribbon_from_selected():
-    selected_objects: str = []
-    selected_objects = cmds.ls(selection=True)
-    for object in selected_objects:
-        generate_ribbon(object, control_joints=True, cyclic=True, local_space=False)
+
+selected_objects: str = []
+selected_objects = cmds.ls(selection=True)
+for object in selected_objects:
+    generate_ribbon(object, control_joints=True, cyclic=True, local_space=False)
