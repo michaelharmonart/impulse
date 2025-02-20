@@ -14,7 +14,8 @@ def generate_ribbon (
         control_joints: bool = True, 
         number_of_controls: int = None,
         half_controls: bool = True,
-        hide_surfaces: bool = False
+        hide_joints: bool = True,
+        hide_surfaces: bool = False,
     ):
     ribbon_length: float = 2
 
@@ -58,11 +59,10 @@ def generate_ribbon (
                     position = cmds.pointOnSurface(ribbon_object, position=True, parameterU=u, parameterV=v)
                     cmds.select(ribbon_group, replace=True)
                     joint_name = cmds.joint(position=position, radius=1, name=str(ribbon_object)+"_ControlJoint"+str(i+1)+"_JNT")
-                    ctl_name: str = control.generate_control(position, size= 0.2, parent=ribbon_group)
-                    ctl_name = cmds.rename(str(ribbon_object)+str(i+1)+"_CTL")
+                    ctl_name: str = control.generate_control(position, size= 0.4, parent=ribbon_group)
+                    ctl_name = cmds.rename(str(ribbon_object)+"_ControlJoint"+str(i+1)+"_CTL")
                     cmds.parent(ctl_name, ctl_group)
                     locator_name: str = cmds.joint(position=position)
-                    cmds.parentConstraint(ctl_name, joint_name, weight=1)
                     cmds.parentConstraint(ctl_name, joint_name, weight=1)
                     cmds.select(ribbon_object+".uv"+"["+str(u)+"]"+"["+str(v)+"]", replace=True)
                     cmds.select(locator_name, add=True)
@@ -83,8 +83,8 @@ def generate_ribbon (
                     position = cmds.pointOnSurface(ribbon_object, position=True, parameterU=u, parameterV=v)
                     cmds.select(ribbon_group, replace=True)
                     joint_name = cmds.joint(position=position, radius=1, name=str(ribbon_object)+"_ControlJoint"+str(i+1)+"_JNT")
-                    ctl_name: str = control.generate_control(position, size= 0.2, parent=ribbon_group)
-                    ctl_name = cmds.rename(str(ribbon_object)+str(i+1)+"_CTL")
+                    ctl_name: str = control.generate_control(position, size= 0.4, parent=ribbon_group)
+                    ctl_name = cmds.rename(str(ribbon_object)+"_ControlJoint"+str(i+1)+"_CTL")
                     cmds.parent(ctl_name, ctl_group)
                     cmds.parentConstraint(ctl_name, joint_name, weight=1)
                     cmds.select(ribbon_object+".uv"+"["+str(u)+"]"+"["+str(v)+"]", replace=True)
@@ -106,11 +106,18 @@ def generate_ribbon (
                     v = uv[0]
                 position = cmds.pointOnSurface(ribbon_object, position=True, parameterU=u, parameterV=v)
                 joint_name = cmds.joint(position=position, radius=0.5, name=str(ribbon_object)+"_point"+str(i+1)+"_DEF")
+                if hide_joints:
+                    cmds.hide(joint_name)
+                ctl_name: str = control.generate_control(position, size= 0.2, parent=ribbon_group)
+                ctl_name = cmds.rename(str(ribbon_object)+"_point"+str(i+1)+"_CTL")
                 cmds.select(ribbon_object+".uv"+"["+str(u)+"]"+"["+str(v)+"]", replace=True)
-                cmds.select(joint_name, add=True)
+                cmds.select(ctl_name, add=True)
                 cmds.UVPin()
+                cmds.makeIdentity(ctl_name, apply=False)
+                cmds.parent(ctl_name, ctl_group)
+                cmds.parentConstraint(ctl_name, joint_name, weight=1)
                 if not local_space:
-                    cmds.setAttr(joint_name+".inheritsTransform", 0)
+                    cmds.setAttr(ctl_name+".inheritsTransform", 0)
         else:
             for i in range(number_of_joints):
                 cmds.select(ribbon_group, replace=True)
@@ -121,9 +128,16 @@ def generate_ribbon (
                     v = uv[0]
                 position = cmds.pointOnSurface(ribbon_object, position=True, parameterU=u, parameterV=v)
                 joint_name = cmds.joint(position=position, radius=0.5, name=str(ribbon_object)+"_point"+str(i+1)+"_DEF")
+                if hide_joints:
+                    cmds.hide(joint_name)
+                ctl_name: str = control.generate_control(position, size= 0.2, parent=ribbon_group)
+                ctl_name = cmds.rename(str(ribbon_object)+"_point"+str(i+1)+"_CTL")
                 cmds.select(ribbon_object+".uv"+"["+str(u)+"]"+"["+str(v)+"]", replace=True)
-                cmds.select(joint_name, add=True)
+                cmds.select(ctl_name, add=True)
                 cmds.UVPin()
+                cmds.makeIdentity(ctl_name, apply=False)
+                cmds.parent(ctl_name, ctl_group)
+                cmds.parentConstraint(ctl_name, joint_name, weight=1)
                 if not local_space:
                     cmds.setAttr(joint_name+".inheritsTransform", 0)
                
