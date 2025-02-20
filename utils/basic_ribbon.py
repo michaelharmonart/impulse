@@ -7,7 +7,7 @@ def generate_ribbon (
         cyclic: bool = False,
         swap_uv: bool = False,
         local_space: bool = False, 
-        control_joints: bool = False, 
+        control_joints: bool = True, 
         number_of_controls: int = None,
         half_controls: bool = True,
         hide_surfaces: bool = False
@@ -103,4 +103,4 @@ def generate_ribbon (
 selected_objects: str = []
 selected_objects = cmds.ls(selection=True)
 for object in selected_objects:
-    generate_ribbon(object, control_joints=True, cyclic=True, local_space=False)
+    generate_ribbon(object, cyclic=True)

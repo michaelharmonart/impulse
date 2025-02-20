@@ -1,3 +1,5 @@
+from ast import List
+from turtle import pos
 import maya.cmds as cmds
 import maya.mel as mel
 import utils.control_gen as control
@@ -9,7 +11,7 @@ def generate_ribbon (
         cyclic: bool = False,
         swap_uv: bool = False,
         local_space: bool = False, 
-        control_joints: bool = False, 
+        control_joints: bool = True, 
         number_of_controls: int = None,
         half_controls: bool = True,
         hide_surfaces: bool = False
@@ -49,44 +51,62 @@ def generate_ribbon (
                     control_spacing: float = (ribbon_length/(number_of_controls))
                     u: float = (control_spacing*i)
                     v: float = ribbon_width/2
+                    uv: List[float, float] = [u, v]
                     if swap_uv:
-                        position = cmds.pointOnSurface(ribbon_object, position=True, parameterU=v, parameterV=u)
-                    else:
-                        position = cmds.pointOnSurface(ribbon_object, position=True, parameterU=u, parameterV=v)
+                        u = uv[1]
+                        v = uv[0]
+                    position = cmds.pointOnSurface(ribbon_object, position=True, parameterU=u, parameterV=v)
                     cmds.select(ribbon_group, replace=True)
                     joint_name = cmds.joint(position=position, radius=1, name=str(ribbon_object)+"_ControlJoint"+str(i+1)+"_JNT")
                     ctl_name: str = control.generate_control(position, size= 0.2, parent=ribbon_group)
                     ctl_name = cmds.rename(str(ribbon_object)+str(i+1)+"_CTL")
                     cmds.parent(ctl_name, ctl_group)
+                    locator_name: str = cmds.joint(position=position)
                     cmds.parentConstraint(ctl_name, joint_name, weight=1)
                     cmds.parentConstraint(ctl_name, joint_name, weight=1)
+                    cmds.select(ribbon_object+".uv"+"["+str(u)+"]"+"["+str(v)+"]", replace=True)
+                    cmds.select(locator_name, add=True)
+                    cmds.UVPin()
+                    if not local_space:
+                        cmds.setAttr(locator_name+".inheritsTransform", 0)
+                    cmds.matchTransform(ctl_name, locator_name)
+                    cmds.delete(locator_name)
             else:
                 for i in range(number_of_controls + 1):
                     control_spacing: float = (ribbon_length/(number_of_controls))
                     u: float = (control_spacing*i)
                     v: float = ribbon_width/2
+                    uv: List[float, float] = [u, v]
                     if swap_uv:
-                        position = cmds.pointOnSurface(ribbon_object, position=True, parameterU=v, parameterV=u)
-                    else:
-                        position = cmds.pointOnSurface(ribbon_object, position=True, parameterU=u, parameterV=v)
+                        u = uv[1]
+                        v = uv[0]
+                    position = cmds.pointOnSurface(ribbon_object, position=True, parameterU=u, parameterV=v)
                     cmds.select(ribbon_group, replace=True)
                     joint_name = cmds.joint(position=position, radius=1, name=str(ribbon_object)+"_ControlJoint"+str(i+1)+"_JNT")
                     ctl_name: str = control.generate_control(position, size= 0.2, parent=ribbon_group)
                     ctl_name = cmds.rename(str(ribbon_object)+str(i+1)+"_CTL")
                     cmds.parent(ctl_name, ctl_group)
                     cmds.parentConstraint(ctl_name, joint_name, weight=1)
+                    cmds.select(ribbon_object+".uv"+"["+str(u)+"]"+"["+str(v)+"]", replace=True)
+                    cmds.select(locator_name, add=True)
+                    cmds.UVPin()
+                    if not local_space:
+                        cmds.setAttr(locator_name+".inheritsTransform", 0)
+                    cmds.matchTransform(ctl_name, locator_name)
+                    cmds.delete(locator_name)
 
         if cyclic:
             for i in range(number_of_joints):
                 cmds.select(ribbon_group, replace=True)
                 u: float = ((i/(number_of_joints))*ribbon_length)
                 v: float = ribbon_width/2
+                uv: List[float, float] = [u, v]
                 if swap_uv:
-                    position = cmds.pointOnSurface(ribbon_object, position=True, parameterU=v, parameterV=u)
-                else:
-                    position = cmds.pointOnSurface(ribbon_object, position=True, parameterU=u, parameterV=v)
+                    u = uv[1]
+                    v = uv[0]
+                position = cmds.pointOnSurface(ribbon_object, position=True, parameterU=u, parameterV=v)
                 joint_name = cmds.joint(position=position, radius=0.5, name=str(ribbon_object)+"_point"+str(i+1)+"_DEF")
-                cmds.select(ribbon_object+".uv"+"["+str((i/(number_of_joints-2))*2)+"]"+"[0.5]", replace=True)
+                cmds.select(ribbon_object+".uv"+"["+str(u)+"]"+"["+str(v)+"]", replace=True)
                 cmds.select(joint_name, add=True)
                 cmds.UVPin()
                 if not local_space:
@@ -97,14 +117,11 @@ def generate_ribbon (
                 u: float = ((i/(number_of_joints-1))*ribbon_length)
                 v: float = ribbon_width/2
                 if swap_uv:
-                    position = cmds.pointOnSurface(ribbon_object, position=True, parameterU=v, parameterV=u)
-                else:
-                    position = cmds.pointOnSurface(ribbon_object, position=True, parameterU=u, parameterV=v)
+                    u = uv[1]
+                    v = uv[0]
+                position = cmds.pointOnSurface(ribbon_object, position=True, parameterU=u, parameterV=v)
                 joint_name = cmds.joint(position=position, radius=0.5, name=str(ribbon_object)+"_point"+str(i+1)+"_DEF")
-                if swap_uv:
-                    cmds.select(ribbon_object+".uv"+"["+str(v)+"]"+"["+str(u)+"]", replace=True)
-                else:
-                    cmds.select(ribbon_object+".uv"+"["+str(u)+"]"+"["+str(v)+"]", replace=True)
+                cmds.select(ribbon_object+".uv"+"["+str(u)+"]"+"["+str(v)+"]", replace=True)
                 cmds.select(joint_name, add=True)
                 cmds.UVPin()
                 if not local_space:
@@ -114,4 +131,4 @@ def ribbon_from_selected():
     selected_objects: str = []
     selected_objects = cmds.ls(selection=True)
     for object in selected_objects:
-        generate_ribbon(object, control_joints=True, cyclic=True, local_space=False)
+        generate_ribbon(object, cyclic=True)
