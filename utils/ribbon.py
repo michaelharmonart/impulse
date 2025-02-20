@@ -1,3 +1,4 @@
+from typing import List
 import maya.cmds as cmds
 import maya.mel as mel
 from . import control_gen as control
