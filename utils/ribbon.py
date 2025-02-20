@@ -57,7 +57,7 @@ def generate_ribbon (
                     position = cmds.pointOnSurface(ribbon_object, position=True, parameterU=u, parameterV=v)
                     cmds.select(ribbon_group, replace=True)
                     joint_name = cmds.joint(position=position, radius=1, name=str(ribbon_object)+"_ControlJoint"+str(i+1)+"_JNT")
-                    ctl_name: str = control.generate_control(position, size= 0.4, parent=ribbon_group, control_shape=control.ControlShape.SQUARE)
+                    ctl_name: str = control.generate_control(position, size= 0.4, parent=ribbon_group)
                     ctl_name = cmds.rename(str(ribbon_object)+"_ControlJoint"+str(i+1)+"_CTL")
                     cmds.parent(ctl_name, ctl_group)
                     locator_name: str = cmds.joint(position=position)

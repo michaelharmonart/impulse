@@ -52,9 +52,6 @@ def generate_control(
 		string $ml_tempCtrlName = `createNode transform -n "triangle_#"`;
 		createNode nurbsCurve -p $ml_tempCtrlName;
 		setAttr -k off ".v";
-		setAttr ".ove" yes;
-		setAttr ".ovrgbf" yes;
-		setAttr ".ovrgb" -type "float3" 0.15999997 0.29999992 0.875 ;
 		setAttr ".cc" -type "nurbsCurve" 
 		3 8 2 no 3
 		13 -2 -1 0 1 2 3 4 5 6 7 8
@@ -80,9 +77,6 @@ def generate_control(
 		string $ml_tempCtrlName = `createNode transform -n "pill_#"`;
 		createNode nurbsCurve -p $ml_tempCtrlName;
 		setAttr -k off ".v";
-		setAttr ".ove" yes;
-		setAttr ".ovrgbf" yes;
-		setAttr ".ovrgb" -type "float3" 0.15999997 0.29999992 0.875 ;
 		setAttr ".cc" -type "nurbsCurve" 
 		3 16 2 no 3
 		21 -0.125 -0.0625 0 0.0625 0.125 0.1875 0.25 0.3125 0.375 0.4375 0.5
@@ -115,10 +109,6 @@ def generate_control(
         MEL_string: str = """//ML Control Curve: square
         string $ml_tempCtrlName = `createNode transform -n "square_#"`;
         createNode nurbsCurve -p $ml_tempCtrlName;
-        setAttr -k off ".v";
-        setAttr ".ove" yes;
-        setAttr ".ovrgbf" yes;
-        setAttr ".ovrgb" -type "float3" 0.15999997 0.29999992 0.875 ;
         setAttr ".cc" -type "nurbsCurve" 
         3 8 2 no 3
         13 -2 -1 0 1 2 3 4 5 6 7 8
