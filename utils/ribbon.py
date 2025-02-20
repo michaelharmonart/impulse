@@ -1,8 +1,6 @@
-from ast import List
-from turtle import pos
 import maya.cmds as cmds
 import maya.mel as mel
-import utils.control_gen as control
+from . import control_gen as control
 #This uses the UVPin command which has no flags, and depends on the settings you have set in the option box in maya. 
 
 def generate_ribbon (
@@ -59,7 +57,7 @@ def generate_ribbon (
                     position = cmds.pointOnSurface(ribbon_object, position=True, parameterU=u, parameterV=v)
                     cmds.select(ribbon_group, replace=True)
                     joint_name = cmds.joint(position=position, radius=1, name=str(ribbon_object)+"_ControlJoint"+str(i+1)+"_JNT")
-                    ctl_name: str = control.generate_control(position, size= 0.4, parent=ribbon_group)
+                    ctl_name: str = control.generate_control(position, size= 0.4, parent=ribbon_group, control_shape=control.ControlShape.SQUARE)
                     ctl_name = cmds.rename(str(ribbon_object)+"_ControlJoint"+str(i+1)+"_CTL")
                     cmds.parent(ctl_name, ctl_group)
                     locator_name: str = cmds.joint(position=position)
