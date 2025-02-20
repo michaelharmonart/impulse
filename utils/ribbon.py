@@ -64,6 +64,7 @@ def generate_ribbon (
                     cmds.parent(ctl_name, ctl_group)
                     locator_name: str = cmds.joint(position=position)
                     cmds.parentConstraint(ctl_name, joint_name, weight=1)
+                    cmds.scaleConstraint(ctl_name, joint_name, weight=1)
                     cmds.select(ribbon_object+".uv"+"["+str(u)+"]"+"["+str(v)+"]", replace=True)
                     cmds.select(locator_name, add=True)
                     cmds.UVPin()
@@ -87,6 +88,7 @@ def generate_ribbon (
                     ctl_name = cmds.rename(str(ribbon_object)+"_ControlJoint"+str(i+1)+"_CTL")
                     cmds.parent(ctl_name, ctl_group)
                     cmds.parentConstraint(ctl_name, joint_name, weight=1)
+                    cmds.scaleConstraint(ctl_name, joint_name, weight=1)
                     cmds.select(ribbon_object+".uv"+"["+str(u)+"]"+"["+str(v)+"]", replace=True)
                     cmds.select(locator_name, add=True)
                     cmds.UVPin()
@@ -116,6 +118,7 @@ def generate_ribbon (
                 cmds.makeIdentity(ctl_name, apply=False)
                 cmds.parent(ctl_name, ctl_group)
                 cmds.parentConstraint(ctl_name, joint_name, weight=1)
+                cmds.scaleConstraint(ctl_name, joint_name, weight=1)
                 if not local_space:
                     cmds.setAttr(ctl_name+".inheritsTransform", 0)
         else:
@@ -138,6 +141,7 @@ def generate_ribbon (
                 cmds.makeIdentity(ctl_name, apply=False)
                 cmds.parent(ctl_name, ctl_group)
                 cmds.parentConstraint(ctl_name, joint_name, weight=1)
+                cmds.scaleConstraint(ctl_name, joint_name, weight=1)
                 if not local_space:
                     cmds.setAttr(joint_name+".inheritsTransform", 0)
                
