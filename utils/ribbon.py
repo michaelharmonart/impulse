@@ -208,6 +208,7 @@ def ribbon_interpolate (
     mesh_object: str,
     number_of_loops: int = 4
     ):
+
     mesh_shape: str = cmds.listRelatives(mesh_object, shapes=True)[0]
     primary_ribbon_children: List[str] = cmds.listRelatives(primary_ribbon_group, children=True, type="transform")
     primary_ribbon_joints: List[str] = []
@@ -220,11 +221,13 @@ def ribbon_interpolate (
         if child.endswith("DEF"):
             secondary_ribbon_joints.append(child)
     if len(primary_ribbon_joints) == len(secondary_ribbon_joints):
+        group: str = cmds.group(empty=True, name=primary_ribbon_group.replace("GRP","_Interpolate_GRP"))
+        cmds.select(group)
         number_of_joints: int = len(primary_ribbon_joints)
         row_group_list: List[str] = []
         for i in range(number_of_loops):
             row_lerp: float = (1/(number_of_loops+1))*(i+1)
-            row_group: str = cmds.group(name=primary_ribbon_group.replace("GRP","Row"+str(i+1)+"_GRP"), empty=True)
+            row_group: str = cmds.group(name=primary_ribbon_group.replace("GRP","Row"+str(i+1)+"_GRP"), empty=True, parent=group)
             row_group_list.append(row_group)
             cmds.addAttr(row_group,longName="rowBlend", attributeType="float")
             cmds.setAttr(row_group+".rowBlend", row_lerp)
@@ -237,8 +240,8 @@ def ribbon_interpolate (
                 cmds.connectAttr(mesh_shape+".outMesh", primary_closest_point_node+".inMesh")
                 cmds.connectAttr(primary_joint_location_node+".output", primary_closest_point_node+".inPosition")
                 cmds.connectAttr(mesh_object+".worldMatrix", primary_closest_point_node+".inputMatrix")
-                locater: str = cmds.spaceLocator(name=primary_ribbon_joints[i].replace("DEF","LOC"))[0]
-                cmds.connectAttr(primary_closest_point_node+".result.position", locater+".translate")
+                #locater: str = cmds.spaceLocator(name=primary_ribbon_joints[i].replace("DEF","LOC"))[0]
+                #cmds.connectAttr(primary_closest_point_node+".result.position", locater+".translate")
 
                 secondary_joint_location_node: str = cmds.createNode("pointMatrixMult", name=secondary_ribbon_joints[i].replace("DEF","Position"))
                 cmds.connectAttr(secondary_ribbon_joints[i]+".parentMatrix", secondary_joint_location_node+".inMatrix")
@@ -247,22 +250,27 @@ def ribbon_interpolate (
                 cmds.connectAttr(mesh_shape+".outMesh", secondary_closest_point_node+".inMesh")
                 cmds.connectAttr(secondary_joint_location_node+".output", secondary_closest_point_node+".inPosition")
                 cmds.connectAttr(mesh_object+".worldMatrix", secondary_closest_point_node+".inputMatrix")
-                locater: str = cmds.spaceLocator(name=secondary_ribbon_joints[i].replace("DEF","LOC"))[0]
-                cmds.connectAttr(secondary_closest_point_node+".result.position", locater+".translate")
+                #locater: str = cmds.spaceLocator(name=secondary_ribbon_joints[i].replace("DEF","LOC"))[0]
+                #cmds.connectAttr(secondary_closest_point_node+".result.position", locater+".translate")
         
                 for i in range(number_of_loops):
-                    row_lerp: float = (1/(number_of_loops+1))*(i+1)
-                    ctl_name: str = control.generate_control((0,0,0), size= 0.2, parent=primary_ribbon_group)
-                    ctl_name = cmds.rename(str(primary_ribbon_joints[i].replace("DEF",""))+"_Row"+str(i+1)+"_CTL")
-                    uv_pin_node: str = make_UVPin(object_to_pin=ctl_name, surface=mesh_object, u=0.5, v=0.5)
-                    cmds.select(primary_ribbon_group)
-                    joint_name = cmds.joint(radius=1, name=primary_ribbon_group.replace("GRP","Row"+str(i+1)+"ControlJoint_JNT"))
-                    cmds.matchTransform(joint_name, ctl_name)
-                    cmds.parentConstraint(ctl_name, joint_name, weight=1)
-                    cmds.scaleConstraint(ctl_name, joint_name, weight=1)
-                    blend_node_u: str = cmds.blendTwoAttr(attribute0=primary_closest_point_node+".result.parameterU", attribute1=secondary_closest_point_node+".result.parameterU", blender=row_group_list[i]+".rowBlend")[0]
-                    blend_node_v: str = cmds.blendTwoAttr(attribute0=primary_closest_point_node+".result.parameterV", attribute1=secondary_closest_point_node+".result.parameterV", blender=row_group_list[i]+".rowBlend")[0]
+                    cmds.select(row_group_list[i])
+                    row_lerp: float = (1/(number_of_loops+1))*(i)
+                    joint_name = cmds.joint(radius=1, name= primary_ribbon_joints[i].replace("DEF","")+"_Row"+str(i+1)+"_CTL")
+                    cmds.setAttr(joint_name+".inheritsTransform", 0)
+                    uv_pin_node: str = make_UVPin(object_to_pin=joint_name, surface=mesh_object, u=0.5, v=0.5)
 
+                    #cmds.parentConstraint(ctl_name, joint_name, weight=1)
+
+                    blend_node_u: str = cmds.createNode("blendTwoAttr", name=uv_pin_node+"_Blend_U")
+                    cmds.connectAttr(primary_closest_point_node+".result.parameterU", blend_node_u+".input[0]")
+                    cmds.connectAttr(secondary_closest_point_node+".result.parameterU", blend_node_u+".input[1]")
+                    cmds.connectAttr(row_group_list[i]+".rowBlend", blend_node_u+".attributesBlender")
+                    blend_node_v: str = cmds.createNode("blendTwoAttr", name=uv_pin_node+"_Blend_V")
+                    cmds.connectAttr(primary_closest_point_node+".result.parameterV", blend_node_v+".input[0]")
+                    cmds.connectAttr(secondary_closest_point_node+".result.parameterV", blend_node_v+".input[1]")
+                    cmds.connectAttr(row_group_list[i]+".rowBlend", blend_node_v+".attributesBlender")
+                    
                     cmds.connectAttr(blend_node_u+".output", uv_pin_node+".coordinate[0].coordinateU")
                     cmds.connectAttr(blend_node_v+".output", uv_pin_node+".coordinate[0].coordinateV")
     else:
