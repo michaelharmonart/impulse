@@ -135,5 +135,4 @@ def generate_control(
     cmds.xform(pivots=(0,0,0))
     cmds.move(position[0],position[1],position[2], relative=True, worldSpace=True)
     cmds.parent(ctl, parent)
-    print(cmds.ls(selection=True))
     return ctl

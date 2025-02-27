@@ -1,8 +1,68 @@
+from ast import main
 from typing import List
 import maya.cmds as cmds
 import maya.mel as mel
 from . import control_gen as control
 #This uses the UVPin command which has no flags, and depends on the settings you have set in the option box in maya. 
+
+def make_UVPin (
+        object_to_pin: str,
+        surface: str,
+        u: float,
+        v: float,
+    ) -> str:
+    shapeOrig = None
+    shapes = cmds.listRelatives(surface, c = True, s = True)
+    
+    if len(shapes)>1:
+        for s in shapes:
+            io = cmds.getAttr("{0}.intermediateObject".format(s))
+            if io == 1:
+                shapeOrig = s
+            else:
+                shape = s  
+
+    surface_type = cmds.objectType(shapes[0])
+
+    if surface_type == "mesh":
+        componentPrefix = ".vtx"
+        cAttr = ".inMesh"
+        cAttr2 = ".worldMesh[0]"
+        cAttr3 = ".outMesh"
+    elif surface_type == "nurbsSurface":
+        componentPrefix = ".cv"
+        cAttr = ".create"
+        cAttr2 = ".worldSpace[0]"
+        cAttr3 = ".local"
+
+    #create shape origin if there isn't one
+    if shapeOrig == None:
+        shape = shapes[0]
+        dup = cmds.duplicate(shape)
+        shapeOrig = cmds.listRelatives(dup, c = True, s = True)
+        cmds.parent(shapeOrig, surface, s= True, r = True)
+        cmds.delete(dup)
+        shapeOrig = cmds.rename(shapeOrig, "{0}Orig".format(shape))
+        #check if inMesh attr has connection
+        inConn = cmds.listConnections("{0}{1}".format(shape,cAttr), plugs=True, connections=True, destination=True)
+        if inConn != None:
+            cmds.connectAttr(inConn[1], "{0}{1}".format(shapeOrig,cAttr))
+        cmds.connectAttr("{0}{1}".format(shapeOrig,cAttr2), "{0}{1}".format(shape,cAttr), f = True)
+        cmds.setAttr("{0}.intermediateObject".format(shapeOrig), 1)
+    
+    pin = cmds.createNode("uvPin", name = "{0}_uvPin".format(object_to_pin))
+    cmds.connectAttr("{0}{1}".format(shape,cAttr2),"{0}.deformedGeometry".format(pin))
+    cmds.connectAttr("{0}{1}".format(shapeOrig,cAttr3),"{0}.originalGeometry".format(pin))
+    cmds.xform(object_to_pin, translation=[0,0,0], rotation=[0,0,0])
+    cmds.setAttr("{0}.normalAxis".format(pin), 1)
+    cmds.setAttr("{0}.tangentAxis".format(pin), 0)
+    cmds.setAttr("{0}.normalizedIsoParms".format(pin), 0)
+    cmds.setAttr("{0}.coordinate[0]".format(pin), u,v, type='float2')
+    cmds.connectAttr("{0}.outputMatrix[0]".format(pin), "{0}.offsetParentMatrix".format(object_to_pin)) 
+    #cmds.select(surface+".uv"+"["+str(u)+"]"+"["+str(v)+"]", replace=True)
+    #cmds.select(object_to_pin, add=True)
+    #cmds.UVPin()
+    return pin
 
 def generate_ribbon (
         nurbs_surface_name: str, 
@@ -64,9 +124,7 @@ def generate_ribbon (
                     locator_name: str = cmds.joint(position=position)
                     cmds.parentConstraint(ctl_name, joint_name, weight=1)
                     cmds.scaleConstraint(ctl_name, joint_name, weight=1)
-                    cmds.select(ribbon_object+".uv"+"["+str(u)+"]"+"["+str(v)+"]", replace=True)
-                    cmds.select(locator_name, add=True)
-                    cmds.UVPin()
+                    make_UVPin(object_to_pin=locator_name, surface=ribbon_object, u=u, v=v)
                     if not local_space:
                         cmds.setAttr(locator_name+".inheritsTransform", 0)
                     cmds.matchTransform(ctl_name, locator_name)
@@ -88,9 +146,7 @@ def generate_ribbon (
                     cmds.parent(ctl_name, ctl_group)
                     cmds.parentConstraint(ctl_name, joint_name, weight=1)
                     cmds.scaleConstraint(ctl_name, joint_name, weight=1)
-                    cmds.select(ribbon_object+".uv"+"["+str(u)+"]"+"["+str(v)+"]", replace=True)
-                    cmds.select(locator_name, add=True)
-                    cmds.UVPin()
+                    make_UVPin(object_to_pin=locator_name, surface=ribbon_object, u=u, v=v)
                     if not local_space:
                         cmds.setAttr(locator_name+".inheritsTransform", 0)
                     cmds.matchTransform(ctl_name, locator_name)
@@ -111,9 +167,7 @@ def generate_ribbon (
                     cmds.hide(joint_name)
                 ctl_name: str = control.generate_control(position, size= 0.2, parent=ribbon_group)
                 ctl_name = cmds.rename(str(ribbon_object)+"_point"+str(i+1)+"_CTL")
-                cmds.select(ribbon_object+".uv"+"["+str(u)+"]"+"["+str(v)+"]", replace=True)
-                cmds.select(ctl_name, add=True)
-                cmds.UVPin()
+                make_UVPin(object_to_pin=ctl_name, surface=ribbon_object, u=u, v=v)
                 cmds.makeIdentity(ctl_name, apply=False)
                 cmds.parent(ctl_name, ctl_group)
                 cmds.parentConstraint(ctl_name, joint_name, weight=1)
@@ -134,9 +188,7 @@ def generate_ribbon (
                     cmds.hide(joint_name)
                 ctl_name: str = control.generate_control(position, size= 0.2, parent=ribbon_group)
                 ctl_name = cmds.rename(str(ribbon_object)+"_point"+str(i+1)+"_CTL")
-                cmds.select(ribbon_object+".uv"+"["+str(u)+"]"+"["+str(v)+"]", replace=True)
-                cmds.select(ctl_name, add=True)
-                cmds.UVPin()
+                make_UVPin(object_to_pin=ctl_name, surface=ribbon_object, u=u, v=v)
                 cmds.makeIdentity(ctl_name, apply=False)
                 cmds.parent(ctl_name, ctl_group)
                 cmds.parentConstraint(ctl_name, joint_name, weight=1)
@@ -149,3 +201,69 @@ def ribbon_from_selected():
     selected_objects = cmds.ls(selection=True)
     for object in selected_objects:
         generate_ribbon(object, cyclic=True)
+
+def ribbon_interpolate (
+    primary_ribbon_group: str,
+    secondary_ribbon_group: str,
+    mesh_object: str,
+    number_of_loops: int = 4
+    ):
+    mesh_shape: str = cmds.listRelatives(mesh_object, shapes=True)[0]
+    primary_ribbon_children: List[str] = cmds.listRelatives(primary_ribbon_group, children=True, type="transform")
+    primary_ribbon_joints: List[str] = []
+    for child in primary_ribbon_children:
+        if child.endswith("DEF"):
+            primary_ribbon_joints.append(child)
+    secondary_ribbon_children: List[str] = cmds.listRelatives(secondary_ribbon_group, children=True, type="transform")
+    secondary_ribbon_joints: List[str] = []
+    for child in secondary_ribbon_children:
+        if child.endswith("DEF"):
+            secondary_ribbon_joints.append(child)
+    if len(primary_ribbon_joints) == len(secondary_ribbon_joints):
+        number_of_joints: int = len(primary_ribbon_joints)
+        row_group_list: List[str] = []
+        for i in range(number_of_loops):
+            row_lerp: float = (1/(number_of_loops+1))*(i+1)
+            row_group: str = cmds.group(name=primary_ribbon_group.replace("GRP","Row"+str(i+1)+"_GRP"), empty=True)
+            row_group_list.append(row_group)
+            cmds.addAttr(row_group,longName="rowBlend", attributeType="float")
+            cmds.setAttr(row_group+".rowBlend", row_lerp)
+
+        for i in range(number_of_joints):
+                primary_joint_location_node: str = cmds.createNode("pointMatrixMult", name=primary_ribbon_joints[i].replace("DEF","Position"))
+                cmds.connectAttr(primary_ribbon_joints[i]+".parentMatrix", primary_joint_location_node+".inMatrix")
+                cmds.connectAttr(primary_ribbon_joints[i]+".translate", primary_joint_location_node+".inPoint")
+                primary_closest_point_node: str = cmds.createNode("closestPointOnMesh" ,name=primary_ribbon_joints[i].replace("DEF","ClosestPoint"))
+                cmds.connectAttr(mesh_shape+".outMesh", primary_closest_point_node+".inMesh")
+                cmds.connectAttr(primary_joint_location_node+".output", primary_closest_point_node+".inPosition")
+                cmds.connectAttr(mesh_object+".worldMatrix", primary_closest_point_node+".inputMatrix")
+                locater: str = cmds.spaceLocator(name=primary_ribbon_joints[i].replace("DEF","LOC"))[0]
+                cmds.connectAttr(primary_closest_point_node+".result.position", locater+".translate")
+
+                secondary_joint_location_node: str = cmds.createNode("pointMatrixMult", name=secondary_ribbon_joints[i].replace("DEF","Position"))
+                cmds.connectAttr(secondary_ribbon_joints[i]+".parentMatrix", secondary_joint_location_node+".inMatrix")
+                cmds.connectAttr(secondary_ribbon_joints[i]+".translate", secondary_joint_location_node+".inPoint")
+                secondary_closest_point_node: str = cmds.createNode("closestPointOnMesh" ,name=secondary_ribbon_joints[i].replace("DEF","ClosestPoint"))
+                cmds.connectAttr(mesh_shape+".outMesh", secondary_closest_point_node+".inMesh")
+                cmds.connectAttr(secondary_joint_location_node+".output", secondary_closest_point_node+".inPosition")
+                cmds.connectAttr(mesh_object+".worldMatrix", secondary_closest_point_node+".inputMatrix")
+                locater: str = cmds.spaceLocator(name=secondary_ribbon_joints[i].replace("DEF","LOC"))[0]
+                cmds.connectAttr(secondary_closest_point_node+".result.position", locater+".translate")
+        
+                for i in range(number_of_loops):
+                    row_lerp: float = (1/(number_of_loops+1))*(i+1)
+                    ctl_name: str = control.generate_control((0,0,0), size= 0.2, parent=primary_ribbon_group)
+                    ctl_name = cmds.rename(str(primary_ribbon_joints[i].replace("DEF",""))+"_Row"+str(i+1)+"_CTL")
+                    uv_pin_node: str = make_UVPin(object_to_pin=ctl_name, surface=mesh_object, u=0.5, v=0.5)
+                    cmds.select(primary_ribbon_group)
+                    joint_name = cmds.joint(radius=1, name=primary_ribbon_group.replace("GRP","Row"+str(i+1)+"ControlJoint_JNT"))
+                    cmds.matchTransform(joint_name, ctl_name)
+                    cmds.parentConstraint(ctl_name, joint_name, weight=1)
+                    cmds.scaleConstraint(ctl_name, joint_name, weight=1)
+                    blend_node_u: str = cmds.blendTwoAttr(attribute0=primary_closest_point_node+".result.parameterU", attribute1=secondary_closest_point_node+".result.parameterU", blender=row_group_list[i]+".rowBlend")[0]
+                    blend_node_v: str = cmds.blendTwoAttr(attribute0=primary_closest_point_node+".result.parameterV", attribute1=secondary_closest_point_node+".result.parameterV", blender=row_group_list[i]+".rowBlend")[0]
+
+                    cmds.connectAttr(blend_node_u+".output", uv_pin_node+".coordinate[0].coordinateU")
+                    cmds.connectAttr(blend_node_v+".output", uv_pin_node+".coordinate[0].coordinateV")
+    else:
+        raise Exception("Make sure you only have two ribbons selected and the number of joints is the same in both")
