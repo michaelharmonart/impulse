@@ -1,7 +1,4 @@
-from ast import main
-from typing import List
 import maya.cmds as cmds
-import maya.mel as mel
 from . import control_gen as control
 #This uses the UVPin command which has no flags, and depends on the settings you have set in the option box in maya. 
 
@@ -25,18 +22,16 @@ def make_UVPin (
     surface_type = cmds.objectType(shapes[0])
 
     if surface_type == "mesh":
-        componentPrefix = ".vtx"
         cAttr = ".inMesh"
         cAttr2 = ".worldMesh[0]"
         cAttr3 = ".outMesh"
     elif surface_type == "nurbsSurface":
-        componentPrefix = ".cv"
         cAttr = ".create"
         cAttr2 = ".worldSpace[0]"
         cAttr3 = ".local"
 
     #create shape origin if there isn't one
-    if shapeOrig == None:
+    if shapeOrig is None:
         shape = shapes[0]
         dup = cmds.duplicate(shape)
         shapeOrig = cmds.listRelatives(dup, c = True, s = True)
@@ -45,7 +40,7 @@ def make_UVPin (
         shapeOrig = cmds.rename(shapeOrig, "{0}Orig".format(shape))
         #check if inMesh attr has connection
         inConn = cmds.listConnections("{0}{1}".format(shape,cAttr), plugs=True, connections=True, destination=True)
-        if inConn != None:
+        if inConn is not None:
             cmds.connectAttr(inConn[1], "{0}{1}".format(shapeOrig,cAttr))
         cmds.connectAttr("{0}{1}".format(shapeOrig,cAttr2), "{0}{1}".format(shape,cAttr), f = True)
         cmds.setAttr("{0}.intermediateObject".format(shapeOrig), 1)
@@ -111,7 +106,7 @@ def generate_ribbon (
                     control_spacing: float = (ribbon_length/(number_of_controls))
                     u: float = (control_spacing*i)
                     v: float = ribbon_width/2
-                    uv: List[float, float] = [u, v]
+                    uv: list[float, float] = [u, v]
                     if swap_uv:
                         u = uv[1]
                         v = uv[0]
@@ -134,7 +129,7 @@ def generate_ribbon (
                     control_spacing: float = (ribbon_length/(number_of_controls))
                     u: float = (control_spacing*i)
                     v: float = ribbon_width/2
-                    uv: List[float, float] = [u, v]
+                    uv: list[float, float] = [u, v]
                     if swap_uv:
                         u = uv[1]
                         v = uv[0]
@@ -157,7 +152,7 @@ def generate_ribbon (
                 cmds.select(ribbon_group, replace=True)
                 u: float = ((i/(number_of_joints))*ribbon_length)
                 v: float = ribbon_width/2
-                uv: List[float, float] = [u, v]
+                uv: list[float, float] = [u, v]
                 if swap_uv:
                     u = uv[1]
                     v = uv[0]
@@ -210,13 +205,13 @@ def ribbon_interpolate (
     ):
 
     mesh_shape: str = cmds.listRelatives(mesh_object, shapes=True)[0]
-    primary_ribbon_children: List[str] = cmds.listRelatives(primary_ribbon_group, children=True, type="transform")
-    primary_ribbon_joints: List[str] = []
+    primary_ribbon_children: list[str] = cmds.listRelatives(primary_ribbon_group, children=True, type="transform")
+    primary_ribbon_joints: list[str] = []
     for child in primary_ribbon_children:
         if child.endswith("DEF"):
             primary_ribbon_joints.append(child)
-    secondary_ribbon_children: List[str] = cmds.listRelatives(secondary_ribbon_group, children=True, type="transform")
-    secondary_ribbon_joints: List[str] = []
+    secondary_ribbon_children: list[str] = cmds.listRelatives(secondary_ribbon_group, children=True, type="transform")
+    secondary_ribbon_joints: list[str] = []
     for child in secondary_ribbon_children:
         if child.endswith("DEF"):
             secondary_ribbon_joints.append(child)
@@ -224,7 +219,7 @@ def ribbon_interpolate (
         group: str = cmds.group(empty=True, name=primary_ribbon_group.replace("GRP","_Interpolate_GRP"))
         cmds.select(group)
         number_of_joints: int = len(primary_ribbon_joints)
-        row_group_list: List[str] = []
+        row_group_list: list[str] = []
         for i in range(number_of_loops):
             row_lerp: float = (1/(number_of_loops+1))*(i+1)
             row_group: str = cmds.group(name=primary_ribbon_group.replace("GRP","Row"+str(i+1)+"_GRP"), empty=True, parent=group)
