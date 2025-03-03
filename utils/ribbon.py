@@ -13,7 +13,7 @@ def make_UVPin (
     
     if len(shapes)>1:
         for s in shapes:
-            io = cmds.getAttr("{0}.intermediateObject".format(s))
+            io = cmds.getAttr(f"{s}.intermediateObject")
             if io == 1:
                 shapeOrig = s
             else:
@@ -37,23 +37,23 @@ def make_UVPin (
         shapeOrig = cmds.listRelatives(dup, c = True, s = True)
         cmds.parent(shapeOrig, surface, s= True, r = True)
         cmds.delete(dup)
-        shapeOrig = cmds.rename(shapeOrig, "{0}Orig".format(shape))
+        shapeOrig = cmds.rename(shapeOrig, f"{shape}Orig")
         #check if inMesh attr has connection
-        inConn = cmds.listConnections("{0}{1}".format(shape,cAttr), plugs=True, connections=True, destination=True)
+        inConn = cmds.listConnections(f"{shape}{cAttr}", plugs=True, connections=True, destination=True)
         if inConn is not None:
-            cmds.connectAttr(inConn[1], "{0}{1}".format(shapeOrig,cAttr))
-        cmds.connectAttr("{0}{1}".format(shapeOrig,cAttr2), "{0}{1}".format(shape,cAttr), f = True)
-        cmds.setAttr("{0}.intermediateObject".format(shapeOrig), 1)
+            cmds.connectAttr(inConn[1], f"{shapeOrig}{cAttr}")
+        cmds.connectAttr(f"{shapeOrig}{cAttr2}", f"{shape}{cAttr}", f = True)
+        cmds.setAttr(f"{shapeOrig}.intermediateObject", 1)
     
-    pin = cmds.createNode("uvPin", name = "{0}_uvPin".format(object_to_pin))
-    cmds.connectAttr("{0}{1}".format(shape,cAttr2),"{0}.deformedGeometry".format(pin))
-    cmds.connectAttr("{0}{1}".format(shapeOrig,cAttr3),"{0}.originalGeometry".format(pin))
+    pin = cmds.createNode("uvPin", name = f"{object_to_pin}_uvPin")
+    cmds.connectAttr(f"{shape}{cAttr2}", f"{pin}.deformedGeometry")
+    cmds.connectAttr(f"{shapeOrig}{cAttr3}", f"{pin}.originalGeometry")
     cmds.xform(object_to_pin, translation=[0,0,0], rotation=[0,0,0])
-    cmds.setAttr("{0}.normalAxis".format(pin), 1)
-    cmds.setAttr("{0}.tangentAxis".format(pin), 0)
-    cmds.setAttr("{0}.normalizedIsoParms".format(pin), 0)
-    cmds.setAttr("{0}.coordinate[0]".format(pin), u,v, type='float2')
-    cmds.connectAttr("{0}.outputMatrix[0]".format(pin), "{0}.offsetParentMatrix".format(object_to_pin)) 
+    cmds.setAttr(f"{pin}.normalAxis", 1)
+    cmds.setAttr(f"{pin}.tangentAxis", 0)
+    cmds.setAttr(f"{pin}.normalizedIsoParms", 0)
+    cmds.setAttr(f"{pin}.coordinate[0]", u,v, type='float2')
+    cmds.connectAttr("{0}.outputMatrix[0]", f"{object_to_pin}.offsetParentMatrix") 
     #cmds.select(surface+".uv"+"["+str(u)+"]"+"["+str(v)+"]", replace=True)
     #cmds.select(object_to_pin, add=True)
     #cmds.UVPin()
