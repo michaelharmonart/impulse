@@ -10,7 +10,7 @@ It leverages custom control curves from the control_gen module.
 """
 
 import maya.cmds as cmds
-from . import control_gen as control
+from . import control as control
 
 
 def make_uv_pin (object_to_pin: str, surface: str, u: float, v: float,) -> str:

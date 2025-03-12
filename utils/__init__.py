@@ -1,2 +1,2 @@
-from . import control_gen as control_gen
+from . import control as control
 from . import ribbon as ribbon
