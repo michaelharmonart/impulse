@@ -101,8 +101,8 @@ def generate_ribbon (
         swap_uv: If True, swap U and V parameters when evaluating surface positions.
         local_space: If False, disable transform inheritance on generated objects.
         control_joints: If True, create control joints with control curves.
-        number_of_controls: Number of control joints; if None, computed from surface length.
-        half_controls: If True and number_of_controls is None, use half the ribbon length.
+        number_of_controls: Number of control joints; if None, assume one per isoparm (one per unit in UV space)
+        half_controls: If True and number_of_controls is None, assume one per two isoparms.
         hide_joints: If True, hide generated deformation joints.
         hide_surfaces: If True, hide the original and duplicated surfaces.
     """
