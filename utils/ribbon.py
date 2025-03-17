@@ -81,7 +81,7 @@ def make_uv_pin (object_to_pin: str, surface: str, u: float, v: float,) -> str:
 
 def generate_ribbon (
         nurbs_surface_name: str, 
-        number_of_joints: int = 16,
+        number_of_joints: int = None,
         cyclic: bool = False,
         swap_uv: bool = False,
         local_space: bool = False, 
@@ -96,7 +96,7 @@ def generate_ribbon (
 
     Args:
         nurbs_surface_name: Name of the input NURBS surface.
-        number_of_joints: Number of deformation joints along the ribbon.
+        number_of_joints: Number of deformation joints along the ribbon; if None, assume two per control joint
         cyclic: Whether the ribbon is cyclic (closed loop).
         swap_uv: If True, swap U and V parameters when evaluating surface positions.
         local_space: If False, disable transform inheritance on generated objects.
@@ -116,11 +116,11 @@ def generate_ribbon (
                    
     # Get ribbon dimensions from surface attributes.
     if swap_uv:
-        ribbon_length = cmds.getAttr(f"{surface_shape}.minMaxRangeV")[0][1]
-        ribbon_width = cmds.getAttr(f"{surface_shape}.minMaxRangeU")[0][1]
+        ribbon_length = cmds.getAttr(f"{surface_shape}.spansUV")[0][1]
+        ribbon_width = cmds.getAttr(f"{surface_shape}.spansUV")[0][0]
     else:
-        ribbon_length = cmds.getAttr(f"{surface_shape}.minMaxRangeU")[0][1]
-        ribbon_width = cmds.getAttr(f"{surface_shape}.minMaxRangeV")[0][1]
+        ribbon_length = cmds.getAttr(f"{surface_shape}.spansUV")[0][0]
+        ribbon_width = cmds.getAttr(f"{surface_shape}.spansUV")[0][1]
 
     # Determine the number of controls if not provided.
     if number_of_controls is None:
@@ -128,7 +128,9 @@ def generate_ribbon (
         if half_controls:
             number_of_controls //= 2
 
-
+    # Determine the number of joints if not provided.
+    if number_of_joints is None:
+        number_of_joints = int(number_of_controls*2)
     
     # Duplicate the surface to serve as the ribbon and organize it.
     ribbon_object = cmds.duplicate(nurbs_surface_name, name=f"{nurbs_surface_name}_ribbon")[0]
@@ -197,13 +199,16 @@ def generate_ribbon (
         create_deformation_joint(i, number_of_joints)
 
 
-def ribbon_from_selected() -> None:
+def ribbon_from_selected(
+        cyclic: bool = True,
+        half_controls: bool = False,
+) -> None:
     """
-    Generate a cyclic ribbon rig from each currently selected object.
+    Generate a ribbon rig from each currently selected object.
     """
     selected_objects = cmds.ls(selection=True) or []
     for obj in selected_objects:
-        generate_ribbon(obj, cyclic=True)
+        generate_ribbon(obj, cyclic=cyclic, half_controls=half_controls)
 
 
 def ribbon_interpolate (
