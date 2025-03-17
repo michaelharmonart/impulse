@@ -127,11 +127,11 @@ def generate_ribbon (
         number_of_controls = int(ribbon_length)
         if half_controls:
             number_of_controls //= 2
-
+    
     # Determine the number of joints if not provided.
     if number_of_joints is None:
-        number_of_joints = int(number_of_controls*2)
-    
+        number_of_joints = int(ribbon_length*2)
+
     # Duplicate the surface to serve as the ribbon and organize it.
     ribbon_object = cmds.duplicate(nurbs_surface_name, name=f"{nurbs_surface_name}_ribbon")[0]
     ribbon_group = cmds.group(ribbon_object, name=f"{ribbon_object}_GRP")
@@ -202,19 +202,20 @@ def generate_ribbon (
 def ribbon_from_selected(
         cyclic: bool = True,
         half_controls: bool = False,
+        number_of_joints: int = None,
 ) -> None:
     """
     Generate a ribbon rig from each currently selected object.
     """
     selected_objects = cmds.ls(selection=True) or []
     for obj in selected_objects:
-        generate_ribbon(obj, cyclic=cyclic, half_controls=half_controls)
+        generate_ribbon(obj, cyclic=cyclic, half_controls=half_controls, number_of_joints=number_of_joints)
 
 
 def ribbon_interpolate (
         primary_ribbon_group: str,
         secondary_ribbon_group: str,
-        mesh_object: str,
+        interpolation_object: str,
         number_of_loops: int = 4
 ) -> None:
     """
@@ -227,13 +228,25 @@ def ribbon_interpolate (
     Args:
         primary_ribbon_group: The first ribbon group's name.
         secondary_ribbon_group: The second ribbon group's name.
-        mesh_object: The mesh to which the interpolation is based.
+        interpolation_object: The object to which the interpolation is based.
         number_of_loops: Number of blending rows to create.
     """
-    mesh_shapes = cmds.listRelatives(mesh_object, shapes=True) or []
-    if not mesh_shapes:
-        cmds.error(f"No shape node found on mesh: {mesh_object}")
-    mesh_shape = mesh_shapes[0]
+    shapes = cmds.listRelatives(interpolation_object, shapes=True) or []
+    if not shapes:
+        cmds.error(f"No shape node found on object: {interpolation_object}")
+    shape = shapes[0]
+    
+    surface_type = cmds.objectType(shape)
+    if surface_type == "mesh":
+        cp_node_type = "closestPointOnMesh"
+        attr_world = ".worldMesh[0]"
+        cp_input = ".inMesh"
+    elif surface_type == "nurbsSurface":
+        cp_node_type = "closestPointOnSurface"
+        attr_world = ".worldSpace[0]"
+        cp_input = ".inputSurface"
+    else:
+        cmds.error(f"Unsupported surface type: {surface_type}")
 
     def get_def_joints(ribbon_group: str) -> list[str]:
         children = cmds.listRelatives(ribbon_group, children=True, type="transform") or []
@@ -261,26 +274,30 @@ def ribbon_interpolate (
         primary_pos_node = cmds.createNode("pointMatrixMult", name=primary_joints[joint_idx].replace("DEF", "Position"))
         cmds.connectAttr(f"{primary_joints[joint_idx]}.parentMatrix", f"{primary_pos_node}.inMatrix")
         cmds.connectAttr(f"{primary_joints[joint_idx]}.translate", f"{primary_pos_node}.inPoint")
-        primary_cp_node = cmds.createNode("closestPointOnMesh", name=primary_joints[joint_idx].replace("DEF", "ClosestPoint"))
-        cmds.connectAttr(f"{mesh_shape}.outMesh", f"{primary_cp_node}.inMesh")
+    
+        primary_cp_node = cmds.createNode(cp_node_type, name=primary_joints[joint_idx].replace("DEF", "ClosestPoint"))
+        cmds.connectAttr(f"{shape}{attr_world}", f"{primary_cp_node}{cp_input}")
         cmds.connectAttr(f"{primary_pos_node}.output", f"{primary_cp_node}.inPosition")
-        cmds.connectAttr(f"{mesh_object}.worldMatrix", f"{primary_cp_node}.inputMatrix")
+        if surface_type == "mesh":
+            cmds.connectAttr(f"{shape}.worldMatrix[0]", f"{primary_cp_node}.inputMatrix")
 
         # Create nodes for the secondary joint.
         secondary_pos_node = cmds.createNode("pointMatrixMult", name=secondary_joints[joint_idx].replace("DEF", "Position"))
         cmds.connectAttr(f"{secondary_joints[joint_idx]}.parentMatrix", f"{secondary_pos_node}.inMatrix")
         cmds.connectAttr(f"{secondary_joints[joint_idx]}.translate", f"{secondary_pos_node}.inPoint")
-        secondary_cp_node = cmds.createNode("closestPointOnMesh", name=secondary_joints[joint_idx].replace("DEF", "ClosestPoint"))
-        cmds.connectAttr(f"{mesh_shape}.outMesh", f"{secondary_cp_node}.inMesh")
+
+        secondary_cp_node = cmds.createNode(cp_node_type, name=secondary_joints[joint_idx].replace("DEF", "ClosestPoint"))
+        cmds.connectAttr(f"{shape}{attr_world}", f"{secondary_cp_node}{cp_input}")
         cmds.connectAttr(f"{secondary_pos_node}.output", f"{secondary_cp_node}.inPosition")
-        cmds.connectAttr(f"{mesh_object}.worldMatrix", f"{secondary_cp_node}.inputMatrix")
+        if surface_type == "mesh":
+            cmds.connectAttr(f"{shape}.worldMatrix[0]", f"{secondary_cp_node}.inputMatrix")
 
         # For each blending row, create a control joint with blended UV attributes.
         for row_idx, row_group in enumerate(row_groups):
             cmds.select(row_group)
             blend_joint = cmds.joint(radius=1, name=primary_joints[joint_idx].replace("DEF", f"_Row{row_idx+1}_CTL"))
             cmds.setAttr(f"{blend_joint}.inheritsTransform", 0)
-            uv_pin_node = make_uv_pin(object_to_pin=blend_joint, surface=mesh_object, u=0.5, v=0.5)
+            uv_pin_node = make_uv_pin(object_to_pin=blend_joint, surface=interpolation_object, u=0.5, v=0.5)
 
             blend_u_node = cmds.createNode("blendTwoAttr", name=f"{uv_pin_node}_Blend_U")
             cmds.connectAttr(f"{primary_cp_node}.result.parameterU", f"{blend_u_node}.input[0]")
