@@ -144,7 +144,7 @@ def generate_ribbon (
         cmds.setAttr(f"{ribbon_object}.inheritsTransform", 0)
 
     # Helper to create a control joint given a position.
-    def create_control_joint(idx: int, total_controls: int) -> None:
+    def create_control_joint(idx: int, total_controls: int) -> str:
         control_spacing = ribbon_length / total_controls
         u_val = control_spacing * idx
         v_val = ribbon_width / 2.0
@@ -153,24 +153,26 @@ def generate_ribbon (
         pos = cmds.pointOnSurface(ribbon_object, position=True, parameterU=u_val, parameterV=v_val)
         cmds.select(ribbon_group, replace=True)
         joint_name = cmds.joint(position=pos, radius=1, name=f"{ribbon_object}_ControlJoint{idx+1}_JNT")
-        ctl_name = control.generate_control(pos, size=0.4, parent=ribbon_group)
-        ctl_name = cmds.rename(ctl_name, f"{ribbon_object}_ControlJoint{idx+1}_CTL")
+        ctl_name = control.generate_control(name=f"{ribbon_object}_ControlJoint{idx+1}", position=pos, size=0.4, parent=ribbon_group)
         cmds.parent(ctl_name, ctl_group)
         # Create temporary locator for UV pinning.
+        cmds.select(ctl_group)
         temp_locator = cmds.joint(position=pos)
-        cmds.parentConstraint(ctl_name, joint_name, weight=1)
-        cmds.scaleConstraint(ctl_name, joint_name, weight=1)
+        control.connect(ctl_name, joint_name)
         make_uv_pin(object_to_pin=temp_locator, surface=ribbon_object, u=u_val, v=v_val)
         if not local_space:
             cmds.setAttr(f"{temp_locator}.inheritsTransform", 0)
         cmds.matchTransform(ctl_name, temp_locator)
         cmds.delete(temp_locator)
+        return joint_name
     
     # Create control joints if requested.
     control_range = range(number_of_controls) if cyclic else range(number_of_controls + 1)
     if control_joints:
         for i in control_range:
-            create_control_joint(i, number_of_controls)
+            joint_name = create_control_joint(i, number_of_controls)
+            #if hide_joints:
+            #    cmds.hide(joint_name)
     
     # Helper to create a deformation joint.
     def create_deformation_joint(idx: int, total_joints: int) -> None:
@@ -184,13 +186,11 @@ def generate_ribbon (
         joint_name = cmds.joint(position=pos, radius=0.5, name=f"{ribbon_object}_point{idx+1}_DEF")
         if hide_joints:
             cmds.hide(joint_name)
-        ctl_name = control.generate_control(pos, size=0.2, parent=ribbon_group)
-        ctl_name = cmds.rename(ctl_name, f"{ribbon_object}_point{idx+1}_CTL")
+        ctl_name = control.generate_control(name = f"{ribbon_object}_point{idx+1}", position=pos, size=0.2, parent=ribbon_group)
         make_uv_pin(object_to_pin=ctl_name, surface=ribbon_object, u=u_val, v=v_val)
         cmds.makeIdentity(ctl_name, apply=False)
         cmds.parent(ctl_name, ctl_group)
-        cmds.parentConstraint(ctl_name, joint_name, weight=1)
-        cmds.scaleConstraint(ctl_name, joint_name, weight=1)
+        control.connect(ctl_name, joint_name)
         if not local_space:
             cmds.setAttr(f"{ctl_name}.inheritsTransform", 0)
 

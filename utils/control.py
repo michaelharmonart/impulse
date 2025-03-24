@@ -1,6 +1,7 @@
 import maya.cmds as cmds
 import maya.mel as mel
 from enum import Enum
+import warnings
 
 class ControlShape(Enum):
     """Enum for available control shapes."""
@@ -115,9 +116,10 @@ setAttr ".cc" -type "nurbsCurve"
 
 
 def generate_control(
-        position: tuple[float, float, float],
-        size: float,
+        name: str,
         parent: str,
+        position: tuple[float, float, float] = (0,0,0),
+        size: float = 1,
         control_shape: ControlShape = ControlShape.CIRCLE,
         offset: float = 0.1,
 ) -> str:
@@ -157,11 +159,28 @@ def generate_control(
 
     # Adjust the control's scale, apply an offset, reset transforms, and reposition.
     cmds.select(control_transform)
+    control_transform= cmds.rename(control_transform, f"{name}_CTL")
     cmds.scale(size, size, size, relative=True)
     cmds.move(0, offset, 0, relative=True)
     cmds.makeIdentity(apply=True)
     cmds.xform(control_transform, pivots=(0, 0, 0))
+    control_transform = cmds.group(control_transform, name=f"{name}_OFFSET")
     cmds.move(position[0], position[1], position[2], relative=True, worldSpace=True)
     cmds.parent(control_transform, parent)
     
     return control_transform
+
+def connect(
+        control_name: str,
+        driven_name: str,
+        connect_scale: bool = True,
+) -> None:
+    children = cmds.listRelatives(control_name, children=True, type="transform") or []
+    if len(children) == 0:
+        raise RuntimeError(f"{control_name} doesn't have a child control transform, is it a valid control?")
+    if len(children) > 1:
+        warnings.warn(f"{control_name} has multiple child transforms, is it a valid control?")
+    control_transform: str = children[0]
+    cmds.parentConstraint(control_transform, driven_name, weight=1)
+    if connect_scale:
+        cmds.scaleConstraint(control_transform, driven_name, weight=1)
