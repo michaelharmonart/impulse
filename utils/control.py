@@ -9,7 +9,12 @@ class ControlShape(Enum):
     TRIANGLE = 1
     SQUARE = 2
     PILL = 3
-    
+
+class Direction(Enum):
+    """Enum for available control directions"""
+    X = 0
+    Y = 1
+    Z = 2
 
 # Mapping from control shape to its corresponding MEL command string.
 MEL_COMMANDS = {
@@ -117,8 +122,10 @@ setAttr ".cc" -type "nurbsCurve"
 
 def generate_control(
         name: str,
-        parent: str,
+        parent: str = None,
         position: tuple[float, float, float] = (0,0,0),
+        direction: Direction = Direction.Y,
+        opposite_direction: bool = False,
         size: float = 1,
         control_shape: ControlShape = ControlShape.CIRCLE,
         offset: float = 0.1,
@@ -129,10 +136,12 @@ def generate_control(
     
     Args:
         position: (x, y, z) coordinates for the control's final position.
-        size: Scaling factor for the control curve.
         parent: Name of the parent transform.
+        direction: Direction control shape will face.
+        size: Scaling factor for the control curve.
         control_shape: The type of control shape to create.
         offset: Vertical offset applied immediately after creation.
+        use_opm: Use offset parent matrix instead of offset transform group (cleaner hierarchy) 
     
     Returns:
         The name of the created control transform.
@@ -164,9 +173,24 @@ def generate_control(
     cmds.move(0, offset, 0, relative=True)
     cmds.makeIdentity(apply=True)
     cmds.xform(control_transform, pivots=(0, 0, 0))
+
+    if direction == Direction.X:
+        if opposite_direction:
+            cmds.rotate(0,0,90) 
+        else:
+            cmds.rotate(0,0,-90)
+    elif direction == Direction.Z:
+        if opposite_direction:
+            cmds.rotate(-90,0,0) 
+        else:
+            cmds.rotate(90,0,0)
+    cmds.makeIdentity(apply=True)
+    cmds.xform(control_transform, pivots=(0, 0, 0))
+       
     control_transform = cmds.group(control_transform, name=f"{name}_OFFSET")
     cmds.move(position[0], position[1], position[2], relative=True, worldSpace=True)
-    cmds.parent(control_transform, parent)
+    if parent:
+        cmds.parent(control_transform, parent)
     
     return control_transform
 

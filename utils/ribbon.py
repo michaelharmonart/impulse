@@ -89,6 +89,7 @@ def generate_ribbon (
         control_joints: bool = True, 
         number_of_controls: int = None,
         half_controls: bool = True,
+        control_direction: control.Direction = None,
         hide_joints: bool = True,
         hide_surfaces: bool = False,
 ) -> None:
@@ -106,6 +107,7 @@ def generate_ribbon (
         half_controls: If True and number_of_controls is None, assume one per two isoparms.
         hide_joints: If True, hide generated deformation joints.
         hide_surfaces: If True, hide the original and duplicated surfaces.
+        snap_surface: If set, defines a surface/mesh that the ribbon controls will snap to.
     """
     # Retrieve the surface shape and ensure it is a NURBS surface.
     surface_shapes = cmds.listRelatives(nurbs_surface_name, shapes=True) or []
@@ -154,7 +156,7 @@ def generate_ribbon (
         pos = cmds.pointOnSurface(ribbon_object, position=True, parameterU=u_val, parameterV=v_val)
         cmds.select(ribbon_group, replace=True)
         joint_name = cmds.joint(position=pos, radius=1, name=f"{ribbon_object}_ControlJoint{idx+1}_JNT")
-        ctl_name = control.generate_control(name=f"{ribbon_object}_ControlJoint{idx+1}", position=pos, size=0.4, parent=ribbon_group)
+        ctl_name = control.generate_control(name=f"{ribbon_object}_ControlJoint{idx+1}", position=pos, size=0.4, parent=ribbon_group, direction=control_direction)
         cmds.parent(ctl_name, ctl_group)
         # Create temporary locator for UV pinning.
         cmds.select(ctl_group)
@@ -187,7 +189,7 @@ def generate_ribbon (
         joint_name = cmds.joint(position=pos, radius=0.5, name=f"{ribbon_object}_point{idx+1}_DEF")
         if hide_joints:
             cmds.hide(joint_name)
-        ctl_name = control.generate_control(name = f"{ribbon_object}_point{idx+1}", position=pos, size=0.2, parent=ribbon_group)
+        ctl_name = control.generate_control(name = f"{ribbon_object}_point{idx+1}", position=pos, size=0.2, parent=ribbon_group, direction=control_direction)
         make_uv_pin(object_to_pin=ctl_name, surface=ribbon_object, u=u_val, v=v_val)
         cmds.makeIdentity(ctl_name, apply=False)
         cmds.parent(ctl_name, ctl_group)
@@ -223,6 +225,7 @@ def generate_ribbon (
 def ribbon_from_selected(
         cyclic: bool = True,
         half_controls: bool = False,
+        control_direction: control.Direction = None,
         number_of_joints: int = None,
         number_of_interpolation_joints: int = None,
         swap_uv=False,
@@ -239,6 +242,7 @@ def ribbon_from_selected(
                 number_of_joints=number_of_joints, 
                 number_of_interpolation_joints=number_of_interpolation_joints,
                 swap_uv=swap_uv,
+                control_direction=control_direction,
         )
 
 
