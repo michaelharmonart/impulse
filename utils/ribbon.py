@@ -11,73 +11,7 @@ It leverages custom control curves from the control_gen module.
 
 import maya.cmds as cmds
 from . import control as control
-
-
-def make_uv_pin (object_to_pin: str, surface: str, u: float, v: float,) -> str:
-    """
-    Create a UVPin node that pins an object to a given surface at specified UV coordinates.
-
-    Args:
-        object_to_pin: The name of the object to be pinned.
-        surface: The name of the surface (mesh or NURBS) to pin to.
-        u: The U coordinate.
-        v: The V coordinate.
-
-    Returns:
-        The name of the created UVPin node.
-    """
-    # Retrieve shape nodes from the surface.
-    shapes = cmds.listRelatives(surface, children=True, shapes=True) or []
-    if not shapes:
-        cmds.error(f"No shape nodes found on surface: {surface}")
-    
-    # Choose the primary shape (non-intermediate if available) and check for an existing intermediate shape.
-    primary_shape = next((s for s in shapes if not cmds.getAttr(f"{s}.intermediateObject")), shapes[0])
-    shape_origin = next((s for s in shapes if cmds.getAttr(f"{s}.intermediateObject")), None) 
-
-    # Determine attribute names based on surface type.
-    surface_type = cmds.objectType(primary_shape)
-    if surface_type == "mesh":
-        attr_input = ".inMesh"
-        attr_world = ".worldMesh[0]"
-        attr_output = ".outMesh"
-    elif surface_type == "nurbsSurface":
-        attr_input = ".create"
-        attr_world = ".worldSpace[0]"
-        attr_output = ".local"
-    else:
-        cmds.error(f"Unsupported surface type: {surface_type}")
-
-    # If no intermediate shape exists, create one.
-    if shape_origin is None:
-        duplicated = cmds.duplicate(primary_shape)[0]
-        shape_origin_list = cmds.listRelatives(duplicated, children=True, shapes=True)
-        if not shape_origin_list:
-            cmds.error("Could not create intermediate shape.")
-        shape_origin = shape_origin_list[0]
-        cmds.parent(shape_origin, surface, shape=True, relative=True)
-        cmds.delete(duplicated)
-        new_name = f"{primary_shape}Orig"
-        shape_origin = cmds.rename(shape_origin, new_name)
-        # If there is an incoming connection, reconnect it.
-        in_conn = cmds.listConnections(f"{primary_shape}{attr_input}", plugs=True, connections=True, destination=True)
-        if in_conn:
-            cmds.connectAttr(in_conn[1], f"{shape_origin}{attr_input}")
-        cmds.connectAttr(f"{shape_origin}{attr_world}", f"{primary_shape}{attr_input}", force=True)
-        cmds.setAttr(f"{shape_origin}.intermediateObject", 1)
-    
-    # Create the UVPin node and connect it.
-    uv_pin = cmds.createNode("uvPin", name=f"{object_to_pin}_uvPin")
-    cmds.connectAttr(f"{primary_shape}{attr_world}", f"{uv_pin}.deformedGeometry")
-    cmds.connectAttr(f"{shape_origin}{attr_output}", f"{uv_pin}.originalGeometry")
-    cmds.xform(object_to_pin, translation=[0, 0, 0], rotation=[0, 0, 0])
-    cmds.setAttr(f"{uv_pin}.normalAxis", 1)
-    cmds.setAttr(f"{uv_pin}.tangentAxis", 0)
-    cmds.setAttr(f"{uv_pin}.normalizedIsoParms", 0)
-    cmds.setAttr(f"{uv_pin}.coordinate[0]", u, v, type="float2")
-    cmds.connectAttr(f"{uv_pin}.outputMatrix[0]", f"{object_to_pin}.offsetParentMatrix")
-    return uv_pin
-
+from . import uv_pin as uv_pin
 
 def generate_ribbon (
         nurbs_surface_name: str, 
@@ -162,9 +96,7 @@ def generate_ribbon (
         cmds.select(ctl_group)
         temp_locator = cmds.joint(position=pos)
         control.connect(ctl_name, joint_name)
-        make_uv_pin(object_to_pin=temp_locator, surface=ribbon_object, u=u_val, v=v_val)
-        if not local_space:
-            cmds.setAttr(f"{temp_locator}.inheritsTransform", 0)
+        uv_pin.make_uv_pin(object_to_pin=temp_locator, surface=ribbon_object, u=u_val, v=v_val, local_space=local_space)
         cmds.matchTransform(ctl_name, temp_locator)
         cmds.delete(temp_locator)
         return joint_name
@@ -190,12 +122,10 @@ def generate_ribbon (
         if hide_joints:
             cmds.hide(joint_name)
         ctl_name = control.generate_control(name = f"{ribbon_object}_point{idx+1}", position=pos, size=0.2, parent=ribbon_group, direction=control_direction)
-        make_uv_pin(object_to_pin=ctl_name, surface=ribbon_object, u=u_val, v=v_val)
+        uv_pin.make_uv_pin(object_to_pin=ctl_name, surface=ribbon_object, u=u_val, v=v_val, local_space=local_space)
         cmds.makeIdentity(ctl_name, apply=False)
         cmds.parent(ctl_name, ctl_group)
         control.connect(ctl_name, joint_name)
-        if not local_space:
-            cmds.setAttr(f"{ctl_name}.inheritsTransform", 0)
    
     # Helper to create a interpolation joint.
     def create_interpolation_joint(idx: int, total_joints: int) -> None:
@@ -208,9 +138,7 @@ def generate_ribbon (
         cmds.select(ribbon_group, replace=True)
         joint_name = cmds.joint(position=pos, radius=0.5, name=f"{ribbon_object}_point{idx+1}_INT")
         cmds.hide(joint_name)
-        make_uv_pin(object_to_pin=joint_name, surface=ribbon_object, u=u_val, v=v_val)
-        if not local_space:
-            cmds.setAttr(f"{joint_name}.inheritsTransform", 0)
+        uv_pin.make_uv_pin(object_to_pin=joint_name, surface=ribbon_object, u=u_val, v=v_val, local_space=local_space)
 
     # Create deformation joints.
     for i in range(number_of_joints):
@@ -336,7 +264,7 @@ def ribbon_interpolate (
             cmds.select(row_group)
             blend_joint = cmds.joint(radius=1, name=primary_joints[joint_idx].replace(interpolation_joint_suffix, f"_Row{row_idx+1}_CTL"))
             cmds.setAttr(f"{blend_joint}.inheritsTransform", 0)
-            uv_pin_node = make_uv_pin(object_to_pin=blend_joint, surface=interpolation_object, u=0.5, v=0.5)
+            uv_pin_node = uv_pin.make_uv_pin(object_to_pin=blend_joint, surface=interpolation_object, u=0.5, v=0.5)
 
             blend_u_node = cmds.createNode("blendTwoAttr", name=f"{uv_pin_node}_Blend_U")
             cmds.connectAttr(f"{primary_cp_node}.result.parameterU", f"{blend_u_node}.input[0]")

@@ -1,5 +1,7 @@
 import maya.cmds as cmds
 import maya.mel as mel
+from . import uv_pin as uv_pin
+from . import math as math
 from enum import Enum
 import warnings
 
@@ -168,6 +170,83 @@ def generate_control(
 
     # Adjust the control's scale, apply an offset, reset transforms, and reposition.
     cmds.select(control_transform)
+    control_transform = cmds.rename(control_transform, f"{name}_CTL")
+    cmds.scale(size, size, size, relative=True)
+    cmds.move(0, offset, 0, relative=True)
+    cmds.makeIdentity(apply=True)
+    cmds.xform(control_transform, pivots=(0, 0, 0))
+
+    if direction == Direction.X:
+        if opposite_direction:
+            cmds.rotate(0,0,90) 
+        else:
+            cmds.rotate(0,0,-90)
+    elif direction == Direction.Z:
+        if opposite_direction:
+            cmds.rotate(-90,0,0) 
+        else:
+            cmds.rotate(90,0,0)
+    cmds.makeIdentity(apply=True)
+    cmds.xform(control_transform, pivots=(0, 0, 0))
+
+    control_transform = cmds.group(control_transform, name=f"{name}_OFFSET")
+    cmds.move(position[0], position[1], position[2], relative=True, worldSpace=True)
+    if parent:
+        cmds.parent(control_transform, parent)
+    
+    return control_transform
+
+def generate_surface_control(
+        name: str,
+        surface: str,
+        parent: str = None,
+        position: tuple[float, float, float] = (0,0,0),
+        control_sensitivity: tuple[float, float] = (1,1),
+        direction: Direction = Direction.Y,
+        opposite_direction: bool = False,
+        size: float = 1,
+        control_shape: ControlShape = ControlShape.CIRCLE,
+        offset: float = 0.1,
+) -> str:
+    """
+    Create a control that moves only along a given surface (plus an offset).
+    
+    Args:
+        surface: The surface (mesh or NURBS) that the control will move along.
+        parent: Name of the transform to parent control to.
+        position: World space position that will be projected onto the surface to set the default control position in UV space.
+        control_sensitivity: multiplier for UV space movement from the control transform (needed since the surface UV space will be 0-1 matter how large it is)
+        direction: Direction control shape will face.
+        size: Scaling factor for the control curve.
+        control_shape: The type of control shape to create.
+        offset: Vertical offset applied immediately after creation.
+        use_opm: Use offset parent matrix instead of offset transform group (cleaner hierarchy) 
+    
+    Returns:
+        The name of the created control transform.
+    """
+    
+    # Retrieve the MEL command for the desired control shape.
+    mel_command = MEL_COMMANDS.get(control_shape)
+    if mel_command is None:
+        raise ValueError(f"Unsupported control shape: {control_shape}")
+
+    # Execute the MEL command to create the control curve.
+    mel.eval(mel_command)
+    
+    # Retrieve the created control (assumes the curve is currently selected).
+    selection = cmds.ls(selection=True)
+    if not selection:
+        raise RuntimeError("No control created; check the MEL command output.")
+    
+    # Get the transform node from the selected curve.
+    control_transform = cmds.listRelatives(selection[0], parent=True)
+    if not control_transform:
+        raise RuntimeError("Control creation failed; no parent transform found.")
+    control_transform = control_transform[0]
+
+    # Adjust the control's scale, apply an offset, reset transforms, and reposition.
+    cmds.select(control_transform)
     control_transform= cmds.rename(control_transform, f"{name}_CTL")
     cmds.scale(size, size, size, relative=True)
     cmds.move(0, offset, 0, relative=True)
@@ -186,25 +265,90 @@ def generate_control(
             cmds.rotate(90,0,0)
     cmds.makeIdentity(apply=True)
     cmds.xform(control_transform, pivots=(0, 0, 0))
+
+    control_static_group = cmds.group(control_transform, name=f"{name}_STATIC")
+    offset_matrix_compose = cmds.createNode("composeMatrix", name=f"{control_transform}_offsetMatrixCompose")
+    cmds.connectAttr(f"{control_transform}.translate.translateX",f"{offset_matrix_compose}.inputTranslate.inputTranslateX")
+    cmds.connectAttr(f"{control_transform}.translate.translateZ",f"{offset_matrix_compose}.inputTranslate.inputTranslateZ")
+    matrix_inverse = cmds.createNode("inverseMatrix", name=f"{control_transform}_inverseMatrix")
+    cmds.connectAttr(f"{offset_matrix_compose}.outputMatrix",f"{matrix_inverse}.inputMatrix")  
+    cmds.connectAttr(f"{matrix_inverse}.outputMatrix",f"{control_static_group}.offsetParentMatrix") 
        
-    control_transform = cmds.group(control_transform, name=f"{name}_OFFSET")
-    cmds.move(position[0], position[1], position[2], relative=True, worldSpace=True)
-    if parent:
-        cmds.parent(control_transform, parent)
+    offset_transform = cmds.group(control_static_group, name=f"{name}_OFFSET")
     
-    return control_transform
+    shapes = cmds.listRelatives(surface, shapes=True) or []
+    if not shapes:
+        cmds.error(f"No shape node found on object: {surface}")
+    shape = shapes[0]
+    
+    surface_type = cmds.objectType(shape)
+    if surface_type == "mesh":
+        cp_node_type = "closestPointOnMesh"
+        attr_world = ".worldMesh[0]"
+        cp_input = ".inMesh"
+    elif surface_type == "nurbsSurface":
+        cp_node_type = "closestPointOnSurface"
+        attr_world = ".worldSpace[0]"
+        cp_input = ".inputSurface"
+    else:   
+        raise RuntimeError(f"{surface} is of type {surface_type}, but should be NURBS or a mesh.")
+    
+    #Create temp node to get the UV of the closest point on the surface to the default location of this control.
+    cp_node = cmds.createNode(cp_node_type, name=f"{name}_closestPoint_TEMP")
+    cmds.connectAttr(f"{shape}{attr_world}", f"{cp_node}{cp_input}")
+    if surface_type == "mesh":
+        cmds.connectAttr(f"{shape}.worldMatrix[0]", f"{cp_node}.inputMatrix")
+    cmds.setAttr(f"{cp_node}.inPosition", position[0], position[1], position[2])
+    default_u = cmds.getAttr(f"{cp_node}.result.parameterU")
+    default_v = cmds.getAttr(f"{cp_node}.result.parameterV")
+    min_max_u: tuple[float, float] = (0, 1)
+    min_max_v: tuple[float, float] = (0, 1)
+    if surface_type == "nurbsSurface":
+        min_max_u = cmds.getAttr(f"{shape}.minMaxRangeU")[0]
+        min_max_v = cmds.getAttr(f"{shape}.minMaxRangeV")[0]
+    cmds.delete(cp_node)
+    default_u = math.remap(default_u, min_max_u, (0,1))
+    default_v = math.remap(default_v, min_max_v, (0,1))
+
+    uv_pin_node = uv_pin.make_uv_pin(object_to_pin=offset_transform, surface=surface, u= default_u, v=default_v, normalize=True)
+    multiplier = cmds.createNode("multiplyDivide", name=f"{name}_sensitivityMultiply")
+    cmds.connectAttr(f"{control_transform}.translate.translateX" , f"{multiplier}.input1.input1X")
+    cmds.connectAttr(f"{control_transform}.translate.translateZ" , f"{multiplier}.input1.input1Z")
+    cmds.setAttr(f"{multiplier}.input2.input2X", control_sensitivity[0])
+    cmds.setAttr(f"{multiplier}.input2.input2Z", -control_sensitivity[1])
+    u_adder = cmds.createNode("addDoubleLinear", name=f"{name}_uOffsetAdd")
+    v_adder = cmds.createNode("addDoubleLinear", name=f"{name}_vOffsetAdd")
+    cmds.connectAttr(f"{multiplier}.output.outputX", f"{u_adder}.input1")
+    cmds.setAttr(f"{u_adder}.input2", default_u)
+    cmds.connectAttr(f"{multiplier}.output.outputZ", f"{v_adder}.input1")
+    cmds.setAttr(f"{v_adder}.input2", default_v)
+    u_clamp = cmds.createNode("clampRange", name=f"{name}_uClamp")
+    v_clamp = cmds.createNode("clampRange", name=f"{name}_vClamp")
+    cmds.connectAttr(f"{u_adder}.output", f"{u_clamp}.input")
+    cmds.connectAttr(f"{v_adder}.output", f"{v_clamp}.input")
+
+    cmds.connectAttr(f"{u_clamp}.output", f"{uv_pin_node}.coordinate[0].coordinateU")
+    cmds.connectAttr(f"{v_clamp}.output", f"{uv_pin_node}.coordinate[0].coordinateV")
+
+    if parent:
+        cmds.parent(offset_transform, parent)
+    
+    return offset_transform
 
 def connect(
         control_name: str,
         driven_name: str,
         connect_scale: bool = True,
 ) -> None:
-    children = cmds.listRelatives(control_name, children=True, type="transform") or []
+    children = cmds.listRelatives(control_name, allDescendents=True, type="transform") or []
     if len(children) == 0:
-        raise RuntimeError(f"{control_name} doesn't have a child control transform, is it a valid control?")
-    if len(children) > 1:
-        warnings.warn(f"{control_name} has multiple child transforms, is it a valid control?")
-    control_transform: str = children[0]
+        raise RuntimeError(f"{control_name} doesn't have any child transforms that could be a control shape, is it a valid control? Here are it's children: {children}")
+    control_transform: str = None
+    for child in children:
+        if child.endswith("_CTL"):
+            control_transform: str = child
+    if control_transform is None:
+        raise RuntimeError(f"{control_name} doesn't have a child transform ending in CTL, is it a valid control? Here are it's children: {children}")
     cmds.parentConstraint(control_transform, driven_name, weight=1)
     if connect_scale:
         cmds.scaleConstraint(control_transform, driven_name, weight=1)
