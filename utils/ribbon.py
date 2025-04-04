@@ -25,6 +25,8 @@ def generate_ribbon (
         number_of_controls: int = None,
         half_controls: bool = True,
         control_direction: control.Direction = None,
+        control_normal_axis: str = None,
+        control_tangent_axis: str = None,
         hide_joints: bool = True,
         hide_surfaces: bool = False,
 ) -> None:
@@ -98,7 +100,7 @@ def generate_ribbon (
         cmds.select(ctl_group)
         temp_locator = cmds.joint(position=pos)
         control.connect(ctl_name, joint_name)
-        uv_pin.make_uv_pin(object_to_pin=temp_locator, surface=ribbon_object, u=u_val, v=v_val, local_space=local_space)
+        uv_pin.make_uv_pin(object_to_pin=temp_locator, surface=ribbon_object, u=u_val, v=v_val, local_space=local_space, normal_axis=control_normal_axis, tangent_axis=control_tangent_axis)
         cmds.matchTransform(ctl_name, temp_locator)
         cmds.delete(temp_locator)
         return joint_name
@@ -124,7 +126,7 @@ def generate_ribbon (
         if hide_joints:
             cmds.hide(joint_name)
         ctl_name = control.generate_control(name = f"{ribbon_object}_point{idx+1}", position=pos, size=0.2, parent=ribbon_group, direction=control_direction)
-        uv_pin.make_uv_pin(object_to_pin=ctl_name, surface=ribbon_object, u=u_val, v=v_val, local_space=local_space)
+        uv_pin.make_uv_pin(object_to_pin=ctl_name, surface=ribbon_object, u=u_val, v=v_val, local_space=local_space, normal_axis=control_normal_axis, tangent_axis=control_tangent_axis)
         cmds.makeIdentity(ctl_name, apply=False)
         cmds.parent(ctl_name, ctl_group)
         control.connect(ctl_name, joint_name)
@@ -140,7 +142,7 @@ def generate_ribbon (
         cmds.select(ribbon_group, replace=True)
         joint_name = cmds.joint(position=pos, radius=0.5, name=f"{ribbon_object}_point{idx+1}_INT")
         cmds.hide(joint_name)
-        uv_pin.make_uv_pin(object_to_pin=joint_name, surface=ribbon_object, u=u_val, v=v_val, local_space=local_space)
+        uv_pin.make_uv_pin(object_to_pin=joint_name, surface=ribbon_object, u=u_val, v=v_val, local_space=local_space, normal_axis=control_normal_axis, tangent_axis=control_tangent_axis)
 
     # Create deformation joints.
     for i in range(number_of_joints):
@@ -155,7 +157,8 @@ def generate_ribbon (
 def ribbon_from_selected(
         cyclic: bool = True,
         half_controls: bool = False,
-        control_direction: control.Direction = None,
+        control_normal_axis: str = None,
+        control_tangent_axis: str = None,
         number_of_joints: int = None,
         number_of_interpolation_joints: int = None,
         swap_uv=False,
@@ -172,7 +175,8 @@ def ribbon_from_selected(
                 number_of_joints=number_of_joints, 
                 number_of_interpolation_joints=number_of_interpolation_joints,
                 swap_uv=swap_uv,
-                control_direction=control_direction,
+                control_normal_axis=control_normal_axis,
+                control_tangent_axis=control_tangent_axis,
         )
 
 

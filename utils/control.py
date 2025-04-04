@@ -303,13 +303,24 @@ def generate_surface_control(
     cmds.connectAttr(f"{shape}{attr_world}", f"{cp_node}{cp_input}")
     if surface_type == "mesh":
         cmds.connectAttr(f"{shape}.worldMatrix[0]", f"{cp_node}.inputMatrix")
+    
+    x_attribute = f"{control_transform}.translate.translateX"
+    z_attribute = f"{control_transform}.translate.translateZ"
     if match_transform:
         position = cmds.xform(match_transform, worldSpace=True, query=True, translation=True)
-        temp_locator = cmds.group(empty=True, parent=offset_transform)
-        cmds.parentConstraint(match_transform, temp_locator, maintainOffset=False)
-        rotation_y = cmds.getAttr(f"{temp_locator}.rotate.rotateY")
-        cmds.delete(temp_locator)
-        cmds.xform(control_transform, rotation=(0,rotation_y,0), worldSpace=False)
+        rotate_matrix = cmds.createNode("composeMatrix", name=f"{name}_rotationMatrixCompose")
+        cmds.connectAttr(f"{offset_transform}.rotate.rotateY", f"{rotate_matrix}.inputRotate.inputRotateY")
+        translate_matrix = cmds.createNode("composeMatrix", name=f"{name}_translateMatrixCompose")
+        cmds.connectAttr(f"{control_transform}.translate.translateX", f"{translate_matrix}.inputTranslate.inputTranslateX")
+        cmds.connectAttr(f"{control_transform}.translate.translateZ", f"{translate_matrix}.inputTranslate.inputTranslateZ")
+        multiplied_matrix = cmds.createNode("multMatrix", name=f"{name}_multMatrix")
+        cmds.connectAttr(f"{translate_matrix}.outputMatrix", f"{multiplied_matrix}.matrixIn[0]")
+        cmds.connectAttr(f"{rotate_matrix}.outputMatrix", f"{multiplied_matrix}.matrixIn[1]")
+        decompose_matrix = cmds.createNode("decomposeMatrix", name=f"{name}_decomposeMatrix")
+        cmds.connectAttr(f"{multiplied_matrix}.matrixSum", f"{decompose_matrix}.inputMatrix")
+        x_attribute = f"{decompose_matrix}.outputTranslate.outputTranslateX"
+        z_attribute = f"{decompose_matrix}.outputTranslate.outputTranslateZ"
+
     cmds.setAttr(f"{cp_node}.inPosition", position[0], position[1], position[2])
     default_u: float = cmds.getAttr(f"{cp_node}.result.parameterU")
     default_v: float = cmds.getAttr(f"{cp_node}.result.parameterV")
@@ -326,8 +337,12 @@ def generate_surface_control(
     default_v = math.remap(default_v, min_max_v, (0,1))
 
     uv_pin_node = uv_pin.make_uv_pin(object_to_pin=offset_transform, surface=surface, u= default_u, v=default_v, normalize=True)
-    x_attribute = f"{control_transform}.translate.translateX"
-    z_attribute = f"{control_transform}.translate.translateZ"
+    if match_transform:
+        temp_locator = cmds.group(empty=True, parent=offset_transform)
+        cmds.parentConstraint(match_transform, temp_locator, maintainOffset=False)
+        rotation_y = cmds.getAttr(f"{temp_locator}.rotate.rotateY")
+        cmds.delete(temp_locator)
+        cmds.xform(offset_transform, rotation=(0,rotation_y,0), worldSpace=False)
 
     multiplier = cmds.createNode("multiplyDivide", name=f"{name}_sensitivityMultiply")
     cmds.connectAttr(x_attribute, f"{multiplier}.input1.input1X")
