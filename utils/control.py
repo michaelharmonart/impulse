@@ -201,6 +201,7 @@ def generate_surface_control(
         surface: str,
         parent: str = None,
         position: tuple[float, float, float] = (0,0,0),
+        match_transform: str = None,
         control_sensitivity: tuple[float, float] = (1,1),
         direction: Direction = Direction.Y,
         opposite_direction: bool = False,
@@ -215,6 +216,7 @@ def generate_surface_control(
         surface: The surface (mesh or NURBS) that the control will move along.
         parent: Name of the transform to parent control to.
         position: World space position that will be projected onto the surface to set the default control position in UV space.
+        match_transform: when set, the control will be generated to match the position and angle of the given transform node.
         control_sensitivity: multiplier for UV space movement from the control transform (needed since the surface UV space will be 0-1 matter how large it is)
         direction: Direction control shape will face.
         size: Scaling factor for the control curve.
@@ -226,6 +228,8 @@ def generate_surface_control(
         The name of the created control transform.
     """
     
+    
+
     # Retrieve the MEL command for the desired control shape.
     mel_command = MEL_COMMANDS.get(control_shape)
     if mel_command is None:
@@ -244,6 +248,7 @@ def generate_surface_control(
     if not control_transform:
         raise RuntimeError("Control creation failed; no parent transform found.")
     control_transform = control_transform[0]
+
 
     # Adjust the control's scale, apply an offset, reset transforms, and reposition.
     cmds.select(control_transform)
@@ -275,7 +280,6 @@ def generate_surface_control(
     cmds.connectAttr(f"{matrix_inverse}.outputMatrix",f"{control_static_group}.offsetParentMatrix") 
        
     offset_transform = cmds.group(control_static_group, name=f"{name}_OFFSET")
-    
     shapes = cmds.listRelatives(surface, shapes=True) or []
     if not shapes:
         cmds.error(f"No shape node found on object: {surface}")
@@ -294,28 +298,42 @@ def generate_surface_control(
         raise RuntimeError(f"{surface} is of type {surface_type}, but should be NURBS or a mesh.")
     
     #Create temp node to get the UV of the closest point on the surface to the default location of this control.
+    rotation_y = 0
     cp_node = cmds.createNode(cp_node_type, name=f"{name}_closestPoint_TEMP")
     cmds.connectAttr(f"{shape}{attr_world}", f"{cp_node}{cp_input}")
     if surface_type == "mesh":
         cmds.connectAttr(f"{shape}.worldMatrix[0]", f"{cp_node}.inputMatrix")
+    if match_transform:
+        position = cmds.xform(match_transform, worldSpace=True, query=True, translation=True)
+        temp_locator = cmds.group(empty=True, parent=offset_transform)
+        cmds.parentConstraint(match_transform, temp_locator, maintainOffset=False)
+        rotation_y = cmds.getAttr(f"{temp_locator}.rotate.rotateY")
+        cmds.delete(temp_locator)
+        cmds.xform(control_transform, rotation=(0,rotation_y,0), worldSpace=False)
     cmds.setAttr(f"{cp_node}.inPosition", position[0], position[1], position[2])
-    default_u = cmds.getAttr(f"{cp_node}.result.parameterU")
-    default_v = cmds.getAttr(f"{cp_node}.result.parameterV")
+    default_u: float = cmds.getAttr(f"{cp_node}.result.parameterU")
+    default_v: float = cmds.getAttr(f"{cp_node}.result.parameterV")
     min_max_u: tuple[float, float] = (0, 1)
     min_max_v: tuple[float, float] = (0, 1)
     if surface_type == "nurbsSurface":
         min_max_u = cmds.getAttr(f"{shape}.minMaxRangeU")[0]
         min_max_v = cmds.getAttr(f"{shape}.minMaxRangeV")[0]
     cmds.delete(cp_node)
+    u_range: float = min_max_u[1]-min_max_u[0]
+    v_range: float = min_max_v[1]-min_max_v[0]
+    uv_ratio: float = u_range/v_range
     default_u = math.remap(default_u, min_max_u, (0,1))
     default_v = math.remap(default_v, min_max_v, (0,1))
 
     uv_pin_node = uv_pin.make_uv_pin(object_to_pin=offset_transform, surface=surface, u= default_u, v=default_v, normalize=True)
+    x_attribute = f"{control_transform}.translate.translateX"
+    z_attribute = f"{control_transform}.translate.translateZ"
+
     multiplier = cmds.createNode("multiplyDivide", name=f"{name}_sensitivityMultiply")
-    cmds.connectAttr(f"{control_transform}.translate.translateX" , f"{multiplier}.input1.input1X")
-    cmds.connectAttr(f"{control_transform}.translate.translateZ" , f"{multiplier}.input1.input1Z")
+    cmds.connectAttr(x_attribute, f"{multiplier}.input1.input1X")
+    cmds.connectAttr(z_attribute , f"{multiplier}.input1.input1Z")
     cmds.setAttr(f"{multiplier}.input2.input2X", control_sensitivity[0])
-    cmds.setAttr(f"{multiplier}.input2.input2Z", -control_sensitivity[1])
+    cmds.setAttr(f"{multiplier}.input2.input2Z", -control_sensitivity[1]*uv_ratio)
     u_adder = cmds.createNode("addDoubleLinear", name=f"{name}_uOffsetAdd")
     v_adder = cmds.createNode("addDoubleLinear", name=f"{name}_vOffsetAdd")
     cmds.connectAttr(f"{multiplier}.output.outputX", f"{u_adder}.input1")

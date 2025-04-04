@@ -15,6 +15,7 @@ from . import uv_pin as uv_pin
 
 def generate_ribbon (
         nurbs_surface_name: str, 
+        attach_surface: str = None,
         number_of_joints: int = None,
         number_of_interpolation_joints: int = None,
         cyclic: bool = False,
@@ -32,6 +33,7 @@ def generate_ribbon (
 
     Args:
         nurbs_surface_name: Name of the input NURBS surface.
+        attach_surface: If set, will define a surface that this ribbon will be locked to.
         number_of_joints: Number of deformation joints along the ribbon; if None, assume two per control joint
         cyclic: Whether the ribbon is cyclic (closed loop).
         swap_uv: If True, swap U and V parameters when evaluating surface positions.
