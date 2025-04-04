@@ -385,3 +385,17 @@ def connect(
     cmds.parentConstraint(control_transform, driven_name, weight=1)
     if connect_scale:
         cmds.scaleConstraint(control_transform, driven_name, weight=1)
+
+def get_control_transform(
+        control_name: str,
+) -> str:
+    children = cmds.listRelatives(control_name, allDescendents=True, type="transform") or []
+    if len(children) == 0:
+        raise RuntimeError(f"{control_name} doesn't have any child transforms that could be a control shape, is it a valid control? Here are it's children: {children}")
+    control_transform: str = None
+    for child in children:
+        if child.endswith("_CTL"):
+            control_transform: str = child
+    if control_transform is None:
+        raise RuntimeError(f"{control_name} doesn't have a child transform ending in CTL, is it a valid control? Here are it's children: {children}")
+    return control_transform

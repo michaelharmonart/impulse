@@ -27,6 +27,7 @@ def generate_ribbon (
         control_direction: control.Direction = None,
         control_normal_axis: str = None,
         control_tangent_axis: str = None,
+        control_sensitivity: float = 1,
         hide_joints: bool = True,
         hide_surfaces: bool = False,
 ) -> None:
@@ -92,16 +93,25 @@ def generate_ribbon (
         if swap_uv:
             u_val, v_val = v_val, u_val
         pos = cmds.pointOnSurface(ribbon_object, position=True, parameterU=u_val, parameterV=v_val)
-        cmds.select(ribbon_group, replace=True)
-        joint_name = cmds.joint(position=pos, radius=1, name=f"{ribbon_object}_ControlJoint{idx+1}_JNT")
-        ctl_name = control.generate_control(name=f"{ribbon_object}_ControlJoint{idx+1}", position=pos, size=0.4, parent=ribbon_group, direction=control_direction)
-        cmds.parent(ctl_name, ctl_group)
-        # Create temporary locator for UV pinning.
+         # Create temporary locator for UV pinning.
         cmds.select(ctl_group)
         temp_locator = cmds.joint(position=pos)
-        control.connect(ctl_name, joint_name)
-        uv_pin.make_uv_pin(object_to_pin=temp_locator, surface=ribbon_object, u=u_val, v=v_val, local_space=local_space, normal_axis=control_normal_axis, tangent_axis=control_tangent_axis)
-        cmds.matchTransform(ctl_name, temp_locator)
+        
+        cmds.select(ribbon_group, replace=True)
+        joint_name = cmds.joint(position=pos, radius=1, name=f"{ribbon_object}_ControlJoint{idx+1}_JNT")
+        if attach_surface:
+            uv_pin.make_uv_pin(object_to_pin=temp_locator, surface=ribbon_object, u=u_val, v=v_val, local_space=local_space, normal_axis=control_normal_axis, tangent_axis=control_tangent_axis)
+            ctl_name = control.generate_surface_control(name=f"{ribbon_object}_ControlJoint{idx+1}", size=0.4, parent=ribbon_group, direction=control_direction, match_transform=temp_locator, surface=attach_surface, control_sensitivity=(control_sensitivity, control_sensitivity))
+            cmds.matchTransform(joint_name, temp_locator)
+            cmds.parent(ctl_name, ctl_group)
+            control.connect(ctl_name, joint_name)
+        else:    
+            ctl_name = control.generate_control(name=f"{ribbon_object}_ControlJoint{idx+1}", position=pos, size=0.4, parent=ribbon_group, direction=control_direction)
+            cmds.parent(ctl_name, ctl_group)
+            control.connect(ctl_name, joint_name)
+            uv_pin.make_uv_pin(object_to_pin=temp_locator, surface=ribbon_object, u=u_val, v=v_val, local_space=local_space, normal_axis=control_normal_axis, tangent_axis=control_tangent_axis)
+            cmds.matchTransform(ctl_name, temp_locator)
+        
         cmds.delete(temp_locator)
         return joint_name
     
@@ -129,7 +139,39 @@ def generate_ribbon (
         uv_pin.make_uv_pin(object_to_pin=ctl_name, surface=ribbon_object, u=u_val, v=v_val, local_space=local_space, normal_axis=control_normal_axis, tangent_axis=control_tangent_axis)
         cmds.makeIdentity(ctl_name, apply=False)
         cmds.parent(ctl_name, ctl_group)
-        control.connect(ctl_name, joint_name)
+        if attach_surface:
+            shapes = cmds.listRelatives(attach_surface, shapes=True) or []
+            if not shapes:
+                cmds.error(f"No shape node found on object: {attach_surface}")
+            shape = shapes[0]
+            
+            surface_type = cmds.objectType(shape)
+            if surface_type == "mesh":
+                cp_node_type = "closestPointOnMesh"
+                attr_world = ".worldMesh[0]"
+                cp_input = ".inMesh"
+            elif surface_type == "nurbsSurface":
+                cp_node_type = "closestPointOnSurface"
+                attr_world = ".worldSpace[0]"
+                cp_input = ".inputSurface"
+            else:
+                cmds.error(f"Unsupported surface type: {surface_type}")
+
+            control_transform = control.get_control_transform(ctl_name)
+            world_position = cmds.createNode("pointMatrixMult", name=f"{ctl_name}_worldPosition")
+            cmds.connectAttr(f"{control_transform}.parentMatrix", f"{world_position}.inMatrix")
+            cmds.connectAttr(f"{control_transform}.translate", f"{world_position}.inPoint")
+            cp_node = cmds.createNode(cp_node_type, name=f"{ctl_name}_closestPoint")
+            cmds.connectAttr(f"{shape}{attr_world}", f"{cp_node}{cp_input}")
+            cmds.connectAttr(f"{world_position}.output", f"{cp_node}.inPosition")
+            output_position = cmds.group(empty=True, parent=ctl_name, name=f"{ctl_name}_OUT")
+            uv_pin_node = uv_pin.make_uv_pin(object_to_pin=output_position, surface=attach_surface, local_space=local_space, normalize=False)
+            cmds.connectAttr(f"{cp_node}.result.parameterU", f"{uv_pin_node}.coordinate[0].coordinateU")
+            cmds.connectAttr(f"{cp_node}.result.parameterV", f"{uv_pin_node}.coordinate[0].coordinateV")
+            cmds.parentConstraint(output_position, joint_name, weight=1)
+            cmds.scaleConstraint(output_position, joint_name, weight=1)
+        else:
+            control.connect(ctl_name, joint_name)
    
     # Helper to create a interpolation joint.
     def create_interpolation_joint(idx: int, total_joints: int) -> None:
@@ -162,6 +204,8 @@ def ribbon_from_selected(
         number_of_joints: int = None,
         number_of_interpolation_joints: int = None,
         swap_uv=False,
+        attach_surface: str = None,
+        control_sensitivity: float = 1,
 ) -> None:
     """
     Generate a ribbon rig from each currently selected object.
@@ -177,6 +221,8 @@ def ribbon_from_selected(
                 swap_uv=swap_uv,
                 control_normal_axis=control_normal_axis,
                 control_tangent_axis=control_tangent_axis,
+                attach_surface=attach_surface,
+                control_sensitivity=control_sensitivity,
         )
 
 

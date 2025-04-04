@@ -4,8 +4,8 @@ import maya.cmds as cmds
 def make_uv_pin (
         object_to_pin: str, 
         surface: str, 
-        u: float, 
-        v: float,
+        u: float = 0, 
+        v: float = 0,
         local_space: bool = False,
         normalize: bool = False,
         normal_axis: str = None,
