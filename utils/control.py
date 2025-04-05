@@ -202,6 +202,8 @@ def generate_surface_control(
         parent: str = None,
         position: tuple[float, float, float] = (0,0,0),
         match_transform: str = None,
+        u_attribute: str = None,
+        v_attribute: str = None,
         control_sensitivity: tuple[float, float] = (1,1),
         direction: Direction = Direction.Y,
         opposite_direction: bool = False,
@@ -217,6 +219,8 @@ def generate_surface_control(
         parent: Name of the transform to parent control to.
         position: World space position that will be projected onto the surface to set the default control position in UV space.
         match_transform: when set, the control will be generated to match the position and angle of the given transform node.
+        u_attribute: Attribute to use as U offset instead of the transform or position.
+        v_attribute: Attribute to use as V offset instead of the transform or position.
         control_sensitivity: multiplier for UV space movement from the control transform (needed since the surface UV space will be 0-1 matter how large it is)
         direction: Direction control shape will face.
         size: Scaling factor for the control curve.
@@ -333,10 +337,8 @@ def generate_surface_control(
     u_range: float = min_max_u[1]-min_max_u[0]
     v_range: float = min_max_v[1]-min_max_v[0]
     uv_ratio: float = u_range/v_range
-    default_u = math.remap(default_u, min_max_u, (0,1))
-    default_v = math.remap(default_v, min_max_v, (0,1))
 
-    uv_pin_node = uv_pin.make_uv_pin(object_to_pin=offset_transform, surface=surface, u= default_u, v=default_v, normalize=True)
+    uv_pin_node = uv_pin.make_uv_pin(object_to_pin=offset_transform, surface=surface, u= default_u, v=default_v, normalize=False)
     if match_transform:
         temp_locator = cmds.group(empty=True, parent=offset_transform)
         cmds.parentConstraint(match_transform, temp_locator, maintainOffset=False)
@@ -347,18 +349,29 @@ def generate_surface_control(
     multiplier = cmds.createNode("multiplyDivide", name=f"{name}_sensitivityMultiply")
     cmds.connectAttr(x_attribute, f"{multiplier}.input1.input1X")
     cmds.connectAttr(z_attribute , f"{multiplier}.input1.input1Z")
-    cmds.setAttr(f"{multiplier}.input2.input2X", control_sensitivity[0])
-    cmds.setAttr(f"{multiplier}.input2.input2Z", -control_sensitivity[1]*uv_ratio)
+    cmds.setAttr(f"{multiplier}.input2.input2X", control_sensitivity[0]*u_range)
+    cmds.setAttr(f"{multiplier}.input2.input2Z", -control_sensitivity[1]*v_range*uv_ratio)
     u_adder = cmds.createNode("addDoubleLinear", name=f"{name}_uOffsetAdd")
     v_adder = cmds.createNode("addDoubleLinear", name=f"{name}_vOffsetAdd")
     cmds.connectAttr(f"{multiplier}.output.outputX", f"{u_adder}.input1")
-    cmds.setAttr(f"{u_adder}.input2", default_u)
     cmds.connectAttr(f"{multiplier}.output.outputZ", f"{v_adder}.input1")
-    cmds.setAttr(f"{v_adder}.input2", default_v)
+    if u_attribute:
+        cmds.connectAttr(u_attribute, f"{u_adder}.input2")
+    else:
+        cmds.setAttr(f"{u_adder}.input2", default_u)
+    if v_attribute:
+        cmds.connectAttr(v_attribute, f"{v_adder}.input2")
+    else:
+        cmds.setAttr(f"{v_adder}.input2", default_v)
+    
     u_clamp = cmds.createNode("clampRange", name=f"{name}_uClamp")
     v_clamp = cmds.createNode("clampRange", name=f"{name}_vClamp")
     cmds.connectAttr(f"{u_adder}.output", f"{u_clamp}.input")
     cmds.connectAttr(f"{v_adder}.output", f"{v_clamp}.input")
+    cmds.setAttr(f"{u_clamp}.minimum", min_max_u[0])
+    cmds.setAttr(f"{u_clamp}.maximum", min_max_u[1])
+    cmds.setAttr(f"{v_clamp}.minimum", min_max_v[0])
+    cmds.setAttr(f"{v_clamp}.maximum", min_max_v[1])
 
     cmds.connectAttr(f"{u_clamp}.output", f"{uv_pin_node}.coordinate[0].coordinateU")
     cmds.connectAttr(f"{v_clamp}.output", f"{uv_pin_node}.coordinate[0].coordinateV")
