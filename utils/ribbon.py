@@ -157,7 +157,6 @@ def generate_ribbon (
             else:
                 cmds.error(f"Unsupported surface type: {surface_type}")
 
-            control_transform = pin_point
             world_position = cmds.createNode("pointMatrixMult", name=f"{pin_point}_worldPosition")
             cmds.connectAttr(f"{pin_point}.parentMatrix", f"{world_position}.inMatrix")
             cmds.connectAttr(f"{pin_point}.translate", f"{world_position}.inPoint")
@@ -175,13 +174,8 @@ def generate_ribbon (
                     u_attribute=f"{cp_node}.result.parameterU",
                     v_attribute=f"{cp_node}.result.parameterV",
             )
-            #output_position = cmds.group(empty=True, parent=ctl_name, name=f"{ctl_name}_OUT")
-            #uv_pin_node = uv_pin.make_uv_pin(object_to_pin=output_position, surface=attach_surface, local_space=local_space, normalize=False)
-            #cmds.connectAttr(f"{cp_node}.result.parameterU", f"{uv_pin_node}.coordinate[0].coordinateU")
-            #cmds.connectAttr(f"{cp_node}.result.parameterV", f"{uv_pin_node}.coordinate[0].coordinateV")
-            #cmds.parentConstraint(output_position, joint_name, weight=1)
-            #cmds.scaleConstraint(output_position, joint_name, weight=1)
             control.connect(ctl_name, joint_name)
+            cmds.parent(pin_point, ctl_name)
         else:
             ctl_name = control.generate_control(name = f"{ribbon_object}_point{idx+1}", position=pos, size=0.2, parent=ribbon_group, direction=control_direction)
             uv_pin.make_uv_pin(object_to_pin=ctl_name, surface=ribbon_object, u=u_val, v=v_val, local_space=local_space, normal_axis=control_normal_axis, tangent_axis=control_tangent_axis)
