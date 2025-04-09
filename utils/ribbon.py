@@ -340,3 +340,73 @@ def ribbon_interpolate (
 
             cmds.connectAttr(f"{blend_u_node}.output", f"{uv_pin_node}.coordinate[0].coordinateU")
             cmds.connectAttr(f"{blend_v_node}.output", f"{uv_pin_node}.coordinate[0].coordinateV")
+
+
+def populate_surface (
+        surface: str,
+        joints_u: int = None,
+        joints_v: int = None,
+        cyclic_u: bool = False,
+        cyclic_v: bool = False,
+        control_sensitivity: float = 1
+) -> str:
+    """
+    Fills a given surface (NURBS or Mesh) with evenly spaced surface controls (according to UVs)
+
+    Args:
+        surface: Name of surface to generate joints for.
+        joints_u: Number of joints along U, if not set, will assume one joint per isoparm. 
+        joints_v: Number of joints along V, if not set, will assume one joint per isoparm. 
+    """
+    # Retrieve shape nodes from the surface.
+    shapes = cmds.listRelatives(surface, children=True, shapes=True) or []
+    if not shapes:
+        cmds.error(f"No shape nodes found on surface: {surface}")
+    
+    # Choose the primary shape (non-intermediate if available) and check for an existing intermediate shape.
+    primary_shape = next((s for s in shapes if not cmds.getAttr(f"{s}.intermediateObject")), shapes[0])
+
+    # Determine attribute names based on surface type.
+    surface_type = cmds.objectType(primary_shape)
+    if surface_type == "mesh":
+        attr_input = ".inMesh"
+        attr_world = ".worldMesh[0]"
+        attr_output = ".outMesh"
+        surface_u = 1
+        surface_v = 1
+    elif surface_type == "nurbsSurface":
+        attr_input = ".create"
+        attr_world = ".worldSpace[0]"
+        attr_output = ".local"
+        surface_u = cmds.getAttr(f"{surface}.spansUV")[0][0]
+        surface_v = cmds.getAttr(f"{surface}.spansUV")[0][1]
+    else:
+        cmds.error(f"Unsupported surface type: {surface_type}")
+
+    group_name = cmds.group(name=f"{surface}_CTL_GRP", empty=True)
+
+    if not joints_u:
+        joints_u = surface_u
+    if not joints_v:
+        joints_v = surface_v
+
+    range_u = range(joints_u) if cyclic_u else range(joints_u + 1)
+    range_v = range(joints_v) if cyclic_v else range(joints_v + 1)
+    divisor_u = joints_u if cyclic_u else (joints_u + 1)
+    divisor_v = joints_v if cyclic_v else (joints_v + 1)
+
+    for row in range_v:
+        for column in range_u:
+            control_name = control.generate_surface_control(
+                    name=f"{surface}_tweak_{row}_{column}", 
+                    surface=surface, 
+                    uv_position=((column/divisor_u)*surface_u, (row/divisor_v)*surface_v), 
+                    control_sensitivity=(control_sensitivity, control_sensitivity),
+                    size=0.2,
+                    parent=group_name,
+            )
+            joint_name = cmds.joint(radius=1, name=f"{surface}_tweak_{row}_{column}_JNT")
+            cmds.parent(joint_name, group_name)
+            cmds.matchTransform(joint_name, control.get_control_transform(control_name=control_name))
+            control.connect(control_name=control_name, driven_name=joint_name)
+    return group_name

@@ -202,6 +202,7 @@ def generate_surface_control(
         parent: str = None,
         position: tuple[float, float, float] = (0,0,0),
         match_transform: str = None,
+        uv_position: tuple[float, float] = None,
         u_attribute: str = None,
         v_attribute: str = None,
         control_sensitivity: tuple[float, float] = (1,1),
@@ -326,8 +327,12 @@ def generate_surface_control(
         z_attribute = f"{decompose_matrix}.outputTranslate.outputTranslateZ"
 
     cmds.setAttr(f"{cp_node}.inPosition", position[0], position[1], position[2])
-    default_u: float = cmds.getAttr(f"{cp_node}.result.parameterU")
-    default_v: float = cmds.getAttr(f"{cp_node}.result.parameterV")
+    if uv_position:
+        default_u: float = uv_position[0]
+        default_v: float = uv_position[1]
+    else:
+        default_u: float = cmds.getAttr(f"{cp_node}.result.parameterU")
+        default_v: float = cmds.getAttr(f"{cp_node}.result.parameterV")
     min_max_u: tuple[float, float] = (0, 1)
     min_max_v: tuple[float, float] = (0, 1)
     if surface_type == "nurbsSurface":
