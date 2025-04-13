@@ -1,4 +1,3 @@
-from xmlrpc.client import Boolean
 import maya.cmds as cmds
 
 def make_uv_pin (
@@ -123,3 +122,67 @@ def make_uv_pin (
     else:
         cmds.setAttr(f"{object_to_pin}.inheritsTransform", 0)
     return uv_pin
+
+def consolidate_uvpins() -> None:
+    uv_pin_nodes = cmds.ls(type="uvPin")
+    uv_pin_dict = {}
+    for uv_pin_node in uv_pin_nodes:
+        try:
+            input_geo: tuple = (cmds.listConnections(f"{uv_pin_node}.originalGeometry", source=True, plugs=True)[0], cmds.listConnections(f"{uv_pin_node}.deformedGeometry", source=True, plugs=True)[0])
+        except: 
+            continue
+        connections = cmds.listConnections(f"{uv_pin_node}", connections=True, plugs=True)
+        attributes = cmds.listAttr(f"{uv_pin_node}", multi=True)
+        attribute_values = []
+        for attribute in attributes:
+            if attribute in ["uvSetName", "normalOverride", "railCurve", "normalAxis", "tangentAxis", "normalizedIsoParms", "relativeSpaceMode", "relativeSpaceMatrix"]:
+                attribute_values.append((attribute, cmds.getAttr(f"{uv_pin_node}.{attribute}")))
+            if "coordinateU" in attribute:
+                attribute_values.append((attribute, cmds.getAttr(f"{uv_pin_node}.{attribute}")))
+            if "coordinateV" in attribute:
+                attribute_values.append((attribute, cmds.getAttr(f"{uv_pin_node}.{attribute}")))
+        if input_geo in uv_pin_dict:
+            uv_pin_dict[input_geo].append((connections, attribute_values))
+        else:
+            uv_pin_dict[input_geo] = [(connections, attribute_values)]
+    for input_geo, connections_attributes in uv_pin_dict.items():
+        uv_pin = cmds.createNode("uvPin", name=f"{input_geo[1]}_uvPin".replace("Shape.worldSpace", "_master"))
+        cmds.connectAttr(input_geo[0], f"{uv_pin}.originalGeometry")
+        cmds.connectAttr(input_geo[1], f"{uv_pin}.deformedGeometry")
+        pin_num: int = 0 
+        for attribute_value in connections_attributes[0][1]:
+            if attribute_value[0] == "uvSetName":
+                cmds.setAttr(f"{uv_pin}.{attribute_value[0]}", attribute_value[1], type="string")
+            if attribute_value[0] in ["relativeSpaceMode", "normalAxis", "tangentAxis", "normalOverride", "normalizedIsoParms"]:
+                cmds.setAttr(f"{uv_pin}.{attribute_value[0]}", attribute_value[1])
+            if attribute_value[0] == "relativeSpaceMatrix":
+                cmds.setAttr(f"{uv_pin}.{attribute_value[0]}", attribute_value[1], type="matrix")
+        
+        for connection_attribute in connections_attributes:
+            connections = connection_attribute[0]
+            connection_pairs = list(zip(connections[0::2], connections[1::2]))
+            u_map = {}
+            v_map = {}
+            for connection in connection_pairs:
+                if "coordinateU" in connection[0]:
+                    cmds.disconnectAttr(connection[1], connection[0])
+                    cmds.connectAttr(connection[1], f"{uv_pin}.coordinate[{pin_num}].coordinateU")
+                    u_map[pin_num] = True
+                if "coordinateV" in connection[0]:
+                    cmds.disconnectAttr(connection[1], connection[0])
+                    cmds.connectAttr(connection[1], f"{uv_pin}.coordinate[{pin_num}].coordinateV")
+                    v_map[pin_num] = True
+                if "outputMatrix" in connection[0]:
+                    cmds.disconnectAttr(connection[0], connection[1])
+                    cmds.connectAttr(f"{uv_pin}.outputMatrix[{pin_num}]", connection[1])
+            for attribute in connection_attribute[1]:
+                if "coordinateU" in attribute[0]:
+                    if pin_num not in u_map:
+                        cmds.setAttr(f"{uv_pin}.coordinate[{pin_num}].coordinateU", attribute[1])
+                if "coordinateV" in attribute[0]:
+                    if pin_num not in v_map:
+                        cmds.setAttr(f"{uv_pin}.coordinate[{pin_num}].coordinateV", attribute[1])      
+            pin_num += 1
+    for uv_pin_node in uv_pin_nodes:
+        cmds.delete(uv_pin_node)
+            
