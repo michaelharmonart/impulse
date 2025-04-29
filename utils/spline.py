@@ -255,83 +255,181 @@ def curveToMatrixSpline(curve: str, segments: int) -> tuple[list[str], list[str]
     print(cv_list)
     positions = [cmds.pointPosition(cv, world=False) for cv in cv_list]
     cv_matrices: list[str] = []
-    cv_scale_matrices: list[str] = []
     for i in range(num_cvs):
+        
+        #Create Transform for CV and move it to the position of the CV on the curve
         cv_transform = cmds.polyCube(name=f"{curve}_CV{i}")[0]
         cmds.setAttr(f"{cv_transform}.translate", positions[i][0], positions[i][1], positions[i][2])
+        
+        #Remove scale and shear from matrix since they will interfere with the linear interpolation of the basis vectors (causing flipping)
         pick_matrix = cmds.createNode("pickMatrix", name=f"{cv_transform}_PickMatrix")
         cmds.connectAttr(f"{cv_transform}.matrix", f"{pick_matrix}.inputMatrix")
         cmds.setAttr(f"{pick_matrix}.useShear", 0)
         cmds.setAttr(f"{pick_matrix}.useScale", 0)
 
-        scale_pick_matrix = cmds.createNode("pickMatrix", name=f"{cv_transform}_ScalePickMatrix")
-        cmds.connectAttr(f"{cv_transform}.matrix", f"{scale_pick_matrix}.inputMatrix")
-        cmds.setAttr(f"{scale_pick_matrix}.useTranslate", 0)
-        cmds.setAttr(f"{scale_pick_matrix}.useRotate", 0)
+        #Add nodes to get connect individual values from the matrix, I don't know why maya makes us do this instead of just connecting directly
+        deconstruct_matrix_attribute= f"{pick_matrix}.outputMatrix"
+        row1 = cmds.createNode("rowFromMatrix", name=f"{cv_transform}_row1")
+        cmds.connectAttr(deconstruct_matrix_attribute, f"{row1}.matrix")
+        cmds.setAttr(f"{row1}.input", 0)
+        row2 = cmds.createNode("rowFromMatrix", name=f"{cv_transform}_row2")
+        cmds.connectAttr(deconstruct_matrix_attribute, f"{row2}.matrix")
+        cmds.setAttr(f"{row2}.input", 1)
+        row3 = cmds.createNode("rowFromMatrix", name=f"{cv_transform}_row3")
+        cmds.setAttr(f"{row3}.input", 2)
+        cmds.connectAttr(deconstruct_matrix_attribute, f"{row3}.matrix")
+        row4 = cmds.createNode("rowFromMatrix", name=f"{cv_transform}_row4")
+        cmds.connectAttr(deconstruct_matrix_attribute, f"{row4}.matrix")
+        cmds.setAttr(f"{row4}.input", 3)
 
-        cv_matrices.append(f"{pick_matrix}.outputMatrix")
-        cv_scale_matrices.append(f"{scale_pick_matrix}.outputMatrix")
+        #Rebuild the matrix but encode the scale into the empty values in the matrix (this needs to be extracted after the weighted matrix sum)
+        cv_matrix = cmds.createNode("fourByFourMatrix", name=f"{cv_transform}_CvMatrix")
+        cmds.connectAttr(f"{row1}.outputX", f"{cv_matrix}.in00")
+        cmds.connectAttr(f"{row1}.outputY", f"{cv_matrix}.in01")
+        cmds.connectAttr(f"{row1}.outputZ", f"{cv_matrix}.in02")
+        cmds.connectAttr(f"{cv_transform}.scaleX", f"{cv_matrix}.in03")
+
+        cmds.connectAttr(f"{row2}.outputX", f"{cv_matrix}.in10")
+        cmds.connectAttr(f"{row2}.outputY", f"{cv_matrix}.in11")
+        cmds.connectAttr(f"{row2}.outputZ", f"{cv_matrix}.in12")
+        cmds.connectAttr(f"{cv_transform}.scaleY", f"{cv_matrix}.in13")
+
+        cmds.connectAttr(f"{row3}.outputX", f"{cv_matrix}.in20")
+        cmds.connectAttr(f"{row3}.outputY", f"{cv_matrix}.in21")
+        cmds.connectAttr(f"{row3}.outputZ", f"{cv_matrix}.in22")
+        cmds.connectAttr(f"{cv_transform}.scaleZ", f"{cv_matrix}.in23")
+
+        cmds.connectAttr(f"{row4}.outputX", f"{cv_matrix}.in30")
+        cmds.connectAttr(f"{row4}.outputY", f"{cv_matrix}.in31")
+        cmds.connectAttr(f"{row4}.outputZ", f"{cv_matrix}.in32")
+        cmds.connectAttr(f"{row4}.outputW", f"{cv_matrix}.in33")
+
+        cv_matrices.append(f"{cv_matrix}.output")
 
     for i in range(segments):
+        segment_name = f"{curve}_matrixSpline_Segment{i}"
+
+        # Adjust spacing if the curve is periodic
         if periodic:
             parameter = (i/segments)
         else:
             parameter = (i/(segments-1))
         
-        base_matrix = cmds.createNode("wtAddMatrix", name=f"{curve}_matrixSpline_Segment{i}BaseMatrix")
+        # Create node that blends the matrices based on the calculated DeBoor weights.
+        blended_matrix = cmds.createNode("wtAddMatrix", name=f"{segment_name}_BaseMatrix")
         point_weights = pointOnCurveWeights(cvs=cv_matrices, t=parameter, degree=degree)
         for index, point_weight in enumerate(point_weights):
-            cmds.setAttr(f"{base_matrix}.wtMatrix[{index}].weightIn", point_weight[1])
-            cmds.connectAttr(f"{point_weight[0]}", f"{base_matrix}.wtMatrix[{index}].matrixIn")
+            cmds.setAttr(f"{blended_matrix}.wtMatrix[{index}].weightIn", point_weight[1])
+            cmds.connectAttr(f"{point_weight[0]}", f"{blended_matrix}.wtMatrix[{index}].matrixIn")
 
-        base_scale_matrix = cmds.createNode("wtAddMatrix", name=f"{curve}_matrixSpline_Segment{i}BaseScaleMatrix")
-        point_weights = pointOnCurveWeights(cvs=cv_scale_matrices, t=parameter, degree=degree)
-        for index, point_weight in enumerate(point_weights):
-            cmds.setAttr(f"{base_scale_matrix}.wtMatrix[{index}].weightIn", point_weight[1])
-            cmds.connectAttr(f"{point_weight[0]}", f"{base_scale_matrix}.wtMatrix[{index}].matrixIn")
-
-        position_matrix = cmds.createNode("pickMatrix", name=f"{curve}_matrixSpline_Segment{i}_PositionPickMatrix")
-        cmds.connectAttr(f"{base_matrix}.matrixSum", f"{position_matrix}.inputMatrix")
-        cmds.setAttr(f"{position_matrix}.useRotate", 0)
-        cmds.setAttr(f"{position_matrix}.useScale", 0)
-        cmds.setAttr(f"{position_matrix}.useShear", 0)
-
-        rotate_matrix = cmds.createNode("pickMatrix", name=f"{curve}_matrixSpline_Segment{i}_RotatePickMatrix")
-        cmds.connectAttr(f"{base_matrix}.matrixSum", f"{rotate_matrix}.inputMatrix")
-        cmds.setAttr(f"{rotate_matrix}.useTranslate", 0)
-        cmds.setAttr(f"{rotate_matrix}.useScale", 0)
-        cmds.setAttr(f"{rotate_matrix}.useShear", 0)
-
-        scale_matrix = cmds.createNode("pickMatrix", name=f"{curve}_matrixSpline_Segment{i}_ScalePickMatrix")
-        cmds.connectAttr(f"{base_scale_matrix}.matrixSum", f"{scale_matrix}.inputMatrix")
-        cmds.setAttr(f"{scale_matrix}.useTranslate", 0)
-        cmds.setAttr(f"{scale_matrix}.useRotate", 0)
-        
-        tan_matrix = cmds.createNode("wtAddMatrix", name=f"{curve}_matrixSpline_Segment{i}_TangentMatrix")
+        blended_tangent_matrix = cmds.createNode("wtAddMatrix", name=f"{segment_name}_TangentMatrix")
         tangent_weights = tangentOnCurveWeights(cvs=cv_matrices, t=parameter, degree=degree)
         for index, tangent_weight in enumerate(tangent_weights):
-            cmds.setAttr(f"{tan_matrix}.wtMatrix[{index}].weightIn", tangent_weight[1])
-            cmds.connectAttr(f"{tangent_weight[0]}", f"{tan_matrix}.wtMatrix[{index}].matrixIn")
+            cmds.setAttr(f"{blended_tangent_matrix}.wtMatrix[{index}].weightIn", tangent_weight[1])
+            cmds.connectAttr(f"{tangent_weight[0]}", f"{blended_tangent_matrix}.wtMatrix[{index}].matrixIn")
 
-        tangent_vector = cmds.createNode("pointMatrixMult", name=f"{tan_matrix}_TangentVector")
-        cmds.connectAttr(f"{tan_matrix}.matrixSum", f"{tangent_vector}.inMatrix")
+        tangent_vector = cmds.createNode("pointMatrixMult", name=f"{blended_tangent_matrix}_TangentVector")
+        cmds.connectAttr(f"{blended_tangent_matrix}.matrixSum", f"{tangent_vector}.inMatrix")
 
-        aim_matrix = cmds.createNode("aimMatrix", name=f"{curve}_matrixSpline_Segment{i}_AimMatrix")
+        # Create nodes to access the values of the blended matrix node.
+        deconstruct_matrix_attribute = f"{blended_matrix}.matrixSum"
+        blended_matrix_row1 = cmds.createNode("rowFromMatrix", name=f"{blended_matrix}_row1")
+        cmds.setAttr(f"{blended_matrix_row1}.input", 0)
+        cmds.connectAttr(deconstruct_matrix_attribute, f"{blended_matrix_row1}.matrix")
+        blended_matrix_row2 = cmds.createNode("rowFromMatrix", name=f"{blended_matrix}_row2")
+        cmds.connectAttr(deconstruct_matrix_attribute, f"{blended_matrix_row2}.matrix")
+        cmds.setAttr(f"{blended_matrix_row2}.input", 1)
+        blended_matrix_row3 = cmds.createNode("rowFromMatrix", name=f"{blended_matrix}_row3")
+        cmds.connectAttr(deconstruct_matrix_attribute, f"{blended_matrix_row3}.matrix")
+        cmds.setAttr(f"{blended_matrix_row3}.input", 2)
+        blended_matrix_row4 = cmds.createNode("rowFromMatrix", name=f"{blended_matrix}_row4")
+        cmds.connectAttr(deconstruct_matrix_attribute, f"{blended_matrix_row4}.matrix")
+        cmds.setAttr(f"{blended_matrix_row4}.input", 3)
+
+        # Create aim matrix node.
+        aim_matrix = cmds.createNode("aimMatrix", name=f"{segment_name}_AimMatrix")
         cmds.setAttr(f"{aim_matrix}.primaryMode", 2)
+        cmds.setAttr(f"{aim_matrix}.primaryInputAxis", 0, 1, 0)
         cmds.setAttr(f"{aim_matrix}.secondaryMode", 2)
+        cmds.setAttr(f"{aim_matrix}.secondaryInputAxis", 0, 0, 1)
         cmds.connectAttr(f"{tangent_vector}.output", f"{aim_matrix}.primary.primaryTargetVector")
-        up_vector = cmds.createNode("pointMatrixMult", name=f"{aim_matrix}_UpVector")
-        cmds.connectAttr(f"{rotate_matrix}.outputMatrix", f"{up_vector}.inMatrix")
-        cmds.setAttr(f"{up_vector}.inPointY", 1)
-        cmds.connectAttr(f"{up_vector}.output", f"{aim_matrix}.secondary.secondaryTargetVector")
+        cmds.connectAttr(f"{blended_matrix_row3}.outputX", f"{aim_matrix}.secondary.secondaryTargetVectorX")
+        cmds.connectAttr(f"{blended_matrix_row3}.outputY", f"{aim_matrix}.secondary.secondaryTargetVectorY")
+        cmds.connectAttr(f"{blended_matrix_row3}.outputZ", f"{aim_matrix}.secondary.secondaryTargetVectorZ")
 
-        aim_mult = cmds.createNode("multMatrix", name=f"{aim_matrix}_AimMatrixMultiply")
-        cmds.connectAttr(f"{scale_matrix}.outputMatrix", f"{aim_mult}.matrixIn[0]")
-        cmds.connectAttr(f"{aim_matrix}.outputMatrix", f"{aim_mult}.matrixIn[1]")
-        cmds.connectAttr(f"{position_matrix}.outputMatrix", f"{aim_mult}.matrixIn[2]")
+        # Create nodes to access the values of the aim matrix node.
+        deconstruct_matrix_attribute = f"{aim_matrix}.outputMatrix"
+        aim_matrix_row1 = cmds.createNode("rowFromMatrix", name=f"{aim_matrix}_row1")
+        cmds.connectAttr(deconstruct_matrix_attribute, f"{aim_matrix_row1}.matrix")
+        cmds.setAttr(f"{aim_matrix_row1}.input", 0)
+        aim_matrix_row2 = cmds.createNode("rowFromMatrix", name=f"{aim_matrix}_row2")
+        cmds.connectAttr(deconstruct_matrix_attribute, f"{aim_matrix_row2}.matrix")
+        cmds.setAttr(f"{aim_matrix_row2}.input", 1)
+        aim_matrix_row3 = cmds.createNode("rowFromMatrix", name=f"{aim_matrix}_row3")
+        cmds.connectAttr(deconstruct_matrix_attribute, f"{aim_matrix_row3}.matrix")
+        cmds.setAttr(f"{aim_matrix_row3}.input", 2)
 
-        segment_transform = cmds.polyCube(name=f"{curve}__matrixSpline_Segment{i}")[0]
-        cmds.connectAttr(f"{aim_mult}.matrixSum" ,f"{segment_transform}.offsetParentMatrix")
+        # Get tangent vector magnitude
+        tangent_vector_length = cmds.createNode("length", name=f"{segment_name}_tangentVectorLength")
+        cmds.connectAttr(f"{tangent_vector}.output", f"{tangent_vector_length}.input")
+        tangent_vector_length_scaled = cmds.createNode("multDoubleLinear", name=f"{segment_name}_tangentVectorLengthScaled")
+        cmds.connectAttr(f"{tangent_vector_length}.output", f"{tangent_vector_length_scaled}.input1")
+        cmds.setAttr(f"{tangent_vector_length_scaled}.input2", (1/cmds.arclen(curve_shape))*4)
+
+        # Create Nodes to re-apply scale
+        x_scaled = cmds.createNode("multiplyDivide", name=f"{segment_name}_xScale")
+        x_vector_attribute = f"{aim_matrix_row1}"
+        x_scale_attribute = f"{blended_matrix_row1}.outputW"
+        cmds.connectAttr(f"{x_vector_attribute}.outputX", f"{x_scaled}.input1X")
+        cmds.connectAttr(f"{x_vector_attribute}.outputY", f"{x_scaled}.input1Y")
+        cmds.connectAttr(f"{x_vector_attribute}.outputZ", f"{x_scaled}.input1Z")
+
+        cmds.connectAttr(x_scale_attribute, f"{x_scaled}.input2X")
+        cmds.connectAttr(x_scale_attribute, f"{x_scaled}.input2Y")
+        cmds.connectAttr(x_scale_attribute, f"{x_scaled}.input2Z")
+
+        y_scaled = cmds.createNode("multiplyDivide", name=f"{segment_name}_yScale")
+        y_vector_attribute = f"{aim_matrix_row2}"
+        y_scale_attribute = f"{tangent_vector_length_scaled}.output"
+        cmds.connectAttr(f"{y_vector_attribute}.outputX", f"{y_scaled}.input1X")
+        cmds.connectAttr(f"{y_vector_attribute}.outputY", f"{y_scaled}.input1Y")
+        cmds.connectAttr(f"{y_vector_attribute}.outputZ", f"{y_scaled}.input1Z")
+
+        cmds.connectAttr(y_scale_attribute, f"{y_scaled}.input2X")
+        cmds.connectAttr(y_scale_attribute, f"{y_scaled}.input2Y")
+        cmds.connectAttr(y_scale_attribute, f"{y_scaled}.input2Z")
+
+        z_scaled = cmds.createNode("multiplyDivide", name=f"{segment_name}_zScale")
+        z_vector_attribute = f"{aim_matrix_row3}"
+        z_scale_attribute = f"{blended_matrix_row3}.outputW"
+        cmds.connectAttr(f"{z_vector_attribute}.outputX", f"{z_scaled}.input1X")
+        cmds.connectAttr(f"{z_vector_attribute}.outputY", f"{z_scaled}.input1Y")
+        cmds.connectAttr(f"{z_vector_attribute}.outputZ", f"{z_scaled}.input1Z")
+
+        cmds.connectAttr(z_scale_attribute, f"{z_scaled}.input2X")
+        cmds.connectAttr(z_scale_attribute, f"{z_scaled}.input2Y")
+        cmds.connectAttr(z_scale_attribute, f"{z_scaled}.input2Z")
+
+        # Rebuild the matrix
+        output_matrix = cmds.createNode("fourByFourMatrix", name=f"{segment_name}_OutputMatrix")
+        cmds.connectAttr(f"{x_scaled}.outputX", f"{output_matrix}.in00")
+        cmds.connectAttr(f"{x_scaled}.outputY", f"{output_matrix}.in01")
+        cmds.connectAttr(f"{x_scaled}.outputZ", f"{output_matrix}.in02")
+
+        cmds.connectAttr(f"{y_scaled}.outputX", f"{output_matrix}.in10")
+        cmds.connectAttr(f"{y_scaled}.outputY", f"{output_matrix}.in11")
+        cmds.connectAttr(f"{y_scaled}.outputZ", f"{output_matrix}.in12")
+
+        cmds.connectAttr(f"{z_scaled}.outputX", f"{output_matrix}.in20")
+        cmds.connectAttr(f"{z_scaled}.outputY", f"{output_matrix}.in21")
+        cmds.connectAttr(f"{z_scaled}.outputZ", f"{output_matrix}.in22")
+
+        cmds.connectAttr(f"{blended_matrix_row4}.outputX", f"{output_matrix}.in30")
+        cmds.connectAttr(f"{blended_matrix_row4}.outputY", f"{output_matrix}.in31")
+        cmds.connectAttr(f"{blended_matrix_row4}.outputZ", f"{output_matrix}.in32")
+
+        segment_transform = cmds.polyCube(name=segment_name)[0]
+        cmds.connectAttr(f"{output_matrix}.output", f"{segment_transform}.offsetParentMatrix")
 
 
 
