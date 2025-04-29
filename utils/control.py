@@ -1,6 +1,6 @@
 import maya.cmds as cmds
 import maya.mel as mel
-from . import uv_pin as uv_pin
+from . import pin as pin
 from . import math as math
 from enum import Enum
 import warnings
@@ -343,7 +343,7 @@ def generate_surface_control(
     v_range: float = min_max_v[1]-min_max_v[0]
     uv_ratio: float = u_range/v_range
 
-    uv_pin_node = uv_pin.make_uv_pin(object_to_pin=offset_transform, surface=surface, u= default_u, v=default_v, normalize=False)
+    uv_pin_node = pin.make_uv_pin(object_to_pin=offset_transform, surface=surface, u= default_u, v=default_v, normalize=False)
     if match_transform:
         temp_locator = cmds.group(empty=True, parent=offset_transform)
         cmds.parentConstraint(match_transform, temp_locator, maintainOffset=False)

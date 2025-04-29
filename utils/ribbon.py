@@ -11,7 +11,7 @@ It leverages custom control curves from the control_gen module.
 
 import maya.cmds as cmds
 from . import control as control
-from . import uv_pin as uv_pin
+from . import pin as pin
 
 def generate_ribbon (
         nurbs_surface_name: str, 
@@ -100,7 +100,7 @@ def generate_ribbon (
         cmds.select(ribbon_group, replace=True)
         joint_name = cmds.joint(position=pos, radius=1, name=f"{ribbon_object}_ControlJoint{idx+1}_JNT")
         if attach_surface:
-            uv_pin.make_uv_pin(object_to_pin=temp_locator, surface=ribbon_object, u=u_val, v=v_val, local_space=local_space, normal_axis=control_normal_axis, tangent_axis=control_tangent_axis)
+            pin.make_uv_pin(object_to_pin=temp_locator, surface=ribbon_object, u=u_val, v=v_val, local_space=local_space, normal_axis=control_normal_axis, tangent_axis=control_tangent_axis)
             ctl_name = control.generate_surface_control(name=f"{ribbon_object}_ControlJoint{idx+1}", size=0.4, parent=ribbon_group, direction=control_direction, match_transform=temp_locator, surface=attach_surface, control_sensitivity=(control_sensitivity, control_sensitivity))
             cmds.matchTransform(joint_name, temp_locator)
             cmds.parent(ctl_name, ctl_group)
@@ -109,7 +109,7 @@ def generate_ribbon (
             ctl_name = control.generate_control(name=f"{ribbon_object}_ControlJoint{idx+1}", position=pos, size=0.4, parent=ribbon_group, direction=control_direction)
             cmds.parent(ctl_name, ctl_group)
             control.connect(ctl_name, joint_name)
-            uv_pin.make_uv_pin(object_to_pin=temp_locator, surface=ribbon_object, u=u_val, v=v_val, local_space=local_space, normal_axis=control_normal_axis, tangent_axis=control_tangent_axis)
+            pin.make_uv_pin(object_to_pin=temp_locator, surface=ribbon_object, u=u_val, v=v_val, local_space=local_space, normal_axis=control_normal_axis, tangent_axis=control_tangent_axis)
             cmds.matchTransform(ctl_name, temp_locator)
         
         cmds.delete(temp_locator)
@@ -138,7 +138,7 @@ def generate_ribbon (
 
         if attach_surface:
             pin_point = cmds.group(empty=True, parent=ctl_group, name=f"{ribbon_object}_pin{idx+1}")
-            uv_pin.make_uv_pin(object_to_pin=pin_point, surface=ribbon_object, u=u_val, v=v_val, local_space=local_space, normal_axis=control_normal_axis, tangent_axis=control_tangent_axis)
+            pin.make_uv_pin(object_to_pin=pin_point, surface=ribbon_object, u=u_val, v=v_val, local_space=local_space, normal_axis=control_normal_axis, tangent_axis=control_tangent_axis)
             
             shapes = cmds.listRelatives(attach_surface, shapes=True) or []
             if not shapes:
@@ -178,7 +178,7 @@ def generate_ribbon (
             cmds.parent(pin_point, ctl_name)
         else:
             ctl_name = control.generate_control(name = f"{ribbon_object}_point{idx+1}", position=pos, size=0.2, parent=ribbon_group, direction=control_direction)
-            uv_pin.make_uv_pin(object_to_pin=ctl_name, surface=ribbon_object, u=u_val, v=v_val, local_space=local_space, normal_axis=control_normal_axis, tangent_axis=control_tangent_axis)
+            pin.make_uv_pin(object_to_pin=ctl_name, surface=ribbon_object, u=u_val, v=v_val, local_space=local_space, normal_axis=control_normal_axis, tangent_axis=control_tangent_axis)
             cmds.makeIdentity(ctl_name, apply=False)
             cmds.parent(ctl_name, ctl_group)
             control.connect(ctl_name, joint_name)
@@ -194,7 +194,7 @@ def generate_ribbon (
         cmds.select(ribbon_group, replace=True)
         joint_name = cmds.joint(position=pos, radius=0.5, name=f"{ribbon_object}_point{idx+1}_INT")
         cmds.hide(joint_name)
-        uv_pin.make_uv_pin(object_to_pin=joint_name, surface=ribbon_object, u=u_val, v=v_val, local_space=local_space, normal_axis=control_normal_axis, tangent_axis=control_tangent_axis)
+        pin.make_uv_pin(object_to_pin=joint_name, surface=ribbon_object, u=u_val, v=v_val, local_space=local_space, normal_axis=control_normal_axis, tangent_axis=control_tangent_axis)
 
     # Create deformation joints.
     for i in range(number_of_joints):
@@ -326,7 +326,7 @@ def ribbon_interpolate (
             cmds.select(row_group)
             blend_joint = cmds.joint(radius=1, name=primary_joints[joint_idx].replace(interpolation_joint_suffix, f"_Row{row_idx+1}_CTL"))
             cmds.setAttr(f"{blend_joint}.inheritsTransform", 0)
-            uv_pin_node = uv_pin.make_uv_pin(object_to_pin=blend_joint, surface=interpolation_object, u=0.5, v=0.5)
+            uv_pin_node = pin.make_uv_pin(object_to_pin=blend_joint, surface=interpolation_object, u=0.5, v=0.5)
 
             blend_u_node = cmds.createNode("blendTwoAttr", name=f"{uv_pin_node}_Blend_U")
             cmds.connectAttr(f"{primary_cp_node}.result.parameterU", f"{blend_u_node}.input[0]")
