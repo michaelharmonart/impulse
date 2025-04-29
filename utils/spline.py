@@ -76,7 +76,7 @@ def pointOnCurveWeights(cvs: list, t: float, degree: int = 3, knots: list[float]
             for cv, weight in cvWeights[j].items():
                 weights[cv] = weight * alpha
 
-            for cv, weight in cvWeights[j - 1].iteritems():
+            for cv, weight in cvWeights[j - 1].items():
                 if cv in weights:
                     weights[cv] += weight * (1 - alpha)
                 else:
@@ -228,3 +228,110 @@ def tangentVOnSurfaceWeights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
     columnCount = len(cvs[0])
     reorderedCvs = [[cvs[row][col] for row in range(rowCount)] for col in range(columnCount)]
     return tangentUOnSurfaceWeights(reorderedCvs, v, u, uKnots=vKnots, vKnots=uKnots, degree=degree)
+
+def curveToMatrixSpline(curve: str, segments: int) -> tuple[list[str], list[str]]:
+    """
+    Takes a curve shape and returns the attributes of the offset_parent_matrix for each segment.
+    Args:
+        curve: The curve transform.
+        segments: Number of matrices to pin to the curve.
+    Returns:
+        tuple: Tuple of the curve CV matrix attributes, and of the output matrix attributes.
+    """
+    # Retrieve the surface shape and ensure it is a NURBS surface.
+    curve_shapes = cmds.listRelatives(curve, shapes=True) or []
+    if not curve_shapes:
+        cmds.error(f"No shape node found for {curve_shapes}")
+    curve_shape = curve_shapes[0]
+
+    if cmds.nodeType(curve_shape) != "nurbsCurve":
+        cmds.error(f"Node {curve_shape} is not a nurbsCurve.")
+
+    periodic: bool = cmds.getAttr(f"{curve}.form") == 2
+    spans: int = cmds.getAttr(f"{curve}.spans")
+    degree: int = cmds.getAttr(f"{curve}.degree")
+    num_cvs: int = spans + degree
+    cv_list = [f"{curve}.cv[{i}]" for i in range(num_cvs)]
+    print(cv_list)
+    positions = [cmds.pointPosition(cv, world=False) for cv in cv_list]
+    cv_matrices: list[str] = []
+    cv_scale_matrices: list[str] = []
+    for i in range(num_cvs):
+        cv_transform = cmds.polyCube(name=f"{curve}_CV{i}")[0]
+        cmds.setAttr(f"{cv_transform}.translate", positions[i][0], positions[i][1], positions[i][2])
+        pick_matrix = cmds.createNode("pickMatrix", name=f"{cv_transform}_PickMatrix")
+        cmds.connectAttr(f"{cv_transform}.matrix", f"{pick_matrix}.inputMatrix")
+        cmds.setAttr(f"{pick_matrix}.useShear", 0)
+        cmds.setAttr(f"{pick_matrix}.useScale", 0)
+
+        scale_pick_matrix = cmds.createNode("pickMatrix", name=f"{cv_transform}_ScalePickMatrix")
+        cmds.connectAttr(f"{cv_transform}.matrix", f"{scale_pick_matrix}.inputMatrix")
+        cmds.setAttr(f"{scale_pick_matrix}.useTranslate", 0)
+        cmds.setAttr(f"{scale_pick_matrix}.useRotate", 0)
+
+        cv_matrices.append(f"{pick_matrix}.outputMatrix")
+        cv_scale_matrices.append(f"{scale_pick_matrix}.outputMatrix")
+
+    for i in range(segments):
+        if periodic:
+            parameter = (i/segments)
+        else:
+            parameter = (i/(segments-1))
+        
+        base_matrix = cmds.createNode("wtAddMatrix", name=f"{curve}_matrixSpline_Segment{i}BaseMatrix")
+        point_weights = pointOnCurveWeights(cvs=cv_matrices, t=parameter, degree=degree)
+        for index, point_weight in enumerate(point_weights):
+            cmds.setAttr(f"{base_matrix}.wtMatrix[{index}].weightIn", point_weight[1])
+            cmds.connectAttr(f"{point_weight[0]}", f"{base_matrix}.wtMatrix[{index}].matrixIn")
+
+        base_scale_matrix = cmds.createNode("wtAddMatrix", name=f"{curve}_matrixSpline_Segment{i}BaseScaleMatrix")
+        point_weights = pointOnCurveWeights(cvs=cv_scale_matrices, t=parameter, degree=degree)
+        for index, point_weight in enumerate(point_weights):
+            cmds.setAttr(f"{base_scale_matrix}.wtMatrix[{index}].weightIn", point_weight[1])
+            cmds.connectAttr(f"{point_weight[0]}", f"{base_scale_matrix}.wtMatrix[{index}].matrixIn")
+
+        position_matrix = cmds.createNode("pickMatrix", name=f"{curve}_matrixSpline_Segment{i}_PositionPickMatrix")
+        cmds.connectAttr(f"{base_matrix}.matrixSum", f"{position_matrix}.inputMatrix")
+        cmds.setAttr(f"{position_matrix}.useRotate", 0)
+        cmds.setAttr(f"{position_matrix}.useScale", 0)
+        cmds.setAttr(f"{position_matrix}.useShear", 0)
+
+        rotate_matrix = cmds.createNode("pickMatrix", name=f"{curve}_matrixSpline_Segment{i}_RotatePickMatrix")
+        cmds.connectAttr(f"{base_matrix}.matrixSum", f"{rotate_matrix}.inputMatrix")
+        cmds.setAttr(f"{rotate_matrix}.useTranslate", 0)
+        cmds.setAttr(f"{rotate_matrix}.useScale", 0)
+        cmds.setAttr(f"{rotate_matrix}.useShear", 0)
+
+        scale_matrix = cmds.createNode("pickMatrix", name=f"{curve}_matrixSpline_Segment{i}_ScalePickMatrix")
+        cmds.connectAttr(f"{base_scale_matrix}.matrixSum", f"{scale_matrix}.inputMatrix")
+        cmds.setAttr(f"{scale_matrix}.useTranslate", 0)
+        cmds.setAttr(f"{scale_matrix}.useRotate", 0)
+        
+        tan_matrix = cmds.createNode("wtAddMatrix", name=f"{curve}_matrixSpline_Segment{i}_TangentMatrix")
+        tangent_weights = tangentOnCurveWeights(cvs=cv_matrices, t=parameter, degree=degree)
+        for index, tangent_weight in enumerate(tangent_weights):
+            cmds.setAttr(f"{tan_matrix}.wtMatrix[{index}].weightIn", tangent_weight[1])
+            cmds.connectAttr(f"{tangent_weight[0]}", f"{tan_matrix}.wtMatrix[{index}].matrixIn")
+
+        tangent_vector = cmds.createNode("pointMatrixMult", name=f"{tan_matrix}_TangentVector")
+        cmds.connectAttr(f"{tan_matrix}.matrixSum", f"{tangent_vector}.inMatrix")
+
+        aim_matrix = cmds.createNode("aimMatrix", name=f"{curve}_matrixSpline_Segment{i}_AimMatrix")
+        cmds.setAttr(f"{aim_matrix}.primaryMode", 2)
+        cmds.setAttr(f"{aim_matrix}.secondaryMode", 2)
+        cmds.connectAttr(f"{tangent_vector}.output", f"{aim_matrix}.primary.primaryTargetVector")
+        up_vector = cmds.createNode("pointMatrixMult", name=f"{aim_matrix}_UpVector")
+        cmds.connectAttr(f"{rotate_matrix}.outputMatrix", f"{up_vector}.inMatrix")
+        cmds.setAttr(f"{up_vector}.inPointY", 1)
+        cmds.connectAttr(f"{up_vector}.output", f"{aim_matrix}.secondary.secondaryTargetVector")
+
+        aim_mult = cmds.createNode("multMatrix", name=f"{aim_matrix}_AimMatrixMultiply")
+        cmds.connectAttr(f"{scale_matrix}.outputMatrix", f"{aim_mult}.matrixIn[0]")
+        cmds.connectAttr(f"{aim_matrix}.outputMatrix", f"{aim_mult}.matrixIn[1]")
+        cmds.connectAttr(f"{position_matrix}.outputMatrix", f"{aim_mult}.matrixIn[2]")
+
+        segment_transform = cmds.polyCube(name=f"{curve}__matrixSpline_Segment{i}")[0]
+        cmds.connectAttr(f"{aim_mult}.matrixSum" ,f"{segment_transform}.offsetParentMatrix")
+
+
+

@@ -130,7 +130,7 @@ def generate_control(
         opposite_direction: bool = False,
         size: float = 1,
         control_shape: ControlShape = ControlShape.CIRCLE,
-        offset: float = 0.1,
+        offset: float = 0,
 ) -> str:
     """
     Create a control curve in Maya at a given position, scale it, offset it,
