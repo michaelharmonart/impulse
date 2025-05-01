@@ -6,45 +6,61 @@ https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
 https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
 """
 
+from inspect import Parameter
 import maya.cmds as cmds
+from ..structs.transform import Vector3 as Vector3
 
-def generateKnots(count: int, degree: int=3) -> list[float]:
+
+def generateKnots(count: int, degree: int = 3) -> list[float]:
     """
     Gets a default knot vector for a given number of cvs and degrees.
     Args:
-        count(int): The number of cvs. 
-        degree(int): The curve degree. 
+        count(int): The number of cvs.
+        degree(int): The curve degree.
     Returns:
         list: A list of knot values. (aka knot vector)
     """
-    knots = [0 for i in range(degree)] + [i for i in range(count - degree + 1)] #put degree number of 0s at the beginning
-    knots += [count - degree for i in range(degree)] #put degree number of the last knot value at the end
+    knots = [0 for i in range(degree)] + [
+        i for i in range(count - degree + 1)
+    ]  # put degree number of 0s at the beginning
+    knots += [
+        count - degree for i in range(degree)
+    ]  # put degree number of the last knot value at the end
     return [float(knot) for knot in knots]
 
-def pointOnCurveWeights(cvs: list, t: float, degree: int = 3, knots: list[float] = None):
+
+def pointOnCurveWeights(
+    cvs: list, t: float, degree: int = 3, knots: list[float] = None
+):
     """
     Creates a mapping of cvs to curve weight values on a spline curve.
     While all cvs are required, only the cvs with non-zero weights will be returned.
     This function is based on de Boor's algorithm for evaluating splines and has been modified to consolidate weights.
     Args:
         cvs(list): A list of cvs, these are used for the return value.
-        t(float): A parameter value. 
-        degree(int): The curve dimensions. 
-        knots(list): A list of knot values. 
+        t(float): A parameter value.
+        degree(int): The curve dimensions.
+        knots(list): A list of knot values.
     Returns:
         list: A list of control point, weight pairs.
     """
 
     order = degree + 1  # Our functions often use order instead of degree
     if len(cvs) <= degree:
-        raise ValueError('Curves of degree %s require at least %s cvs' % (degree, degree + 1))
+        raise ValueError(
+            "Curves of degree %s require at least %s cvs" % (degree, degree + 1)
+        )
 
-    knots = knots or generateKnots(len(cvs), degree)  # Defaults to even knot distribution
+    knots = knots or generateKnots(
+        len(cvs), degree
+    )  # Defaults to even knot distribution
     if len(knots) != len(cvs) + order:
-        raise ValueError('Not enough knots provided. Curves with %s cvs must have a knot vector of length %s. '
-                             'Received a knot vector of length %s: %s. '
-                             'Total knot count must equal len(cvs) + degree + 1.' % (len(cvs), len(cvs) + order,
-                                                                                     len(knots), knots))
+        raise ValueError(
+            "Not enough knots provided. Curves with %s cvs must have a knot vector of length %s. "
+            "Received a knot vector of length %s: %s. "
+            "Total knot count must equal len(cvs) + degree + 1."
+            % (len(cvs), len(cvs) + order, len(knots), knots)
+        )
 
     # Convert cvs into hash-able indices
     _cvs = cvs
@@ -57,20 +73,28 @@ def pointOnCurveWeights(cvs: list, t: float, degree: int = 3, knots: list[float]
 
     # Determine which segment the t lies in
     segment = degree
-    for index, knot in enumerate(knots[order:len(knots) - order]): #slice the knot list starting at order
+    for index, knot in enumerate(
+        knots[order : len(knots) - order]
+    ):  # slice the knot list starting at order
         if knot <= t:
-            segment = index + order # Set segment to position in the knot list, taking into acount the order offset we took out earlier
+            segment = (
+                index + order
+            )  # Set segment to position in the knot list, taking into acount the order offset we took out earlier
 
     # Filter out cvs we won't be using
     cvs = [cvs[j + segment - degree] for j in range(0, degree + 1)]
 
     # Run a modified version of de Boors algorithm
-    cvWeights = [{cv: 1.0} for cv in cvs] # initialize weights with a value of 1 for every cv
-    for r in range(1, degree + 1): # Loop once per degree
-        for j in range(degree, r - 1, -1): # Loop backwards from degree to r
+    cvWeights = [
+        {cv: 1.0} for cv in cvs
+    ]  # initialize weights with a value of 1 for every cv
+    for r in range(1, degree + 1):  # Loop once per degree
+        for j in range(degree, r - 1, -1):  # Loop backwards from degree to r
             right = j + 1 + segment - r
             left = j + segment - degree
-            alpha = (t - knots[left]) / (knots[right] - knots[left]) # Alpha is how much influence comes from the left vs right cv
+            alpha = (t - knots[left]) / (
+                knots[right] - knots[left]
+            )  # Alpha is how much influence comes from the left vs right cv
 
             weights = {}
             for cv, weight in cvWeights[j].items():
@@ -88,29 +112,37 @@ def pointOnCurveWeights(cvs: list, t: float, degree: int = 3, knots: list[float]
     return [[_cvs[index], weight] for index, weight in cvWeights.items()]
 
 
-def tangentOnCurveWeights(cvs: list, t: float, degree:int = 3, knots: list[float]=None):
+def tangentOnCurveWeights(
+    cvs: list, t: float, degree: int = 3, knots: list[float] = None
+):
     """
     Creates a mapping of cvs to curve tangent weight values.
     While all cvs are required, only the cvs with non-zero weights will be returned.
     Args:
         cvs(list): A list of cvs, these are used for the return value.
-        t(float): A parameter value. 
-        degree(int): The curve dimensions. 
-        knots(list): A list of knot values. 
+        t(float): A parameter value.
+        degree(int): The curve dimensions.
+        knots(list): A list of knot values.
     Returns:
         list: A list of control point, weight pairs.
     """
 
     order = degree + 1  # Our functions often use order instead of degree
     if len(cvs) <= degree:
-        raise ValueError('Curves of degree %s require at least %s cvs' % (degree, degree + 1))
+        raise ValueError(
+            "Curves of degree %s require at least %s cvs" % (degree, degree + 1)
+        )
 
-    knots = knots or generateKnots(len(cvs), degree)  # Defaults to even knot distribution
+    knots = knots or generateKnots(
+        len(cvs), degree
+    )  # Defaults to even knot distribution
     if len(knots) != len(cvs) + order:
-        raise ValueError('Not enough knots provided. Curves with %s cvs must have a knot vector of length %s. '
-                             'Received a knot vector of length %s: %s. '
-                             'Total knot count must equal len(cvs) + degree + 1.' % (len(cvs), len(cvs) + order,
-                                                                                     len(knots), knots))
+        raise ValueError(
+            "Not enough knots provided. Curves with %s cvs must have a knot vector of length %s. "
+            "Received a knot vector of length %s: %s. "
+            "Total knot count must equal len(cvs) + degree + 1."
+            % (len(cvs), len(cvs) + order, len(knots), knots)
+        )
 
     # Remap the t value to the range of knot values.
     min = knots[order] - 1
@@ -119,7 +151,7 @@ def tangentOnCurveWeights(cvs: list, t: float, degree:int = 3, knots: list[float
 
     # Determine which segment the t lies in
     segment = degree
-    for index, knot in enumerate(knots[order:len(knots) - order]):
+    for index, knot in enumerate(knots[order : len(knots) - order]):
         if knot <= t:
             segment = index + order
 
@@ -157,11 +189,16 @@ def tangentOnCurveWeights(cvs: list, t: float, degree:int = 3, knots: list[float
         weight = weights[j]
         cv0 = j + segment - degree
         cv1 = j + segment - degree - 1
-        alpha = weight * (degree + 1) / (knots[j + segment + 1] - knots[j + segment - degree])
+        alpha = (
+            weight
+            * (degree + 1)
+            / (knots[j + segment + 1] - knots[j + segment - degree])
+        )
         cvWeights.append([cvs[cv0], alpha])
         cvWeights.append([cvs[cv1], -alpha])
 
     return [[_cvs[index], weight] for index, weight in cvWeights]
+
 
 def pointOnSurfaceWeights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
     """
@@ -177,7 +214,9 @@ def pointOnSurfaceWeights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
         list: A list of control point, weight pairs.
     """
     matrixWeightRows = [pointOnCurveWeights(row, u, degree, uKnots) for row in cvs]
-    matrixWeightColumns = pointOnCurveWeights([i for i in range(len(matrixWeightRows))], v, degree, vKnots)
+    matrixWeightColumns = pointOnCurveWeights(
+        [i for i in range(len(matrixWeightRows))], v, degree, vKnots
+    )
     surfaceMatrixWeights = []
     for index, weight in matrixWeightColumns:
         matrixWeights = matrixWeightRows[index]
@@ -201,7 +240,9 @@ def tangentUOnSurfaceWeights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
     """
 
     matrixWeightRows = [pointOnCurveWeights(row, u, degree, uKnots) for row in cvs]
-    matrixWeightColumns = tangentOnCurveWeights([i for i in range(len(matrixWeightRows))], v, degree, vKnots)
+    matrixWeightColumns = tangentOnCurveWeights(
+        [i for i in range(len(matrixWeightRows))], v, degree, vKnots
+    )
     surfaceMatrixWeights = []
     for index, weight in matrixWeightColumns:
         matrixWeights = matrixWeightRows[index]
@@ -226,8 +267,105 @@ def tangentVOnSurfaceWeights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
     # Re-order the cvs
     rowCount = len(cvs)
     columnCount = len(cvs[0])
-    reorderedCvs = [[cvs[row][col] for row in range(rowCount)] for col in range(columnCount)]
-    return tangentUOnSurfaceWeights(reorderedCvs, v, u, uKnots=vKnots, vKnots=uKnots, degree=degree)
+    reorderedCvs = [
+        [cvs[row][col] for row in range(rowCount)] for col in range(columnCount)
+    ]
+    return tangentUOnSurfaceWeights(
+        reorderedCvs, v, u, uKnots=vKnots, vKnots=uKnots, degree=degree
+    )
+
+
+def getPointOnSpline(
+    cv_positions: list[Vector3], t: float, degree: int = 3, knots: list[float] = None
+) -> Vector3:
+    position: Vector3 = Vector3()
+    for control_point, weight in pointOnCurveWeights(
+        cvs=cv_positions, t=t, degree=degree, knots=knots
+    ):
+        position += control_point * weight
+    return position
+
+def getTangentOnSpline(
+    cv_positions: list[Vector3], t: float, degree: int = 3, knots: list[float] = None
+) -> Vector3:
+    tangent: Vector3 = Vector3()
+    for control_point, weight in tangentOnCurveWeights(
+        cvs=cv_positions, t=t, degree=degree, knots=knots
+    ):
+        tangent += control_point * weight
+    return tangent
+
+
+def getPointsOnSpline(
+    cv_positions: list[Vector3],
+    number_of_points: int,
+    degree: int = 3,
+    sample_points: int = 128,
+) -> list[float]:
+    """
+    Takes curve CV positions and returns the parameter of evenly spaced points along the curve.
+    Args:
+        cv_positions: list of vectors containing XYZ of the CV positions.
+        segments: Number of point positions along the curve.
+        degree: Degree of the spline CVs
+        sample_points: The number of points to sample along the curve to find even arc-length segments. More points will be more accurate/evenly spaced.
+    Returns:
+        list: List of the parameter values of the picked points along the curve.
+    """
+    samples: list[Vector3] = []
+    for i in range(sample_points):
+        parameter: float = i * (1 / (sample_points - 1))
+        sample_pos: Vector3 = getPointOnSpline(
+            cv_positions=cv_positions, t=parameter, degree=degree
+        )
+        samples.append(sample_pos)
+
+    arc_lengths: list[float] = []
+    c_length: float = 0
+    prev_sample: Vector3 = None
+    for index, sample in enumerate(samples):
+        if not prev_sample:
+            prev_sample = sample
+        distance: float = (sample - prev_sample).length()
+        c_length += distance
+        arc_lengths.append(c_length)
+        prev_sample = sample
+
+    total_length: float = arc_lengths[len(arc_lengths)-1]
+    point_parameters: list[float] = []
+    for i in range(number_of_points):
+        u: float = i / (number_of_points - 1)
+        mapped_t: float = u
+        target_length: float = u * total_length
+
+        # Binary search to find the first point equal or greater than the target length
+        low: int = 0
+        high: int = len(arc_lengths) - 1
+        index: int = 0
+        while (low < high):
+            index = low + (high - low) // 2
+            if (arc_lengths[index] < target_length):
+                low = index + 1
+            else:
+                high = index
+
+        # Step back by one
+        if (arc_lengths[index] > target_length):
+            index -= 1
+        length_before: float = arc_lengths[index]
+
+        # If the sample is exactly our target point return it, otherwise interpolate between the closest samples
+        if length_before == target_length:
+            mapped_t = index / len(arc_lengths)
+        else:
+            sample_distance = arc_lengths[index + 1] - arc_lengths[index]
+            sample_fraction = (target_length - length_before)/sample_distance # How far we are along the current segment
+            mapped_t = (index + sample_fraction) / len(arc_lengths)
+        
+        point_parameters.append(mapped_t)
+    
+    return point_parameters
+
 
 def curveToMatrixSpline(curve: str, segments: int) -> tuple[list[str], list[str]]:
     """
@@ -252,23 +390,27 @@ def curveToMatrixSpline(curve: str, segments: int) -> tuple[list[str], list[str]
     degree: int = cmds.getAttr(f"{curve}.degree")
     num_cvs: int = spans + degree
     cv_list = [f"{curve}.cv[{i}]" for i in range(num_cvs)]
-    print(cv_list)
     positions = [cmds.pointPosition(cv, world=False) for cv in cv_list]
+    position_vectors: list[Vector3] = [Vector3(position[0], position[1], position[2]) for position in positions]
     cv_matrices: list[str] = []
     for i in range(num_cvs):
-        
-        #Create Transform for CV and move it to the position of the CV on the curve
-        cv_transform = cmds.polyCube(name=f"{curve}_CV{i}")[0]
-        cmds.setAttr(f"{cv_transform}.translate", positions[i][0], positions[i][1], positions[i][2])
-        
-        #Remove scale and shear from matrix since they will interfere with the linear interpolation of the basis vectors (causing flipping)
+        # Create Transform for CV and move it to the position of the CV on the curve
+        cv_transform = cmds.polySphere(name=f"{curve}_CV{i}")[0]
+        cmds.setAttr(
+            f"{cv_transform}.translate",
+            positions[i][0],
+            positions[i][1],
+            positions[i][2],
+        )
+
+        # Remove scale and shear from matrix since they will interfere with the linear interpolation of the basis vectors (causing flipping)
         pick_matrix = cmds.createNode("pickMatrix", name=f"{cv_transform}_PickMatrix")
         cmds.connectAttr(f"{cv_transform}.matrix", f"{pick_matrix}.inputMatrix")
         cmds.setAttr(f"{pick_matrix}.useShear", 0)
         cmds.setAttr(f"{pick_matrix}.useScale", 0)
 
-        #Add nodes to get connect individual values from the matrix, I don't know why maya makes us do this instead of just connecting directly
-        deconstruct_matrix_attribute= f"{pick_matrix}.outputMatrix"
+        # Add nodes to get connect individual values from the matrix, I don't know why maya makes us do this instead of just connecting directly
+        deconstruct_matrix_attribute = f"{pick_matrix}.outputMatrix"
         row1 = cmds.createNode("rowFromMatrix", name=f"{cv_transform}_row1")
         cmds.connectAttr(deconstruct_matrix_attribute, f"{row1}.matrix")
         cmds.setAttr(f"{row1}.input", 0)
@@ -282,7 +424,7 @@ def curveToMatrixSpline(curve: str, segments: int) -> tuple[list[str], list[str]
         cmds.connectAttr(deconstruct_matrix_attribute, f"{row4}.matrix")
         cmds.setAttr(f"{row4}.input", 3)
 
-        #Rebuild the matrix but encode the scale into the empty values in the matrix (this needs to be extracted after the weighted matrix sum)
+        # Rebuild the matrix but encode the scale into the empty values in the matrix (this needs to be extracted after the weighted matrix sum)
         cv_matrix = cmds.createNode("fourByFourMatrix", name=f"{cv_transform}_CvMatrix")
         cmds.connectAttr(f"{row1}.outputX", f"{cv_matrix}.in00")
         cmds.connectAttr(f"{row1}.outputY", f"{cv_matrix}.in01")
@@ -306,43 +448,69 @@ def curveToMatrixSpline(curve: str, segments: int) -> tuple[list[str], list[str]
 
         cv_matrices.append(f"{cv_matrix}.output")
 
+    segment_parameters = getPointsOnSpline(cv_positions=position_vectors, number_of_points=segments, degree=degree)
+    print(segments)
     for i in range(segments):
-        segment_name = f"{curve}_matrixSpline_Segment{i}"
-
-        # Adjust spacing if the curve is periodic
-        if periodic:
-            parameter = (i/segments)
-        else:
-            parameter = (i/(segments-1))
+        segment_name = f"{curve}_matrixSpline_Segment{i+1}"
         
+        parameter = segment_parameters[i]
+
         # Create node that blends the matrices based on the calculated DeBoor weights.
-        blended_matrix = cmds.createNode("wtAddMatrix", name=f"{segment_name}_BaseMatrix")
+        blended_matrix = cmds.createNode(
+            "wtAddMatrix", name=f"{segment_name}_BaseMatrix"
+        )
         point_weights = pointOnCurveWeights(cvs=cv_matrices, t=parameter, degree=degree)
         for index, point_weight in enumerate(point_weights):
-            cmds.setAttr(f"{blended_matrix}.wtMatrix[{index}].weightIn", point_weight[1])
-            cmds.connectAttr(f"{point_weight[0]}", f"{blended_matrix}.wtMatrix[{index}].matrixIn")
+            cmds.setAttr(
+                f"{blended_matrix}.wtMatrix[{index}].weightIn", point_weight[1]
+            )
+            cmds.connectAttr(
+                f"{point_weight[0]}", f"{blended_matrix}.wtMatrix[{index}].matrixIn"
+            )
 
-        blended_tangent_matrix = cmds.createNode("wtAddMatrix", name=f"{segment_name}_TangentMatrix")
-        tangent_weights = tangentOnCurveWeights(cvs=cv_matrices, t=parameter, degree=degree)
+        blended_tangent_matrix = cmds.createNode(
+            "wtAddMatrix", name=f"{segment_name}_TangentMatrix"
+        )
+        tangent_weights = tangentOnCurveWeights(
+            cvs=cv_matrices, t=parameter, degree=degree
+        )
         for index, tangent_weight in enumerate(tangent_weights):
-            cmds.setAttr(f"{blended_tangent_matrix}.wtMatrix[{index}].weightIn", tangent_weight[1])
-            cmds.connectAttr(f"{tangent_weight[0]}", f"{blended_tangent_matrix}.wtMatrix[{index}].matrixIn")
+            cmds.setAttr(
+                f"{blended_tangent_matrix}.wtMatrix[{index}].weightIn",
+                tangent_weight[1],
+            )
+            cmds.connectAttr(
+                f"{tangent_weight[0]}",
+                f"{blended_tangent_matrix}.wtMatrix[{index}].matrixIn",
+            )
 
-        tangent_vector = cmds.createNode("pointMatrixMult", name=f"{blended_tangent_matrix}_TangentVector")
-        cmds.connectAttr(f"{blended_tangent_matrix}.matrixSum", f"{tangent_vector}.inMatrix")
+        tangent_vector = cmds.createNode(
+            "pointMatrixMult", name=f"{blended_tangent_matrix}_TangentVector"
+        )
+        cmds.connectAttr(
+            f"{blended_tangent_matrix}.matrixSum", f"{tangent_vector}.inMatrix"
+        )
 
         # Create nodes to access the values of the blended matrix node.
         deconstruct_matrix_attribute = f"{blended_matrix}.matrixSum"
-        blended_matrix_row1 = cmds.createNode("rowFromMatrix", name=f"{blended_matrix}_row1")
+        blended_matrix_row1 = cmds.createNode(
+            "rowFromMatrix", name=f"{blended_matrix}_row1"
+        )
         cmds.setAttr(f"{blended_matrix_row1}.input", 0)
         cmds.connectAttr(deconstruct_matrix_attribute, f"{blended_matrix_row1}.matrix")
-        blended_matrix_row2 = cmds.createNode("rowFromMatrix", name=f"{blended_matrix}_row2")
+        blended_matrix_row2 = cmds.createNode(
+            "rowFromMatrix", name=f"{blended_matrix}_row2"
+        )
         cmds.connectAttr(deconstruct_matrix_attribute, f"{blended_matrix_row2}.matrix")
         cmds.setAttr(f"{blended_matrix_row2}.input", 1)
-        blended_matrix_row3 = cmds.createNode("rowFromMatrix", name=f"{blended_matrix}_row3")
+        blended_matrix_row3 = cmds.createNode(
+            "rowFromMatrix", name=f"{blended_matrix}_row3"
+        )
         cmds.connectAttr(deconstruct_matrix_attribute, f"{blended_matrix_row3}.matrix")
         cmds.setAttr(f"{blended_matrix_row3}.input", 2)
-        blended_matrix_row4 = cmds.createNode("rowFromMatrix", name=f"{blended_matrix}_row4")
+        blended_matrix_row4 = cmds.createNode(
+            "rowFromMatrix", name=f"{blended_matrix}_row4"
+        )
         cmds.connectAttr(deconstruct_matrix_attribute, f"{blended_matrix_row4}.matrix")
         cmds.setAttr(f"{blended_matrix_row4}.input", 3)
 
@@ -352,10 +520,21 @@ def curveToMatrixSpline(curve: str, segments: int) -> tuple[list[str], list[str]
         cmds.setAttr(f"{aim_matrix}.primaryInputAxis", 0, 1, 0)
         cmds.setAttr(f"{aim_matrix}.secondaryMode", 2)
         cmds.setAttr(f"{aim_matrix}.secondaryInputAxis", 0, 0, 1)
-        cmds.connectAttr(f"{tangent_vector}.output", f"{aim_matrix}.primary.primaryTargetVector")
-        cmds.connectAttr(f"{blended_matrix_row3}.outputX", f"{aim_matrix}.secondary.secondaryTargetVectorX")
-        cmds.connectAttr(f"{blended_matrix_row3}.outputY", f"{aim_matrix}.secondary.secondaryTargetVectorY")
-        cmds.connectAttr(f"{blended_matrix_row3}.outputZ", f"{aim_matrix}.secondary.secondaryTargetVectorZ")
+        cmds.connectAttr(
+            f"{tangent_vector}.output", f"{aim_matrix}.primary.primaryTargetVector"
+        )
+        cmds.connectAttr(
+            f"{blended_matrix_row3}.outputX",
+            f"{aim_matrix}.secondary.secondaryTargetVectorX",
+        )
+        cmds.connectAttr(
+            f"{blended_matrix_row3}.outputY",
+            f"{aim_matrix}.secondary.secondaryTargetVectorY",
+        )
+        cmds.connectAttr(
+            f"{blended_matrix_row3}.outputZ",
+            f"{aim_matrix}.secondary.secondaryTargetVectorZ",
+        )
 
         # Create nodes to access the values of the aim matrix node.
         deconstruct_matrix_attribute = f"{aim_matrix}.outputMatrix"
@@ -370,11 +549,20 @@ def curveToMatrixSpline(curve: str, segments: int) -> tuple[list[str], list[str]
         cmds.setAttr(f"{aim_matrix_row3}.input", 2)
 
         # Get tangent vector magnitude
-        tangent_vector_length = cmds.createNode("length", name=f"{segment_name}_tangentVectorLength")
+        tangent_vector_length = cmds.createNode(
+            "length", name=f"{segment_name}_tangentVectorLength"
+        )
         cmds.connectAttr(f"{tangent_vector}.output", f"{tangent_vector_length}.input")
-        tangent_vector_length_scaled = cmds.createNode("multDoubleLinear", name=f"{segment_name}_tangentVectorLengthScaled")
-        cmds.connectAttr(f"{tangent_vector_length}.output", f"{tangent_vector_length_scaled}.input1")
-        cmds.setAttr(f"{tangent_vector_length_scaled}.input2", (1/cmds.arclen(curve_shape))*4)
+        tangent_vector_length_scaled = cmds.createNode(
+            "multDoubleLinear", name=f"{segment_name}_tangentVectorLengthScaled"
+        )
+        cmds.connectAttr(
+            f"{tangent_vector_length}.output", f"{tangent_vector_length_scaled}.input1"
+        )
+        tangent_sample = cmds.pointOnCurve(curve_shape, tangent=True, parameter=parameter*spans)
+        cmds.setAttr(
+            f"{tangent_vector_length_scaled}.input2", 1 / Vector3(tangent_sample[0], tangent_sample[1], tangent_sample[2]).length()
+        )
 
         # Create Nodes to re-apply scale
         x_scaled = cmds.createNode("multiplyDivide", name=f"{segment_name}_xScale")
@@ -411,7 +599,9 @@ def curveToMatrixSpline(curve: str, segments: int) -> tuple[list[str], list[str]
         cmds.connectAttr(z_scale_attribute, f"{z_scaled}.input2Z")
 
         # Rebuild the matrix
-        output_matrix = cmds.createNode("fourByFourMatrix", name=f"{segment_name}_OutputMatrix")
+        output_matrix = cmds.createNode(
+            "fourByFourMatrix", name=f"{segment_name}_OutputMatrix"
+        )
         cmds.connectAttr(f"{x_scaled}.outputX", f"{output_matrix}.in00")
         cmds.connectAttr(f"{x_scaled}.outputY", f"{output_matrix}.in01")
         cmds.connectAttr(f"{x_scaled}.outputZ", f"{output_matrix}.in02")
@@ -429,7 +619,6 @@ def curveToMatrixSpline(curve: str, segments: int) -> tuple[list[str], list[str]
         cmds.connectAttr(f"{blended_matrix_row4}.outputZ", f"{output_matrix}.in32")
 
         segment_transform = cmds.polyCube(name=segment_name)[0]
-        cmds.connectAttr(f"{output_matrix}.output", f"{segment_transform}.offsetParentMatrix")
-
-
-
+        cmds.connectAttr(
+            f"{output_matrix}.output", f"{segment_transform}.offsetParentMatrix"
+        )
