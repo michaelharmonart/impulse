@@ -1,9 +1,6 @@
 """
 Functions for working with splines.
 
-This is mostly the work of Cole O'Brien
-https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
-https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
 """
 
 from inspect import Parameter
@@ -12,6 +9,9 @@ from ..structs.transform import Vector3 as Vector3
 
 
 def generateKnots(count: int, degree: int = 3) -> list[float]:
+    # Algorithm and code originally from Cole O'Brien
+    # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
+    # https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
     """
     Gets a default knot vector for a given number of cvs and degrees.
     Args:
@@ -32,6 +32,9 @@ def generateKnots(count: int, degree: int = 3) -> list[float]:
 def pointOnCurveWeights(
     cvs: list, t: float, degree: int = 3, knots: list[float] = None
 ):
+    # Algorithm and code originally from Cole O'Brien
+    # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
+    # https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
     """
     Creates a mapping of cvs to curve weight values on a spline curve.
     While all cvs are required, only the cvs with non-zero weights will be returned.
@@ -44,7 +47,7 @@ def pointOnCurveWeights(
     Returns:
         list: A list of control point, weight pairs.
     """
-
+    
     order = degree + 1  # Our functions often use order instead of degree
     if len(cvs) <= degree:
         raise ValueError(
@@ -115,6 +118,9 @@ def pointOnCurveWeights(
 def tangentOnCurveWeights(
     cvs: list, t: float, degree: int = 3, knots: list[float] = None
 ):
+    # Algorithm and code originally from Cole O'Brien
+    # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
+    # https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
     """
     Creates a mapping of cvs to curve tangent weight values.
     While all cvs are required, only the cvs with non-zero weights will be returned.
@@ -201,6 +207,9 @@ def tangentOnCurveWeights(
 
 
 def pointOnSurfaceWeights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
+    # Algorithm and code originally from Cole O'Brien
+    # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
+    # https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
     """
     Creates a mapping of cvs to surface point weight values.
     Args:
@@ -226,6 +235,9 @@ def pointOnSurfaceWeights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
 
 
 def tangentUOnSurfaceWeights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
+    # Algorithm and code originally from Cole O'Brien
+    # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
+    # https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
     """
     Creates a mapping of cvs to surface tangent weight values along the u axis.
     Args:
@@ -252,6 +264,9 @@ def tangentUOnSurfaceWeights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
 
 
 def tangentVOnSurfaceWeights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
+    # Algorithm and code originally from Cole O'Brien
+    # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
+    # https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
     """
     Creates a mapping of cvs to surface tangent weight values along the v axis.
     Args:
