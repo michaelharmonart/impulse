@@ -354,9 +354,11 @@ def getPointsOnSpline(
             index -= 1
         length_before: float = arc_lengths[index]
 
-        # If the sample is exactly our target point return it, otherwise interpolate between the closest samples
-        if length_before == target_length:
+        # If the sample is exactly our target point return it, if it's the last, return 1, otherwise interpolate between the closest samples
+        if (length_before == target_length) :
             mapped_t = index / len(arc_lengths)
+        elif (i == number_of_points -1):
+            mapped_t = 1
         else:
             sample_distance = arc_lengths[index + 1] - arc_lengths[index]
             sample_fraction = (target_length - length_before)/sample_distance # How far we are along the current segment
@@ -449,7 +451,6 @@ def curveToMatrixSpline(curve: str, segments: int) -> tuple[list[str], list[str]
         cv_matrices.append(f"{cv_matrix}.output")
 
     segment_parameters = getPointsOnSpline(cv_positions=position_vectors, number_of_points=segments, degree=degree)
-    print(segments)
     for i in range(segments):
         segment_name = f"{curve}_matrixSpline_Segment{i+1}"
         
