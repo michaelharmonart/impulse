@@ -3,7 +3,7 @@ Module: ribbon_generator
 Description:
     This module provides a function to generate a ribbon rig in Maya based on a given NURBS surface.
     This script is depreciated, `ribbon.py` contains a more feature rich version of this script.
-    
+
 Usage:
     Select one or more NURBS surfaces in Maya and run this script. Each selected object will be processed
     to create a cyclic ribbon rig.
@@ -25,11 +25,11 @@ def get_surface_shape(node: str) -> str:
 def get_surface_dimensions(surface_shape: str, swap_uv: bool) -> tuple[float, float]:
     """
     Get the ribbon length and width from a NURBS surface.
-    
+
     Args:
         surface_shape: The name of the surface shape.
         swap_uv: If True, swap U and V dimensions.
-        
+
     Returns:
         A tuple (ribbon_length, ribbon_width).
     """
@@ -45,13 +45,13 @@ def get_surface_dimensions(surface_shape: str, swap_uv: bool) -> tuple[float, fl
 def get_surface_point(surface: str, u: float, v: float, swap_uv: bool) -> list[float]:
     """
     Compute a point on a surface given U/V parameters.
-    
+
     Args:
         surface: The surface (typically a duplicated NURBS surface) on which to compute the point.
         u: The U parameter.
         v: The V parameter.
         swap_uv: If True, swap the U and V parameters when querying the surface.
-        
+
     Returns:
         The XYZ position on the surface.
     """
@@ -63,23 +63,24 @@ def get_surface_point(surface: str, u: float, v: float, swap_uv: bool) -> list[f
 def create_joint_at_point(parent: str, position: list[float], radius: float, joint_name: str) -> str:
     """
     Create a joint at the specified position under a given parent.
-    
+
     Args:
         parent: The transform to which the joint will belong.
         position: The XYZ position for the joint.
         radius: The joint's radius.
         joint_name: The name for the joint.
-        
+
     Returns:
         The name of the created joint.
     """
     cmds.select(parent, replace=True)
     return cmds.joint(position=position, radius=radius, name=joint_name)
 
+
 def pin_joint_to_uv(surface: str, joint: str, uv_string: str, local_space: bool) -> None:
     """
     Pin a joint to a surface using UV coordinates.
-    
+
     Args:
         surface: The surface containing the UVs.
         joint: The joint to be pinned.
@@ -102,14 +103,14 @@ def generate_ribbon(
     control_joints: bool = True,
     number_of_controls: int | None = None,
     half_controls: bool = True,
-    hide_surfaces: bool = False
+    hide_surfaces: bool = False,
 ) -> None:
     """
     Generate a ribbon rig based on a given NURBS surface.
-    
+
     The function duplicates the surface, creates a ribbon group, and adds control and deformation
     joints along the surface. UVPin is used to pin joints to specific UV coordinates.
-    
+
     Args:
         nurbs_surface_name: The name of the NURBS surface.
         number_of_joints: The number of deformation joints to create.
@@ -124,9 +125,9 @@ def generate_ribbon(
     surface_shape = get_surface_shape(nurbs_surface_name)
     if cmds.nodeType(surface_shape) != "nurbsSurface":
         raise RuntimeError(f"{surface_shape} is not a nurbsSurface.")
-    
+
     ribbon_length, ribbon_width = get_surface_dimensions(surface_shape, swap_uv)
-    
+
     if number_of_controls is None:
         number_of_controls = int(ribbon_length)
         if half_controls:
@@ -139,7 +140,7 @@ def generate_ribbon(
     if not local_space:
         cmds.setAttr(f"{ribbon_object}.inheritsTransform", 0)
     ribbon_group = cmds.group(ribbon_object, name=f"{ribbon_object}_GRP")
-    
+
     # Create control joints if requested.
     if control_joints:
         control_loop_count = number_of_controls if cyclic else number_of_controls + 1
@@ -148,26 +149,26 @@ def generate_ribbon(
             u = control_spacing * i
             v = ribbon_width / 2.0
             position = get_surface_point(ribbon_object, u, v, swap_uv)
-            joint_name = f"{ribbon_object}_{i+1}_ControlJoint"
+            joint_name = f"{ribbon_object}_{i + 1}_ControlJoint"
             create_joint_at_point(ribbon_group, position, radius=1, joint_name=joint_name)
-    
+
     # Create deformation joints along the ribbon.
     for i in range(number_of_joints):
         cmds.select(ribbon_group, replace=True)
         u = (i / number_of_joints) * ribbon_length if cyclic else (i / (number_of_joints - 1)) * ribbon_length
         v = ribbon_width / 2.0
         position = get_surface_point(ribbon_object, u, v, swap_uv)
-        joint_name = f"{ribbon_object}_point{i+1}_DEF"
+        joint_name = f"{ribbon_object}_point{i + 1}_DEF"
         created_joint = create_joint_at_point(ribbon_group, position, radius=0.5, joint_name=joint_name)
-        
+
         if cyclic:
             uv_value = (i / (number_of_joints - 2)) * 2 if number_of_joints > 2 else 0.5
             uv_coord = f"{ribbon_object}.uv[{uv_value}][0.5]"
         else:
             uv_coord = f"{ribbon_object}.uv[{v}][{u}]" if swap_uv else f"{ribbon_object}.uv[{u}][{v}]"
-        
+
         pin_joint_to_uv(ribbon_object, created_joint, uv_coord, local_space)
-               
+
 
 for obj in cmds.ls(selection=True):
     generate_ribbon(obj, cyclic=True)

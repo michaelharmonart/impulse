@@ -5,18 +5,23 @@ from . import math as math
 from enum import Enum
 import warnings
 
+
 class ControlShape(Enum):
     """Enum for available control shapes."""
+
     CIRCLE = 0
     TRIANGLE = 1
     SQUARE = 2
     PILL = 3
 
+
 class Direction(Enum):
     """Enum for available control directions"""
+
     X = 0
     Y = 1
     Z = 2
+
 
 # Mapping from control shape to its corresponding MEL command string.
 MEL_COMMANDS = {
@@ -123,19 +128,19 @@ setAttr ".cc" -type "nurbsCurve"
 
 
 def generate_control(
-        name: str,
-        parent: str = None,
-        position: tuple[float, float, float] = (0,0,0),
-        direction: Direction = Direction.Y,
-        opposite_direction: bool = False,
-        size: float = 1,
-        control_shape: ControlShape = ControlShape.CIRCLE,
-        offset: float = 0,
+    name: str,
+    parent: str = None,
+    position: tuple[float, float, float] = (0, 0, 0),
+    direction: Direction = Direction.Y,
+    opposite_direction: bool = False,
+    size: float = 1,
+    control_shape: ControlShape = ControlShape.CIRCLE,
+    offset: float = 0,
 ) -> str:
     """
     Create a control curve in Maya at a given position, scale it, offset it,
     and parent it under the specified transform.
-    
+
     Args:
         position: (x, y, z) coordinates for the control's final position.
         parent: Name of the parent transform.
@@ -143,12 +148,12 @@ def generate_control(
         size: Scaling factor for the control curve.
         control_shape: The type of control shape to create.
         offset: Vertical offset applied immediately after creation.
-        use_opm: Use offset parent matrix instead of offset transform group (cleaner hierarchy) 
-    
+        use_opm: Use offset parent matrix instead of offset transform group (cleaner hierarchy)
+
     Returns:
         The name of the created control transform.
     """
-    
+
     # Retrieve the MEL command for the desired control shape.
     mel_command = MEL_COMMANDS.get(control_shape)
     if mel_command is None:
@@ -156,12 +161,12 @@ def generate_control(
 
     # Execute the MEL command to create the control curve.
     mel.eval(mel_command)
-    
+
     # Retrieve the created control (assumes the curve is currently selected).
     selection = cmds.ls(selection=True)
     if not selection:
         raise RuntimeError("No control created; check the MEL command output.")
-    
+
     # Get the transform node from the selected curve.
     control_transform = cmds.listRelatives(selection[0], parent=True)
     if not control_transform:
@@ -178,14 +183,14 @@ def generate_control(
 
     if direction == Direction.X:
         if opposite_direction:
-            cmds.rotate(0,0,90) 
+            cmds.rotate(0, 0, 90)
         else:
-            cmds.rotate(0,0,-90)
+            cmds.rotate(0, 0, -90)
     elif direction == Direction.Z:
         if opposite_direction:
-            cmds.rotate(-90,0,0) 
+            cmds.rotate(-90, 0, 0)
         else:
-            cmds.rotate(90,0,0)
+            cmds.rotate(90, 0, 0)
     cmds.makeIdentity(apply=True)
     cmds.xform(control_transform, pivots=(0, 0, 0))
 
@@ -193,28 +198,29 @@ def generate_control(
     cmds.move(position[0], position[1], position[2], relative=True, worldSpace=True)
     if parent:
         cmds.parent(control_transform, parent)
-    
+
     return control_transform
 
+
 def generate_surface_control(
-        name: str,
-        surface: str,
-        parent: str = None,
-        position: tuple[float, float, float] = (0,0,0),
-        match_transform: str = None,
-        uv_position: tuple[float, float] = None,
-        u_attribute: str = None,
-        v_attribute: str = None,
-        control_sensitivity: tuple[float, float] = (1,1),
-        direction: Direction = Direction.Y,
-        opposite_direction: bool = False,
-        size: float = 1,
-        control_shape: ControlShape = ControlShape.CIRCLE,
-        offset: float = 0.1,
+    name: str,
+    surface: str,
+    parent: str = None,
+    position: tuple[float, float, float] = (0, 0, 0),
+    match_transform: str = None,
+    uv_position: tuple[float, float] = None,
+    u_attribute: str = None,
+    v_attribute: str = None,
+    control_sensitivity: tuple[float, float] = (1, 1),
+    direction: Direction = Direction.Y,
+    opposite_direction: bool = False,
+    size: float = 1,
+    control_shape: ControlShape = ControlShape.CIRCLE,
+    offset: float = 0.1,
 ) -> str:
     """
     Create a control that moves only along a given surface (plus an offset).
-    
+
     Args:
         surface: The surface (mesh or NURBS) that the control will move along.
         parent: Name of the transform to parent control to.
@@ -227,13 +233,11 @@ def generate_surface_control(
         size: Scaling factor for the control curve.
         control_shape: The type of control shape to create.
         offset: Vertical offset applied immediately after creation.
-        use_opm: Use offset parent matrix instead of offset transform group (cleaner hierarchy) 
-    
+        use_opm: Use offset parent matrix instead of offset transform group (cleaner hierarchy)
+
     Returns:
         The name of the created control transform.
     """
-    
-    
 
     # Retrieve the MEL command for the desired control shape.
     mel_command = MEL_COMMANDS.get(control_shape)
@@ -242,22 +246,21 @@ def generate_surface_control(
 
     # Execute the MEL command to create the control curve.
     mel.eval(mel_command)
-    
+
     # Retrieve the created control (assumes the curve is currently selected).
     selection = cmds.ls(selection=True)
     if not selection:
         raise RuntimeError("No control created; check the MEL command output.")
-    
+
     # Get the transform node from the selected curve.
     control_transform = cmds.listRelatives(selection[0], parent=True)
     if not control_transform:
         raise RuntimeError("Control creation failed; no parent transform found.")
     control_transform = control_transform[0]
 
-
     # Adjust the control's scale, apply an offset, reset transforms, and reposition.
     cmds.select(control_transform)
-    control_transform= cmds.rename(control_transform, f"{name}_CTL")
+    control_transform = cmds.rename(control_transform, f"{name}_CTL")
     cmds.scale(size, size, size, relative=True)
     cmds.move(0, offset, 0, relative=True)
     cmds.makeIdentity(apply=True)
@@ -265,31 +268,35 @@ def generate_surface_control(
 
     if direction == Direction.X:
         if opposite_direction:
-            cmds.rotate(0,0,90) 
+            cmds.rotate(0, 0, 90)
         else:
-            cmds.rotate(0,0,-90)
+            cmds.rotate(0, 0, -90)
     elif direction == Direction.Z:
         if opposite_direction:
-            cmds.rotate(-90,0,0) 
+            cmds.rotate(-90, 0, 0)
         else:
-            cmds.rotate(90,0,0)
+            cmds.rotate(90, 0, 0)
     cmds.makeIdentity(apply=True)
     cmds.xform(control_transform, pivots=(0, 0, 0))
 
     control_static_group = cmds.group(control_transform, name=f"{name}_STATIC")
     offset_matrix_compose = cmds.createNode("composeMatrix", name=f"{control_transform}_offsetMatrixCompose")
-    cmds.connectAttr(f"{control_transform}.translate.translateX",f"{offset_matrix_compose}.inputTranslate.inputTranslateX")
-    cmds.connectAttr(f"{control_transform}.translate.translateZ",f"{offset_matrix_compose}.inputTranslate.inputTranslateZ")
+    cmds.connectAttr(
+        f"{control_transform}.translate.translateX", f"{offset_matrix_compose}.inputTranslate.inputTranslateX"
+    )
+    cmds.connectAttr(
+        f"{control_transform}.translate.translateZ", f"{offset_matrix_compose}.inputTranslate.inputTranslateZ"
+    )
     matrix_inverse = cmds.createNode("inverseMatrix", name=f"{control_transform}_inverseMatrix")
-    cmds.connectAttr(f"{offset_matrix_compose}.outputMatrix",f"{matrix_inverse}.inputMatrix")  
-    cmds.connectAttr(f"{matrix_inverse}.outputMatrix",f"{control_static_group}.offsetParentMatrix") 
-       
+    cmds.connectAttr(f"{offset_matrix_compose}.outputMatrix", f"{matrix_inverse}.inputMatrix")
+    cmds.connectAttr(f"{matrix_inverse}.outputMatrix", f"{control_static_group}.offsetParentMatrix")
+
     offset_transform = cmds.group(control_static_group, name=f"{name}_OFFSET")
     shapes = cmds.listRelatives(surface, shapes=True) or []
     if not shapes:
         cmds.error(f"No shape node found on object: {surface}")
     shape = shapes[0]
-    
+
     surface_type = cmds.objectType(shape)
     if surface_type == "mesh":
         cp_node_type = "closestPointOnMesh"
@@ -299,16 +306,16 @@ def generate_surface_control(
         cp_node_type = "closestPointOnSurface"
         attr_world = ".worldSpace[0]"
         cp_input = ".inputSurface"
-    else:   
+    else:
         raise RuntimeError(f"{surface} is of type {surface_type}, but should be NURBS or a mesh.")
-    
-    #Create temp node to get the UV of the closest point on the surface to the default location of this control.
+
+    # Create temp node to get the UV of the closest point on the surface to the default location of this control.
     rotation_y = 0
     cp_node = cmds.createNode(cp_node_type, name=f"{name}_closestPoint_TEMP")
     cmds.connectAttr(f"{shape}{attr_world}", f"{cp_node}{cp_input}")
     if surface_type == "mesh":
         cmds.connectAttr(f"{shape}.worldMatrix[0]", f"{cp_node}.inputMatrix")
-    
+
     x_attribute = f"{control_transform}.translate.translateX"
     z_attribute = f"{control_transform}.translate.translateZ"
     if match_transform:
@@ -316,8 +323,12 @@ def generate_surface_control(
         rotate_matrix = cmds.createNode("composeMatrix", name=f"{name}_rotationMatrixCompose")
         cmds.connectAttr(f"{offset_transform}.rotate.rotateY", f"{rotate_matrix}.inputRotate.inputRotateY")
         translate_matrix = cmds.createNode("composeMatrix", name=f"{name}_translateMatrixCompose")
-        cmds.connectAttr(f"{control_transform}.translate.translateX", f"{translate_matrix}.inputTranslate.inputTranslateX")
-        cmds.connectAttr(f"{control_transform}.translate.translateZ", f"{translate_matrix}.inputTranslate.inputTranslateZ")
+        cmds.connectAttr(
+            f"{control_transform}.translate.translateX", f"{translate_matrix}.inputTranslate.inputTranslateX"
+        )
+        cmds.connectAttr(
+            f"{control_transform}.translate.translateZ", f"{translate_matrix}.inputTranslate.inputTranslateZ"
+        )
         multiplied_matrix = cmds.createNode("multMatrix", name=f"{name}_multMatrix")
         cmds.connectAttr(f"{translate_matrix}.outputMatrix", f"{multiplied_matrix}.matrixIn[0]")
         cmds.connectAttr(f"{rotate_matrix}.outputMatrix", f"{multiplied_matrix}.matrixIn[1]")
@@ -339,23 +350,25 @@ def generate_surface_control(
         min_max_u = cmds.getAttr(f"{shape}.minMaxRangeU")[0]
         min_max_v = cmds.getAttr(f"{shape}.minMaxRangeV")[0]
     cmds.delete(cp_node)
-    u_range: float = min_max_u[1]-min_max_u[0]
-    v_range: float = min_max_v[1]-min_max_v[0]
-    uv_ratio: float = u_range/v_range
+    u_range: float = min_max_u[1] - min_max_u[0]
+    v_range: float = min_max_v[1] - min_max_v[0]
+    uv_ratio: float = u_range / v_range
 
-    uv_pin_node = pin.make_uv_pin(object_to_pin=offset_transform, surface=surface, u= default_u, v=default_v, normalize=False)
+    uv_pin_node = pin.make_uv_pin(
+        object_to_pin=offset_transform, surface=surface, u=default_u, v=default_v, normalize=False
+    )
     if match_transform:
         temp_locator = cmds.group(empty=True, parent=offset_transform)
         cmds.parentConstraint(match_transform, temp_locator, maintainOffset=False)
         rotation_y = cmds.getAttr(f"{temp_locator}.rotate.rotateY")
         cmds.delete(temp_locator)
-        cmds.xform(offset_transform, rotation=(0,rotation_y,0), worldSpace=False)
+        cmds.xform(offset_transform, rotation=(0, rotation_y, 0), worldSpace=False)
 
     multiplier = cmds.createNode("multiplyDivide", name=f"{name}_sensitivityMultiply")
     cmds.connectAttr(x_attribute, f"{multiplier}.input1.input1X")
-    cmds.connectAttr(z_attribute , f"{multiplier}.input1.input1Z")
-    cmds.setAttr(f"{multiplier}.input2.input2X", control_sensitivity[0]*u_range)
-    cmds.setAttr(f"{multiplier}.input2.input2Z", -control_sensitivity[1]*v_range*uv_ratio)
+    cmds.connectAttr(z_attribute, f"{multiplier}.input1.input1Z")
+    cmds.setAttr(f"{multiplier}.input2.input2X", control_sensitivity[0] * u_range)
+    cmds.setAttr(f"{multiplier}.input2.input2Z", -control_sensitivity[1] * v_range * uv_ratio)
     u_adder = cmds.createNode("addDoubleLinear", name=f"{name}_uOffsetAdd")
     v_adder = cmds.createNode("addDoubleLinear", name=f"{name}_vOffsetAdd")
     cmds.connectAttr(f"{multiplier}.output.outputX", f"{u_adder}.input1")
@@ -368,7 +381,7 @@ def generate_surface_control(
         cmds.connectAttr(v_attribute, f"{v_adder}.input2")
     else:
         cmds.setAttr(f"{v_adder}.input2", default_v)
-    
+
     u_clamp = cmds.createNode("clampRange", name=f"{name}_uClamp")
     v_clamp = cmds.createNode("clampRange", name=f"{name}_vClamp")
     cmds.connectAttr(f"{u_adder}.output", f"{u_clamp}.input")
@@ -383,37 +396,47 @@ def generate_surface_control(
 
     if parent:
         cmds.parent(offset_transform, parent)
-    
+
     return offset_transform
 
+
 def connect(
-        control_name: str,
-        driven_name: str,
-        connect_scale: bool = True,
+    control_name: str,
+    driven_name: str,
+    connect_scale: bool = True,
 ) -> None:
     children = cmds.listRelatives(control_name, allDescendents=True, type="transform") or []
     if len(children) == 0:
-        raise RuntimeError(f"{control_name} doesn't have any child transforms that could be a control shape, is it a valid control? Here are it's children: {children}")
+        raise RuntimeError(
+            f"{control_name} doesn't have any child transforms that could be a control shape, is it a valid control? Here are it's children: {children}"
+        )
     control_transform: str = None
     for child in children:
         if child.endswith("_CTL"):
             control_transform: str = child
     if control_transform is None:
-        raise RuntimeError(f"{control_name} doesn't have a child transform ending in CTL, is it a valid control? Here are it's children: {children}")
+        raise RuntimeError(
+            f"{control_name} doesn't have a child transform ending in CTL, is it a valid control? Here are it's children: {children}"
+        )
     cmds.parentConstraint(control_transform, driven_name, weight=1)
     if connect_scale:
         cmds.scaleConstraint(control_transform, driven_name, weight=1)
 
+
 def get_control_transform(
-        control_name: str,
+    control_name: str,
 ) -> str:
     children = cmds.listRelatives(control_name, allDescendents=True, type="transform") or []
     if len(children) == 0:
-        raise RuntimeError(f"{control_name} doesn't have any child transforms that could be a control shape, is it a valid control? Here are it's children: {children}")
+        raise RuntimeError(
+            f"{control_name} doesn't have any child transforms that could be a control shape, is it a valid control? Here are it's children: {children}"
+        )
     control_transform: str = None
     for child in children:
         if child.endswith("_CTL"):
             control_transform: str = child
     if control_transform is None:
-        raise RuntimeError(f"{control_name} doesn't have a child transform ending in CTL, is it a valid control? Here are it's children: {children}")
+        raise RuntimeError(
+            f"{control_name} doesn't have a child transform ending in CTL, is it a valid control? Here are it's children: {children}"
+        )
     return control_transform

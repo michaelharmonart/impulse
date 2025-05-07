@@ -185,4 +185,3 @@ def consolidate_uvpins() -> None:
             pin_num += 1
     for uv_pin_node in uv_pin_nodes:
         cmds.delete(uv_pin_node)
-            
