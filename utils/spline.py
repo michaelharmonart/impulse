@@ -2,6 +2,7 @@
 Functions for working with splines.
 
 """
+from operator import is_
 import maya.cmds as cmds
 from ..structs.transform import Vector3 as Vector3
 
@@ -26,7 +27,7 @@ def generate_knots(count: int, degree: int = 3) -> list[float]:
 
 
 def get_knots(curve_shape: str) -> list[float]:
-    # Refer to https://openusd.org/dev/api/class_usd_geom_nurbs_curves.html
+    # Refer to https://openusd.org/dev/api/class_usd_geom_nurbs_curves.html#details
     curve_info = cmds.createNode("curveInfo", name="temp_curveInfo")
     cmds.connectAttr(f"{curve_shape}.worldSpace", f"{curve_info}.inputCurve")
     knots: list[float] = cmds.getAttr(f"{curve_info}.knots[*]")
@@ -35,11 +36,12 @@ def get_knots(curve_shape: str) -> list[float]:
     knots.insert(0, 0)
     knots.append(0)
     if cmds.getAttr(f"{curve_shape}.form") == 2:
-        knots[0] = knots[1] - (knots[-1] - knots[-3])
-        knots[-1] = knots[-2] - (knots[2] - knots[1])
+        knots[0] = knots[1] - (knots[-2] - knots[-3])
+        knots[-1] = knots[-2] + (knots[2] - knots[1])
     else:
         knots[0] = knots[1]
         knots[-1] = knots[-2]
+    
     return knots
 
 
@@ -50,6 +52,17 @@ def get_cvs(curve_shape: str) -> list[Vector3]:
     cmds.delete(curve_info)
     position_list = [Vector3(position[0], position[1], position[2]) for position in cv_list]
     return position_list
+
+def is_periodic_knot_vector(knots: list[float], degree: int = 3) -> bool:
+    # Based on this equation k[(degree-1)+i+1] - k[(degree-1)+i] = k[(cv_count-1)+i+1] - k[(cv_count)+i]
+    # See https://developer.rhino3d.com/guides/opennurbs/periodic-curves-and-surfaces/
+    # Although there seems to be an error in this, so we change k[(cv_count)+i to k[(cv_count-1)+i
+    cv_count = len(knots) - (degree + 1)
+
+    for i in range(-degree + 1, degree):
+        if knots[(degree-1)+i+1] - knots[(degree-1)+i] != knots[(cv_count-1)+i+1] - knots[(cv_count-1)+i]:
+            return False
+    return True
 
 def deBoor_setup(cvs: list, t: float, degree: int = 3, knots: list[float] = None, normalize: bool = True) -> tuple[list[float], int, float, bool]:
     # Algorithm and code originally from Cole O'Brien. Modified to support periodic splines.
@@ -80,13 +93,7 @@ def deBoor_setup(cvs: list, t: float, degree: int = 3, knots: list[float] = None
         )
 
     # Determine if curve is periodic
-    if (
-        knots[degree] != knots[degree - 1]  # no left clamping
-        and knots[-degree - 1] != knots[-degree]  # no right clamping
-    ):
-        periodic = True
-    else:
-        periodic = False
+    periodic: bool = is_periodic_knot_vector(knots=knots, degree=degree)
 
     # Optional normalization of t
     domain_start = knots[degree]
@@ -415,21 +422,18 @@ def curveToMatrixSpline(curve: str, segments: int) -> tuple[list[str], list[str]
     periodic: bool = cmds.getAttr(f"{curve}.form") == 2
     spans: int = cmds.getAttr(f"{curve}.spans")
     degree: int = cmds.getAttr(f"{curve}.degree")
-    num_cvs: int = spans + degree
-    cv_list = [f"{curve}.cv[{i}]" for i in range(num_cvs)]
-    position_vectors: list[Vector3] = get_cvs(curve_shape=curve_shape)
-    positions = [(position.x, position.y, position.z) for position in position_vectors]
+    cv_positions: list[Vector3] = get_cvs(curve_shape=curve_shape)
     knots: list[float] = get_knots(curve_shape)
     cv_matrices: list[str] = []
 
-    for i in range(num_cvs):
+    for i, cv_pos in enumerate(cv_positions):
         # Create Transform for CV and move it to the position of the CV on the curve
         cv_transform = cmds.polySphere(name=f"{curve}_CV{i}")[0]
         cmds.setAttr(
             f"{cv_transform}.translate",
-            positions[i][0],
-            positions[i][1],
-            positions[i][2],
+            cv_pos.x,
+            cv_pos.y,
+            cv_pos.z,
         )
 
         # Remove scale and shear from matrix since they will interfere with the linear interpolation of the basis vectors (causing flipping)
@@ -477,7 +481,7 @@ def curveToMatrixSpline(curve: str, segments: int) -> tuple[list[str], list[str]
 
         cv_matrices.append(f"{cv_matrix}.output")
 
-    segment_parameters = resample(cv_positions=position_vectors, number_of_points=segments, degree=degree, knots=knots)
+    segment_parameters = resample(cv_positions=cv_positions, number_of_points=segments, degree=degree, knots=knots)
     for i in range(segments):
         segment_name = f"{curve}_matrixSpline_Segment{i + 1}"
 
