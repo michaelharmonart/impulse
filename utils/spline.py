@@ -173,7 +173,6 @@ def point_on_curve_weights(cvs: list, t: float, degree: int = 3, knots: list[flo
     segment = curve_setup[1]
     t = curve_setup[2]
     periodic = curve_setup[3]
-    print(periodic)
 
     # Convert cvs into hash-able indices
     _cvs = cvs
@@ -326,7 +325,7 @@ def resample(
     number_of_points: int,
     degree: int = 3,
     knots: list[float] = None,
-    sample_points: int = 128,
+    sample_points: int = 256,
 ) -> list[float]:
     """
     Takes curve CV positions and returns the parameter of evenly spaced points along the curve.
@@ -483,6 +482,7 @@ def curveToMatrixSpline(curve: str, segments: int) -> tuple[list[str], list[str]
         segment_name = f"{curve}_matrixSpline_Segment{i + 1}"
 
         parameter = segment_parameters[i]
+        #parameter = i * (1/segments)
 
         # Create node that blends the matrices based on the calculated DeBoor weights.
         blended_matrix = cmds.createNode("wtAddMatrix", name=f"{segment_name}_BaseMatrix")
@@ -560,7 +560,7 @@ def curveToMatrixSpline(curve: str, segments: int) -> tuple[list[str], list[str]
             "multDoubleLinear", name=f"{segment_name}_tangentVectorLengthScaled"
         )
         cmds.connectAttr(f"{tangent_vector_length}.output", f"{tangent_vector_length_scaled}.input1")
-        tangent_sample = cmds.pointOnCurve(curve_shape, tangent=True, parameter=parameter * spans)
+        tangent_sample = cmds.pointOnCurve(curve_shape, tangent=True, parameter=parameter, turnOnPercentage=True)
         cmds.setAttr(
             f"{tangent_vector_length_scaled}.input2",
             1 / Vector3(tangent_sample[0], tangent_sample[1], tangent_sample[2]).length(),
