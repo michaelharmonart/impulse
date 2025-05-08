@@ -2,6 +2,7 @@
 Functions for working with splines.
 
 """
+
 from operator import is_
 import maya.cmds as cmds
 from ..structs.transform import Vector3 as Vector3
@@ -41,7 +42,7 @@ def get_knots(curve_shape: str) -> list[float]:
     else:
         knots[0] = knots[1]
         knots[-1] = knots[-2]
-    
+
     return knots
 
 
@@ -53,6 +54,7 @@ def get_cvs(curve_shape: str) -> list[Vector3]:
     position_list = [Vector3(position[0], position[1], position[2]) for position in cv_list]
     return position_list
 
+
 def is_periodic_knot_vector(knots: list[float], degree: int = 3) -> bool:
     # Based on this equation k[(degree-1)+i+1] - k[(degree-1)+i] = k[(cv_count-1)+i+1] - k[(cv_count)+i]
     # See https://developer.rhino3d.com/guides/opennurbs/periodic-curves-and-surfaces/
@@ -60,11 +62,17 @@ def is_periodic_knot_vector(knots: list[float], degree: int = 3) -> bool:
     cv_count = len(knots) - (degree + 1)
 
     for i in range(-degree + 1, degree):
-        if knots[(degree-1)+i+1] - knots[(degree-1)+i] != knots[(cv_count-1)+i+1] - knots[(cv_count-1)+i]:
+        if (
+            knots[(degree - 1) + i + 1] - knots[(degree - 1) + i]
+            != knots[(cv_count - 1) + i + 1] - knots[(cv_count - 1) + i]
+        ):
             return False
     return True
 
-def deBoor_setup(cvs: list, t: float, degree: int = 3, knots: list[float] = None, normalize: bool = True) -> tuple[list[float], int, float, bool]:
+
+def deBoor_setup(
+    cvs: list, t: float, degree: int = 3, knots: list[float] = None, normalize: bool = True
+) -> tuple[list[float], int, float, bool]:
     # Algorithm and code originally from Cole O'Brien. Modified to support periodic splines.
     # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
     # https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
@@ -104,7 +112,7 @@ def deBoor_setup(cvs: list, t: float, degree: int = 3, knots: list[float] = None
         t = (t * domain_range) + domain_start
 
     if periodic:
-        t = ((t - domain_start) % domain_range) + domain_start # Wrap t into valid domain
+        t = ((t - domain_start) % domain_range) + domain_start  # Wrap t into valid domain
 
     # Find knot span (segment)
     segment = None
@@ -116,6 +124,7 @@ def deBoor_setup(cvs: list, t: float, degree: int = 3, knots: list[float] = None
         # If t == last knot, use the last valid span
         segment = len(knots) - order - 1
     return (knots, segment, t, periodic)
+
 
 def deBoor_weights(cvs: list, t: float, span: int, degree: int = 3, knots: list[float] = None) -> dict[any, float]:
     # Algorithm and code originally from Cole O'Brien
@@ -157,6 +166,7 @@ def deBoor_weights(cvs: list, t: float, span: int, degree: int = 3, knots: list[
     cvWeights = cvWeights[degree]
     return cvWeights
 
+
 def point_on_curve_weights(cvs: list, t: float, degree: int = 3, knots: list[float] = None, normalize: bool = True):
     # Algorithm and code originally from Cole O'Brien
     # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
@@ -193,7 +203,7 @@ def point_on_curve_weights(cvs: list, t: float, degree: int = 3, knots: list[flo
     return [[_cvs[index], weight] for index, weight in cvWeights.items()]
 
 
-def tangent_on_curve_weights(cvs: list, t: float, degree: int = 3, knots: list[float] = None, normalize: bool = True): 
+def tangent_on_curve_weights(cvs: list, t: float, degree: int = 3, knots: list[float] = None, normalize: bool = True):
     # Algorithm and code originally from Cole O'Brien
     # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
     # https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
@@ -432,7 +442,6 @@ def curveToMatrixSpline(curve: str, segments: int) -> tuple[list[str], list[str]
             cv_positions.pop(-1)
 
     for i, cv_pos in enumerate(cv_positions):
-        
         # Create Transform for CV and move it to the position of the CV on the curve
         cv_transform = cmds.polySphere(name=f"{curve}_CV{i}")[0]
         cmds.setAttr(
@@ -499,7 +508,7 @@ def curveToMatrixSpline(curve: str, segments: int) -> tuple[list[str], list[str]
         segment_name = f"{curve}_matrixSpline_Segment{i + 1}"
 
         parameter = segment_parameters[i]
-        #parameter = i * (1/segments)
+        # parameter = i * (1/segments)
 
         # Create node that blends the matrices based on the calculated DeBoor weights.
         blended_matrix = cmds.createNode("wtAddMatrix", name=f"{segment_name}_BaseMatrix")
