@@ -426,7 +426,13 @@ def curveToMatrixSpline(curve: str, segments: int) -> tuple[list[str], list[str]
     knots: list[float] = get_knots(curve_shape)
     cv_matrices: list[str] = []
 
+    # If the curve is periodic there are duplicate CVs that move together. Remove them.
+    if periodic:
+        for i in range(degree):
+            cv_positions.pop(-1)
+
     for i, cv_pos in enumerate(cv_positions):
+        
         # Create Transform for CV and move it to the position of the CV on the curve
         cv_transform = cmds.polySphere(name=f"{curve}_CV{i}")[0]
         cmds.setAttr(
@@ -481,7 +487,14 @@ def curveToMatrixSpline(curve: str, segments: int) -> tuple[list[str], list[str]
 
         cv_matrices.append(f"{cv_matrix}.output")
 
+    # If the curve is periodic there are we need to re-add CVs that move together.
+    if periodic:
+        for i in range(degree):
+            cv_matrices.append(cv_matrices[i])
+            cv_positions.append(cv_positions[i])
+
     segment_parameters = resample(cv_positions=cv_positions, number_of_points=segments, degree=degree, knots=knots)
+
     for i in range(segments):
         segment_name = f"{curve}_matrixSpline_Segment{i + 1}"
 
