@@ -2,13 +2,11 @@
 Functions for working with splines.
 
 """
-
-from inspect import Parameter
 import maya.cmds as cmds
 from ..structs.transform import Vector3 as Vector3
 
 
-def generateKnots(count: int, degree: int = 3) -> list[float]:
+def generate_knots(count: int, degree: int = 3) -> list[float]:
     # Algorithm and code originally from Cole O'Brien
     # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
     # https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
@@ -27,9 +25,9 @@ def generateKnots(count: int, degree: int = 3) -> list[float]:
     return [float(knot) for knot in knots]
 
 
-def getKnots(curve_shape: str) -> list[float]:
+def get_knots(curve_shape: str) -> list[float]:
     # Refer to https://openusd.org/dev/api/class_usd_geom_nurbs_curves.html
-    curve_info = cmds.createNode("curveInfo", name=f"temp_curveInfo")
+    curve_info = cmds.createNode("curveInfo", name="temp_curveInfo")
     cmds.connectAttr(f"{curve_shape}.worldSpace", f"{curve_info}.inputCurve")
     knots: list[float] = cmds.getAttr(f"{curve_info}.knots[*]")
     cmds.delete(curve_info)
@@ -45,16 +43,18 @@ def getKnots(curve_shape: str) -> list[float]:
     return knots
 
 
-def getCvs(curve_shape: str) -> list[Vector3]:
+def get_cvs(curve_shape: str) -> list[Vector3]:
     curve_info = cmds.createNode("curveInfo", name=f"temp_curveInfo")
     cmds.connectAttr(f"{curve_shape}.worldSpace", f"{curve_info}.inputCurve")
     cv_list: list[float] = cmds.getAttr(f"{curve_info}.controlPoints[*]")
-    print(cv_list)
     cmds.delete(curve_info)
     position_list = [Vector3(position[0], position[1], position[2]) for position in cv_list]
     return position_list
 
-def deBoorSetup(cvs: list, t: float, degree: int = 3, knots: list[float] = None, normalize: bool = True) -> tuple[list[float], int, float, bool]:
+def deBoor_setup(cvs: list, t: float, degree: int = 3, knots: list[float] = None, normalize: bool = True) -> tuple[list[float], int, float, bool]:
+    # Algorithm and code originally from Cole O'Brien. Modified to support periodic splines.
+    # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
+    # https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
     """
     Extracts information needed for DeBoors Algorithm
     Args:
@@ -71,7 +71,7 @@ def deBoorSetup(cvs: list, t: float, degree: int = 3, knots: list[float] = None,
     if len(cvs) <= degree:
         raise ValueError(f"Curves of degree {degree} require at least {degree + 1} CVs.")
 
-    knots = knots or generateKnots(len(cvs), degree)  # Defaults to even knot distribution
+    knots = knots or generate_knots(len(cvs), degree)  # Defaults to even knot distribution
     if len(knots) != len(cvs) + order:
         raise ValueError(
             "Not enough knots provided. Curves with %s cvs must have a knot vector of length %s. "
@@ -83,8 +83,6 @@ def deBoorSetup(cvs: list, t: float, degree: int = 3, knots: list[float] = None,
     if (
         knots[degree] != knots[degree - 1]  # no left clamping
         and knots[-degree - 1] != knots[-degree]  # no right clamping
-        and knots[0] == knots[1] - (knots[-1] - knots[-3])
-        and knots[-1] == knots[-2] - (knots[2] - knots[1])  # fits requirement for periodic knots
     ):
         periodic = True
     else:
@@ -97,10 +95,8 @@ def deBoorSetup(cvs: list, t: float, degree: int = 3, knots: list[float] = None,
 
     if normalize:
         t = (t * domain_range) + domain_start
-    else:
-        t = t + domain_start
+
     if periodic:
-        
         t = ((t - domain_start) % domain_range) + domain_start # Wrap t into valid domain
 
     # Find knot span (segment)
@@ -114,7 +110,10 @@ def deBoorSetup(cvs: list, t: float, degree: int = 3, knots: list[float] = None,
         segment = len(knots) - order - 1
     return (knots, segment, t, periodic)
 
-def deBoorWeights(cvs: list, t: float, span: int, degree: int = 3, knots: list[float] = None) -> dict[any, float]:
+def deBoor_weights(cvs: list, t: float, span: int, degree: int = 3, knots: list[float] = None) -> dict[any, float]:
+    # Algorithm and code originally from Cole O'Brien
+    # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
+    # https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
     """
     Extracts information needed for DeBoors Algorithm
     Args:
@@ -151,7 +150,7 @@ def deBoorWeights(cvs: list, t: float, span: int, degree: int = 3, knots: list[f
     cvWeights = cvWeights[degree]
     return cvWeights
 
-def pointOnCurveWeights(cvs: list, t: float, degree: int = 3, knots: list[float] = None, normalize: bool = True):
+def point_on_curve_weights(cvs: list, t: float, degree: int = 3, knots: list[float] = None, normalize: bool = True):
     # Algorithm and code originally from Cole O'Brien
     # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
     # https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
@@ -169,11 +168,12 @@ def pointOnCurveWeights(cvs: list, t: float, degree: int = 3, knots: list[float]
         list: A list of control point, weight pairs.
     """
 
-    curve_setup = deBoorSetup(cvs=cvs, t=t, degree=degree, knots=knots, normalize=normalize)
+    curve_setup = deBoor_setup(cvs=cvs, t=t, degree=degree, knots=knots, normalize=normalize)
     knots = curve_setup[0]
     segment = curve_setup[1]
     t = curve_setup[2]
     periodic = curve_setup[3]
+    print(periodic)
 
     # Convert cvs into hash-able indices
     _cvs = cvs
@@ -183,11 +183,11 @@ def pointOnCurveWeights(cvs: list, t: float, degree: int = 3, knots: list[float]
     cvs = [cvs[j + segment - degree] for j in range(0, degree + 1)]
 
     # Run a modified version of de Boors algorithm
-    cvWeights = deBoorWeights(cvs=cvs, t=t, span=segment, degree=degree, knots=knots)
+    cvWeights = deBoor_weights(cvs=cvs, t=t, span=segment, degree=degree, knots=knots)
     return [[_cvs[index], weight] for index, weight in cvWeights.items()]
 
 
-def tangentOnCurveWeights(cvs: list, t: float, degree: int = 3, knots: list[float] = None, normalize: bool = True): 
+def tangent_on_curve_weights(cvs: list, t: float, degree: int = 3, knots: list[float] = None, normalize: bool = True): 
     # Algorithm and code originally from Cole O'Brien
     # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
     # https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
@@ -199,12 +199,12 @@ def tangentOnCurveWeights(cvs: list, t: float, degree: int = 3, knots: list[floa
         t(float): A parameter value.
         degree(int): The curve dimensions.
         knots(list): A list of knot values.
-        normalize(bool): When true, the curve is parameter is normalized from 0-1
+        normalize(bool): When true, the curve parameter is normalized from 0-1
     Returns:
         list: A list of control point, weight pairs.
     """
 
-    curve_setup = deBoorSetup(cvs=cvs, t=t, degree=degree, knots=knots, normalize=normalize)
+    curve_setup = deBoor_setup(cvs=cvs, t=t, degree=degree, knots=knots, normalize=normalize)
     knots = curve_setup[0]
     segment = curve_setup[1]
     t = curve_setup[2]
@@ -216,7 +216,7 @@ def tangentOnCurveWeights(cvs: list, t: float, degree: int = 3, knots: list[floa
 
     # In order to find the tangent we need to find points on a lower degree curve
     degree = degree - 1
-    weights = deBoorWeights(cvs=cvs, t=t, span=segment, degree=degree, knots=knots)
+    weights = deBoor_weights(cvs=cvs, t=t, span=segment, degree=degree, knots=knots)
 
     # Take the lower order weights and match them to our actual cvs
     cvWeights = []
@@ -231,7 +231,7 @@ def tangentOnCurveWeights(cvs: list, t: float, degree: int = 3, knots: list[floa
     return [[_cvs[index], weight] for index, weight in cvWeights]
 
 
-def pointOnSurfaceWeights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
+def point_on_surface_weights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
     # Algorithm and code originally from Cole O'Brien
     # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
     # https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
@@ -247,8 +247,8 @@ def pointOnSurfaceWeights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
     Returns:
         list: A list of control point, weight pairs.
     """
-    matrixWeightRows = [pointOnCurveWeights(row, u, degree, uKnots) for row in cvs]
-    matrixWeightColumns = pointOnCurveWeights([i for i in range(len(matrixWeightRows))], v, degree, vKnots)
+    matrixWeightRows = [point_on_curve_weights(row, u, degree, uKnots) for row in cvs]
+    matrixWeightColumns = point_on_curve_weights([i for i in range(len(matrixWeightRows))], v, degree, vKnots)
     surfaceMatrixWeights = []
     for index, weight in matrixWeightColumns:
         matrixWeights = matrixWeightRows[index]
@@ -257,7 +257,7 @@ def pointOnSurfaceWeights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
     return surfaceMatrixWeights
 
 
-def tangentUOnSurfaceWeights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
+def tangent_u_on_surface_weights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
     # Algorithm and code originally from Cole O'Brien
     # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
     # https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
@@ -274,8 +274,8 @@ def tangentUOnSurfaceWeights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
         list: A list of control point, weight pairs.
     """
 
-    matrixWeightRows = [pointOnCurveWeights(row, u, degree, uKnots) for row in cvs]
-    matrixWeightColumns = tangentOnCurveWeights([i for i in range(len(matrixWeightRows))], v, degree, vKnots)
+    matrixWeightRows = [point_on_curve_weights(row, u, degree, uKnots) for row in cvs]
+    matrixWeightColumns = tangent_on_curve_weights([i for i in range(len(matrixWeightRows))], v, degree, vKnots)
     surfaceMatrixWeights = []
     for index, weight in matrixWeightColumns:
         matrixWeights = matrixWeightRows[index]
@@ -284,7 +284,7 @@ def tangentUOnSurfaceWeights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
     return surfaceMatrixWeights
 
 
-def tangentVOnSurfaceWeights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
+def tangent_v_on_surface_weights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
     # Algorithm and code originally from Cole O'Brien
     # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
     # https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
@@ -304,24 +304,24 @@ def tangentVOnSurfaceWeights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
     rowCount = len(cvs)
     columnCount = len(cvs[0])
     reorderedCvs = [[cvs[row][col] for row in range(rowCount)] for col in range(columnCount)]
-    return tangentUOnSurfaceWeights(reorderedCvs, v, u, uKnots=vKnots, vKnots=uKnots, degree=degree)
+    return tangent_u_on_surface_weights(reorderedCvs, v, u, uKnots=vKnots, vKnots=uKnots, degree=degree)
 
 
-def getPointOnSpline(cv_positions: list[Vector3], t: float, degree: int = 3, knots: list[float] = None) -> Vector3:
+def get_point_on_spline(cv_positions: list[Vector3], t: float, degree: int = 3, knots: list[float] = None) -> Vector3:
     position: Vector3 = Vector3()
-    for control_point, weight in pointOnCurveWeights(cvs=cv_positions, t=t, degree=degree, knots=knots):
+    for control_point, weight in point_on_curve_weights(cvs=cv_positions, t=t, degree=degree, knots=knots):
         position += control_point * weight
     return position
 
 
-def getTangentOnSpline(cv_positions: list[Vector3], t: float, degree: int = 3, knots: list[float] = None) -> Vector3:
+def get_tangent_on_spline(cv_positions: list[Vector3], t: float, degree: int = 3, knots: list[float] = None) -> Vector3:
     tangent: Vector3 = Vector3()
-    for control_point, weight in tangentOnCurveWeights(cvs=cv_positions, t=t, degree=degree, knots=knots):
+    for control_point, weight in tangent_on_curve_weights(cvs=cv_positions, t=t, degree=degree, knots=knots):
         tangent += control_point * weight
     return tangent
 
 
-def getPointsOnSpline(
+def resample(
     cv_positions: list[Vector3],
     number_of_points: int,
     degree: int = 3,
@@ -341,7 +341,7 @@ def getPointsOnSpline(
     samples: list[Vector3] = []
     for i in range(sample_points):
         parameter: float = i * (1 / (sample_points - 1))
-        sample_pos: Vector3 = getPointOnSpline(cv_positions=cv_positions, t=parameter, degree=degree, knots=knots)
+        sample_pos: Vector3 = get_point_on_spline(cv_positions=cv_positions, t=parameter, degree=degree, knots=knots)
         samples.append(sample_pos)
 
     arc_lengths: list[float] = []
@@ -418,10 +418,9 @@ def curveToMatrixSpline(curve: str, segments: int) -> tuple[list[str], list[str]
     degree: int = cmds.getAttr(f"{curve}.degree")
     num_cvs: int = spans + degree
     cv_list = [f"{curve}.cv[{i}]" for i in range(num_cvs)]
-    position_vectors: list[Vector3] = getCvs(curve_shape=curve_shape)
+    position_vectors: list[Vector3] = get_cvs(curve_shape=curve_shape)
     positions = [(position.x, position.y, position.z) for position in position_vectors]
-    knots: list[float] = getKnots(curve_shape)
-    print(knots)
+    knots: list[float] = get_knots(curve_shape)
     cv_matrices: list[str] = []
 
     for i in range(num_cvs):
@@ -479,7 +478,7 @@ def curveToMatrixSpline(curve: str, segments: int) -> tuple[list[str], list[str]
 
         cv_matrices.append(f"{cv_matrix}.output")
 
-    segment_parameters = getPointsOnSpline(cv_positions=position_vectors, number_of_points=segments, degree=degree)
+    segment_parameters = resample(cv_positions=position_vectors, number_of_points=segments, degree=degree, knots=knots)
     for i in range(segments):
         segment_name = f"{curve}_matrixSpline_Segment{i + 1}"
 
@@ -487,13 +486,13 @@ def curveToMatrixSpline(curve: str, segments: int) -> tuple[list[str], list[str]
 
         # Create node that blends the matrices based on the calculated DeBoor weights.
         blended_matrix = cmds.createNode("wtAddMatrix", name=f"{segment_name}_BaseMatrix")
-        point_weights = pointOnCurveWeights(cvs=cv_matrices, t=parameter, degree=degree, knots=knots)
+        point_weights = point_on_curve_weights(cvs=cv_matrices, t=parameter, degree=degree, knots=knots)
         for index, point_weight in enumerate(point_weights):
             cmds.setAttr(f"{blended_matrix}.wtMatrix[{index}].weightIn", point_weight[1])
             cmds.connectAttr(f"{point_weight[0]}", f"{blended_matrix}.wtMatrix[{index}].matrixIn")
 
         blended_tangent_matrix = cmds.createNode("wtAddMatrix", name=f"{segment_name}_TangentMatrix")
-        tangent_weights = tangentOnCurveWeights(cvs=cv_matrices, t=parameter, degree=degree, knots=knots)
+        tangent_weights = tangent_on_curve_weights(cvs=cv_matrices, t=parameter, degree=degree, knots=knots)
         for index, tangent_weight in enumerate(tangent_weights):
             cmds.setAttr(
                 f"{blended_tangent_matrix}.wtMatrix[{index}].weightIn",
