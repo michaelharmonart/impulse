@@ -1,0 +1,40 @@
+{
+    "version": "1.17",
+    "alias": "base",
+    "color": "#c91781",
+    "mute": false,
+    "solo": false,
+    "meta_data": {
+        "positions": {
+            "/node": [
+                1330.6756283723792,
+                283.4772641896045
+            ]
+        }
+    },
+    "nodes": {
+        "/": {
+            "code": [
+                "import sys",
+                "modules = [name for name in sys.modules.keys() if name.startswith(\"impulse\")]",
+                "for name in modules:",
+                "    del sys.modules[name]",
+                "import impulse",
+                "",
+                "import os",
+                "import debugpy",
+                "",
+                "#overwrite the default python executable",
+                "maya_location = os.path.join(os.environ.get(\"MAYA_LOCATION\"), \"bin\", \"mayapy\")",
+                "debugpy.configure({'python': maya_location})",
+                "",
+                "# 5678 is the default attach port in the VS Code debug configurations. Unless a host and port are specified, host defaults to 127.0.0.1",
+                "try:",
+                "    debugpy.listen(('localhost', 5678))",
+                "except RuntimeError as e:",
+                "    if 'listen() has already been called' not in str(e):",
+                "        raise  # Only suppress the specific error, re-raise others"
+            ]
+        }
+    }
+}
