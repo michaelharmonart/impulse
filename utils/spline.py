@@ -29,8 +29,8 @@ def generate_knots(count: int, degree: int = 3) -> list[float]:
 
 def get_knots(curve_shape: str) -> list[float]:
     # Refer to https://openusd.org/dev/api/class_usd_geom_nurbs_curves.html#details
-    # Generalized to higher order and non-uniform knots
-    # Based on info found here https://developer.rhino3d.com/guides/opennurbs/periodic-curves-and-surfaces/
+    # The above only works with uniform knots, so this is generalized to higher order and non-uniform knots
+    # based on info found here https://developer.rhino3d.com/guides/opennurbs/periodic-curves-and-surfaces/
     curve_info = cmds.createNode("curveInfo", name="temp_curveInfo")
     cmds.connectAttr(f"{curve_shape}.worldSpace", f"{curve_info}.inputCurve")
     knots: list[float] = cmds.getAttr(f"{curve_info}.knots[*]")
@@ -61,6 +61,8 @@ def get_cvs(curve_shape: str) -> list[Vector3]:
 def is_periodic_knot_vector(knots: list[float], degree: int = 3) -> bool:
     # Based on this equation k[(degree-1)+i+1] - k[(degree-1)+i] = k[(cv_count-1)+i+1] - k[(cv_count)+i]
     # See https://developer.rhino3d.com/guides/opennurbs/periodic-curves-and-surfaces/
+    # Although there is a typo in the above doc, k[(cv_count)+i] should be k[(cv_count - 1)+i]
+    # Don't ask how long it took me to find that out
     cv_count = len(knots) - (degree + 1)
     num_knots = len(knots)
     for i in range(-degree + 1, degree):
