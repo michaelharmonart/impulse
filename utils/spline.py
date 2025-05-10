@@ -2,8 +2,6 @@
 Functions for working with splines.
 
 """
-
-from operator import is_
 import maya.cmds as cmds
 from ..structs.transform import Vector3 as Vector3
 
