@@ -31,6 +31,13 @@ def get_knots(curve_shape: str) -> list[float]:
     # Refer to https://openusd.org/dev/api/class_usd_geom_nurbs_curves.html#details
     # The above only works with uniform knots, so this is generalized to higher order and non-uniform knots
     # based on info found here https://developer.rhino3d.com/guides/opennurbs/periodic-curves-and-surfaces/
+    """
+    Gets the knot vector for a given curve shape.
+    Args:
+        curve_shape(str): Name of curve shape node.
+    Returns:
+        list: A list of knot values. (aka knot vector)
+    """
     curve_info = cmds.createNode("curveInfo", name="temp_curveInfo")
     cmds.connectAttr(f"{curve_shape}.worldSpace", f"{curve_info}.inputCurve")
     knots: list[float] = cmds.getAttr(f"{curve_info}.knots[*]")
@@ -50,12 +57,33 @@ def get_knots(curve_shape: str) -> list[float]:
 
 
 def get_cvs(curve_shape: str) -> list[Vector3]:
-    curve_info = cmds.createNode("curveInfo", name=f"temp_curveInfo")
+    """
+    Gets the positions of all CVs for a given curve shape.
+    Args:
+        curve_shape(str): Name of curve shape node.
+    Returns:
+        list: A list of CV positions as Vector3s
+    """
+    curve_info = cmds.createNode("curveInfo", name="temp_curveInfo")
     cmds.connectAttr(f"{curve_shape}.worldSpace", f"{curve_info}.inputCurve")
     cv_list: list[float] = cmds.getAttr(f"{curve_info}.controlPoints[*]")
     cmds.delete(curve_info)
     position_list = [Vector3(position[0], position[1], position[2]) for position in cv_list]
     return position_list
+
+def get_cv_weights(curve_shape: str) -> list[float]:
+    """
+    Gets the weights of all CVs for a given curve shape.
+    Args:
+        curve_shape(str): Name of curve shape node.
+    Returns:
+        list: A list of CV weight values.
+    """
+    curve_info = cmds.createNode("curveInfo", name="temp_curveInfo")
+    cmds.connectAttr(f"{curve_shape}.worldSpace", f"{curve_info}.inputCurve")
+    weights: list[float] = cmds.getAttr(f"{curve_info}.weights[*]")
+    cmds.delete(curve_info)
+    return weights
 
 
 def is_periodic_knot_vector(knots: list[float], degree: int = 3) -> bool:
@@ -130,7 +158,7 @@ def deBoor_setup(
     return (knots, segment, t, periodic)
 
 
-def deBoor_weights(cvs: list, t: float, span: int, degree: int = 3, knots: list[float] = None) -> dict[any, float]:
+def deBoor_weights(cvs: list, t: float, span: int, degree: int = 3, knots: list[float] = None, cv_weights: dict[any, float] = None) -> dict[any, float]:
     # Algorithm and code originally from Cole O'Brien
     # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
     # https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
@@ -142,11 +170,15 @@ def deBoor_weights(cvs: list, t: float, span: int, degree: int = 3, knots: list[
         span(int): Span index (can be retrieved with deBoorSetup)
         degree(int): The curve dimensions.
         knots(list): A list of knot values.
+        weights(dict): A dictionary of CV:Weight values.
     Returns:
         dict: Dictionary with cv: weight mappings
     """
+    if cv_weights is None:
+        cv_weights = {cv:1 for cv in cvs}
+        
     # Run a modified version of de Boors algorithm
-    cvWeights = [{cv: 1.0} for cv in cvs]  # initialize weights with a value of 1 for every cv
+    cvBases = [{cv: 1.0} for cv in cvs]  # initialize basis weights with a value of 1 for every cv
     for r in range(1, degree + 1):  # Loop once per degree
         for j in range(degree, r - 1, -1):  # Loop backwards from degree to r
             right = j + 1 + span - r
@@ -156,22 +188,40 @@ def deBoor_weights(cvs: list, t: float, span: int, degree: int = 3, knots: list[
             )  # Alpha is how much influence comes from the left vs right cv
 
             weights = {}
-            for cv, weight in cvWeights[j].items():
+            for cv, weight in cvBases[j].items():
                 weights[cv] = weight * alpha
 
-            for cv, weight in cvWeights[j - 1].items():
+            for cv, weight in cvBases[j - 1].items():
                 if cv in weights:
                     weights[cv] += weight * (1 - alpha)
                 else:
                     weights[cv] = weight * (1 - alpha)
 
-            cvWeights[j] = weights
+            cvBases[j] = weights
+    finalBases = cvBases[degree]
 
-    cvWeights = cvWeights[degree]
-    return cvWeights
+    # Multiply each CVs basis function by it's weight 
+    # see: https://en.wikipedia.org/wiki/Non-uniform_rational_B-spline#General_form_of_a_NURBS_curve
+    numerator: dict[any, float] = {
+        i: finalBases[i] * cv_weights[i]
+        for i in finalBases
+    }
+
+    # Sum all of the weights to normalize them such that they all total to 1
+    denominator: float = sum(numerator.values())
+    if denominator == 0:
+        raise ZeroDivisionError("Zero sum of total weight values, unable to normalize.")
+
+    # Actually do the normalization
+    rational_weights: dict[any, float] = {
+        i: numerator[i] / denominator
+        for i in numerator
+    }
+
+    return rational_weights
 
 
-def point_on_curve_weights(cvs: list, t: float, degree: int = 3, knots: list[float] = None, normalize: bool = True):
+def point_on_curve_weights(cvs: list, t: float, degree: int = 3, knots: list[float] = None, weights: list[float] = None, normalize: bool = True):
     # Algorithm and code originally from Cole O'Brien
     # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
     # https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
@@ -184,6 +234,7 @@ def point_on_curve_weights(cvs: list, t: float, degree: int = 3, knots: list[flo
         t(float): A parameter value.
         degree(int): The curve dimensions.
         knots(list): A list of knot values.
+        weights(list): A list of CV weight values.
         normalize(bool): When true, the curve is parameter is normalized from 0-1
     Returns:
         list: A list of control point, weight pairs.
@@ -194,16 +245,21 @@ def point_on_curve_weights(cvs: list, t: float, degree: int = 3, knots: list[flo
     segment = curve_setup[1]
     t = curve_setup[2]
     periodic = curve_setup[3]
+    
 
     # Convert cvs into hash-able indices
     _cvs = cvs
     cvs: list[int] = [i for i in range(len(cvs))]
+    if weights:
+        cv_weights = {cvs[i]:weights[i] for i in range(len(cvs))}
+    else:
+        cv_weights = None
 
     # Filter out cvs we won't be using
     cvs = [cvs[j + segment - degree] for j in range(0, degree + 1)]
 
     # Run a modified version of de Boors algorithm
-    cvWeights = deBoor_weights(cvs=cvs, t=t, span=segment, degree=degree, knots=knots)
+    cvWeights = deBoor_weights(cvs=cvs, t=t, span=segment, degree=degree, knots=knots, cv_weights=cv_weights)
     return [[_cvs[index], weight] for index, weight in cvWeights.items()]
 
 
@@ -211,6 +267,9 @@ def tangent_on_curve_weights(cvs: list, t: float, degree: int = 3, knots: list[f
     # Algorithm and code originally from Cole O'Brien
     # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
     # https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
+
+    # This cannot be used for full NURBS, only B-Splines (NURBS where every CV has a weight of 1) 
+    # as the derivative of a full NURB Spline cannot be expressed as a weighted sum of point positions
     """
     Creates a mapping of cvs to curve tangent weight values.
     While all cvs are required, only the cvs with non-zero weights will be returned.
@@ -239,16 +298,22 @@ def tangent_on_curve_weights(cvs: list, t: float, degree: int = 3, knots: list[f
     weights = deBoor_weights(cvs=cvs, t=t, span=segment, degree=degree, knots=knots)
 
     # Take the lower order weights and match them to our actual cvs
-    cvWeights = []
+    remapped_weights = []
     for j in range(0, degree + 1):
         weight = weights[j]
         cv0 = j + segment - degree
         cv1 = j + segment - degree - 1
         alpha = weight * (degree + 1) / (knots[j + segment + 1] - knots[j + segment - degree])
-        cvWeights.append([cvs[cv0], alpha])
-        cvWeights.append([cvs[cv1], -alpha])
+        remapped_weights.append([cvs[cv0], alpha])
+        remapped_weights.append([cvs[cv1], -alpha])
 
-    return [[_cvs[index], weight] for index, weight in cvWeights]
+    # Add weights of corresponding CVs and only return those that are > 0
+    deduplicated_weights = {i:0 for i in cvs}
+    for item in remapped_weights:
+        deduplicated_weights[item[0]] += item[1]
+    deduplicated_weights = {key: value for key, value in deduplicated_weights.items() if value != 0}
+
+    return [[_cvs[index], weight] for index, weight in deduplicated_weights.items()]
 
 
 def point_on_surface_weights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
@@ -327,9 +392,9 @@ def tangent_v_on_surface_weights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
     return tangent_u_on_surface_weights(reorderedCvs, v, u, uKnots=vKnots, vKnots=uKnots, degree=degree)
 
 
-def get_point_on_spline(cv_positions: list[Vector3], t: float, degree: int = 3, knots: list[float] = None) -> Vector3:
+def get_point_on_spline(cv_positions: list[Vector3], t: float, degree: int = 3, knots: list[float] = None, weights: list[float] = None) -> Vector3:
     position: Vector3 = Vector3()
-    for control_point, weight in point_on_curve_weights(cvs=cv_positions, t=t, degree=degree, knots=knots):
+    for control_point, weight in point_on_curve_weights(cvs=cv_positions, t=t, degree=degree, knots=knots, weights=weights):
         position += control_point * weight
     return position
 
@@ -346,6 +411,7 @@ def resample(
     number_of_points: int,
     degree: int = 3,
     knots: list[float] = None,
+    weights: list[float] = None,
     sample_points: int = 256,
 ) -> list[float]:
     """
@@ -354,6 +420,8 @@ def resample(
         cv_positions: list of vectors containing XYZ of the CV positions.
         segments: Number of point positions along the curve.
         degree: Degree of the spline CVs
+        knots(list): A list of knot values.
+        weights(list): A list of CV weight values.
         sample_points: The number of points to sample along the curve to find even arc-length segments. More points will be more accurate/evenly spaced.
     Returns:
         list: List of the parameter values of the picked points along the curve.
@@ -361,7 +429,7 @@ def resample(
     samples: list[Vector3] = []
     for i in range(sample_points):
         parameter: float = i * (1 / (sample_points - 1))
-        sample_pos: Vector3 = get_point_on_spline(cv_positions=cv_positions, t=parameter, degree=degree, knots=knots)
+        sample_pos: Vector3 = get_point_on_spline(cv_positions=cv_positions, t=parameter, degree=degree, knots=knots, weights=weights)
         samples.append(sample_pos)
 
     arc_lengths: list[float] = []
@@ -436,8 +504,9 @@ def curveToMatrixSpline(curve: str, segments: int) -> tuple[list[str], list[str]
     periodic: bool = cmds.getAttr(f"{curve}.form") == 2
     spans: int = cmds.getAttr(f"{curve}.spans")
     degree: int = cmds.getAttr(f"{curve}.degree")
-    cv_positions: list[Vector3] = get_cvs(curve_shape=curve_shape)
+    cv_positions: list[Vector3] = get_cvs(curve_shape)
     knots: list[float] = get_knots(curve_shape)
+    weights: list[float] = get_cv_weights(curve_shape)
     cv_matrices: list[str] = []
 
     # If the curve is periodic there are duplicate CVs that move together. Remove them.
