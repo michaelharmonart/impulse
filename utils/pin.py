@@ -8,8 +8,8 @@ def make_uv_pin(
     v: float = 0,
     local_space: bool = False,
     normalize: bool = False,
-    normal_axis: str = "y",
-    tangent_axis: str = "x",
+    normal_axis: str | None = "y",
+    tangent_axis: str | None = "x",
     reset_transforms: bool = True,
 ) -> str:
     """
@@ -72,9 +72,14 @@ def make_uv_pin(
     uv_pin = cmds.createNode("uvPin", name=f"{object_to_pin}_uvPin")
     cmds.connectAttr(f"{primary_shape}{attr_world}", f"{uv_pin}.deformedGeometry")
     cmds.connectAttr(f"{shape_origin}{attr_output}", f"{uv_pin}.originalGeometry")
-    
+
     if reset_transforms:
         cmds.xform(object_to_pin, translation=[0, 0, 0], rotation=[0, 0, 0])
+
+    if normal_axis == None:
+        normal_axis = "y"
+    if tangent_axis == None:
+        tangent_axis = "x"
 
     if normal_axis == "x":
         cmds.setAttr(f"{uv_pin}.normalAxis", 0)
@@ -209,9 +214,9 @@ def make_matrix_pin(
     v: float = 0,
     local_space: bool = False,
     normalize: bool = False,
-    normal_axis: str = "y",
-    tangent_axis: str = "x",
-    bitangent_axis: str = "-z",
+    normal_axis: str | None = "y",
+    tangent_axis: str | None = "x",
+    bitangent_axis: str | None = "-z",
     volume_preservation: bool = False,
     reset_transforms: bool = True,
     margin: float = 0.0001,
@@ -286,7 +291,7 @@ def make_matrix_pin(
         cmds.connectAttr(f"{primary_shape}{attr_local}", f"{surface_info}.inputSurface")
     else:
         cmds.connectAttr(f"{primary_shape}{attr_world}", f"{surface_info}.inputSurface")
-    
+
     cmds.connectAttr(f"{shape_origin}{attr_local}", f"{orig_surface_info}.inputSurface")
 
     u_clamp = cmds.createNode("clampRange", name=f"{matrix_pin}_uClamp")
@@ -331,9 +336,9 @@ def make_matrix_pin(
     u_length = cmds.createNode("length", name=f"{object_to_pin}_uLength")
     cmds.connectAttr(f"{orig_surface_info}.tangentU", f"{u_length}.input")
     u_norm = cmds.createNode("multiplyDivide", name=f"{object_to_pin}_NormalizedTanU")
-    
+
     cmds.setAttr(f"{u_norm}.operation", 2)
-    
+
     cmds.connectAttr(f"{surface_info}.tangentU", f"{u_norm}.input1")
     cmds.connectAttr(f"{u_length}.output", f"{u_norm}.input2X")
     cmds.connectAttr(f"{u_length}.output", f"{u_norm}.input2Y")
@@ -343,9 +348,9 @@ def make_matrix_pin(
     v_length = cmds.createNode("length", name=f"{object_to_pin}_vLength")
     cmds.connectAttr(f"{orig_surface_info}.tangentV", f"{v_length}.input")
     v_norm = cmds.createNode("multiplyDivide", name=f"{object_to_pin}_NormalizedTanV")
-    
+
     cmds.setAttr(f"{v_norm}.operation", 2)
-    
+
     cmds.connectAttr(f"{surface_info}.tangentV", f"{v_norm}.input1")
     cmds.connectAttr(f"{v_length}.output", f"{v_norm}.input2X")
     cmds.connectAttr(f"{v_length}.output", f"{v_norm}.input2Y")
@@ -354,7 +359,6 @@ def make_matrix_pin(
 
     n_norm_attr = f"{surface_info}.normalizedNormal"
     if volume_preservation:
-
         orig_cross = cmds.createNode("crossProduct", name=f"{object_to_pin}_OrigNormalCross")
         cmds.connectAttr(f"{orig_surface_info}.tangentU", f"{orig_cross}.input1")
         cmds.connectAttr(f"{orig_surface_info}.tangentV", f"{orig_cross}.input2")
@@ -365,10 +369,10 @@ def make_matrix_pin(
         cross = cmds.createNode("crossProduct", name=f"{object_to_pin}_normalCross")
         cmds.connectAttr(f"{surface_info}.tangentU", f"{cross}.input1")
         cmds.connectAttr(f"{surface_info}.tangentV", f"{cross}.input2")
-        
+
         cross_length = cmds.createNode("length", name=f"{object_to_pin}_CrossLength")
         cmds.connectAttr(f"{cross}.output", f"{cross_length}.input")
-        
+
         cross_volume = cmds.createNode("divide", name=f"{object_to_pin}_Volume")
         cmds.setAttr(f"{cross_volume}.input1", 1)
         cmds.connectAttr(f"{cross_length}.output", f"{cross_volume}.input2")
@@ -386,21 +390,27 @@ def make_matrix_pin(
 
         n_norm_attr = f"{n_norm}.output"
 
-
     pinMatrix = cmds.createNode("fourByFourMatrix", name=f"{object_to_pin}_pinMatrix")
 
     cmds.connectAttr(f"{surface_info}.positionX", f"{pinMatrix}.in30")
     cmds.connectAttr(f"{surface_info}.positionY", f"{pinMatrix}.in31")
     cmds.connectAttr(f"{surface_info}.positionZ", f"{pinMatrix}.in32")
 
-    axis_attr_map: dict[str ,tuple[tuple[str, str, str], bool]] = {
-        "x":  (("in00", "in01", "in02"), False),
-        "y":  (("in10", "in11", "in12"), False),
-        "z":  (("in20", "in21", "in22"), False),
+    axis_attr_map: dict[str, tuple[tuple[str, str, str], bool]] = {
+        "x": (("in00", "in01", "in02"), False),
+        "y": (("in10", "in11", "in12"), False),
+        "z": (("in20", "in21", "in22"), False),
         "-x": (("in00", "in01", "in02"), True),
         "-y": (("in10", "in11", "in12"), True),
         "-z": (("in20", "in21", "in22"), True),
     }
+
+    if normal_axis is None:
+        normal_axis = "y"
+    if tangent_axis is None:
+        tangent_axis = "x"
+    if bitangent_axis is None:
+        bitangent_axis = "-z"
 
     if axis_attr_map[normal_axis][1]:
         norm_reverse = cmds.createNode("multiplyDivide", name=f"{object_to_pin}_nReverse")
@@ -409,7 +419,7 @@ def make_matrix_pin(
         n_norm_attr = f"{norm_reverse}.output"
     cmds.connectAttr(f"{n_norm_attr}X", f"{pinMatrix}.{axis_attr_map[normal_axis][0][0]}")
     cmds.connectAttr(f"{n_norm_attr}Y", f"{pinMatrix}.{axis_attr_map[normal_axis][0][1]}")
-    cmds.connectAttr(f"{n_norm_attr}Z", f"{pinMatrix}.{axis_attr_map[normal_axis][0][2]}")   
+    cmds.connectAttr(f"{n_norm_attr}Z", f"{pinMatrix}.{axis_attr_map[normal_axis][0][2]}")
 
     if axis_attr_map[tangent_axis][1]:
         u_reverse = cmds.createNode("multiplyDivide", name=f"{object_to_pin}_uReverse")
@@ -428,9 +438,8 @@ def make_matrix_pin(
     cmds.connectAttr(f"{v_norm_attr}X", f"{pinMatrix}.{axis_attr_map[bitangent_axis][0][0]}")
     cmds.connectAttr(f"{v_norm_attr}Y", f"{pinMatrix}.{axis_attr_map[bitangent_axis][0][1]}")
     cmds.connectAttr(f"{v_norm_attr}Z", f"{pinMatrix}.{axis_attr_map[bitangent_axis][0][2]}")
-        
 
-    if reset_transforms: 
+    if reset_transforms:
         cmds.xform(object_to_pin, translation=[0, 0, 0], rotation=[0, 0, 0])
     cmds.connectAttr(f"{pinMatrix}.output", f"{object_to_pin}.offsetParentMatrix")
 

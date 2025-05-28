@@ -1,18 +1,19 @@
+import json
 import maya.cmds as cmds
-import maya.mel as mel
 from . import pin as pin
 from . import math as math
 from enum import Enum
-import warnings
+import os
+
+CONTROL_DIR: str = os.path.dirname(os.path.realpath(__file__)) + "/control_shapes"
 
 
 class ControlShape(Enum):
     """Enum for available control shapes."""
 
     CIRCLE = 0
-    TRIANGLE = 1
-    SQUARE = 2
-    PILL = 3
+    SQUARE = 1
+    CUBE = 2
 
 
 class Direction(Enum):
@@ -24,107 +25,212 @@ class Direction(Enum):
 
 
 # Mapping from control shape to its corresponding MEL command string.
-MEL_COMMANDS = {
-    ControlShape.CIRCLE: (
-        """//ML Control Curve: circle
-string $ml_tempCtrlName = `createNode transform -n "circle_#"`;
-createNode nurbsCurve -p $ml_tempCtrlName;
-setAttr -k off ".v";
-setAttr ".cc" -type "nurbsCurve" 
-3 8 2 no 3
-13 -2 -1 0 1 2 3 4 5 6 7 8
- 9 10
-11
-0.78361162489122504 4.7982373409884682e-17 -0.78361162489122382
--1.2643170607829326e-16 6.7857323231109134e-17 -1.1081941875543879
--0.78361162489122427 4.7982373409884713e-17 -0.78361162489122427
--1.1081941875543879 1.9663354616187859e-32 -3.2112695072372299e-16
--0.78361162489122449 -4.7982373409884694e-17 0.78361162489122405
--3.3392053635905195e-16 -6.7857323231109146e-17 1.1081941875543881
-0.78361162489122382 -4.7982373409884719e-17 0.78361162489122438
-1.1081941875543879 -3.6446300679047921e-32 5.9521325992805852e-16
-0.78361162489122504 4.7982373409884682e-17 -0.78361162489122382
--1.2643170607829326e-16 6.7857323231109134e-17 -1.1081941875543879
--0.78361162489122427 4.7982373409884713e-17 -0.78361162489122427
-;"""
-    ),
-    ControlShape.TRIANGLE: (
-        """//ML Control Curve: triangle
-string $ml_tempCtrlName = `createNode transform -n "triangle_#"`;
-createNode nurbsCurve -p $ml_tempCtrlName;
-setAttr -k off ".v";
-setAttr ".cc" -type "nurbsCurve" 
-3 8 2 no 3
-13 -2 -1 0 1 2 3 4 5 6 7 8
- 9 10
-11
-0.60438580191109736 -5.6848212903126036e-06 1.9306698734455003
--8.390276879065607e-15 -5.6848212900327269e-06 2.0300870557164479
--0.60438580191111402 -5.6848212897087013e-06 1.9306698734455012
--2.0300870557162964 -5.684821288567725e-06 1.6091162660778342e-13
--1.9306698734453507 -5.6848212881886989e-06 -1.9306698734451799
--1.0045870072155691e-14 -5.6848212891311874e-06 -2.0300870557161272
-1.93066987344533 -5.6848212901178249e-06 -1.9306698734451804
-2.0300870557162782 -5.6848212905961893e-06 1.5954439019415462e-13
-0.60438580191109736 -5.6848212903126036e-06 1.9306698734455003
--8.390276879065607e-15 -5.6848212900327269e-06 2.0300870557164479
--0.60438580191111402 -5.6848212897087013e-06 1.9306698734455012
-;"""
-    ),
-    ControlShape.PILL: (
-        """//ML Control Curve: pill
-string $ml_tempCtrlName = `createNode transform -n "pill_#"`;
-createNode nurbsCurve -p $ml_tempCtrlName;
-setAttr -k off ".v";
-setAttr ".cc" -type "nurbsCurve" 
-3 16 2 no 3
-21 -0.125 -0.0625 0 0.0625 0.125 0.1875 0.25 0.3125 0.375 0.4375 0.5
- 0.5625 0.625 0.6875 0.75 0.8125 0.875 0.93750000000000011 1 1.0625 1.125
-19
-1.172939121998376 1.0774315860976344e-16 0.75127324711188403
-1.1729402050761661 1.1696140604314265e-16 -8.2866285639933504e-16
-1.1729391219983754 1.0774315860976344e-16 -0.71992924706777273
-1.1729361791220005 8.2695869434192015e-17 -1.1683230822955293
-0.76125060477226536 4.4629742975787312e-17 -1.8477644801561781
-1.5646587498839395e-05 9.5807716501497136e-22 -2.0736340129126583
--0.76128837655064607 -4.4632055830161894e-17 -1.847764480156181
--1.1727690100482948 -8.2692163614709417e-17 -1.1683230822955237
--1.1727719541927091 -1.077502452723395e-16 -0.71992924706777384
--1.1727730344679179 -1.1694463949820226e-16 1.8381251164062978e-16
--1.1727719541927084 -1.0775024527233942e-16 0.75127324711188448
--1.1727690100482939 -8.269216361470954e-17 1.215219870343615
--0.74509258124420297 -4.463205583016166e-17 1.8390002733665078
-1.5646587500656142e-05 9.5807716494482651e-22 2.0752540628040212
-0.74505480946583147 4.4629742975787534e-17 1.8390002733665074
-1.1729361791220014 8.2695869434192064e-17 1.2152198703436123
-1.172939121998376 1.0774315860976344e-16 0.75127324711188403
-1.1729402050761661 1.1696140604314265e-16 -8.2866285639933504e-16
-1.1729391219983754 1.0774315860976344e-16 -0.71992924706777273
-;"""
-    ),
-    ControlShape.SQUARE: (
-        """//ML Control Curve: square
-string $ml_tempCtrlName = `createNode transform -n "square_#"`;
-createNode nurbsCurve -p $ml_tempCtrlName;
-setAttr ".cc" -type "nurbsCurve" 
-3 8 2 no 3
-13 -2 -1 0 1 2 3 4 5 6 7 8
-    9 10
-11
-1.9033843953925922 1.1654868036822793e-16 -1.9033843953925924
-1.241723479304563e-16 1.241723479304563e-16 -2.0278883351005348
--1.9033843953925922 1.165486803682279e-16 -1.903384395392592
--2.0278883351005357 -8.3314952071146944e-33 9.4409652395123731e-17
--1.9033843953925922 -1.165486803682279e-16 1.9033843953925922
--2.0313496146335863e-16 -1.241723479304564e-16 2.0278883351005361
-1.9033843953925922 -1.165486803682279e-16 1.903384395392592
-2.0278883351005357 -3.1701950895796529e-32 4.7607815804023312e-16
-1.9033843953925922 1.1654868036822793e-16 -1.9033843953925924
-1.241723479304563e-16 1.241723479304563e-16 -2.0278883351005348
--1.9033843953925922 1.165486803682279e-16 -1.903384395392592
-;"""
-    ),
+CONTROL_FILES = {
+    ControlShape.CIRCLE: "circle",
+    ControlShape.SQUARE: "square",
+    ControlShape.CUBE: "cube",
 }
+
+
+def get_shapes(transform: str) -> list[str]:
+    # list the shapes of node
+    shape_list: list[str] = cmds.listRelatives(transform, shapes=True, noIntermediate=True, children=True)
+
+    if shape_list:
+        return shape_list
+    else:
+        raise RuntimeError(f"{transform} has no child shape nodes")
+
+
+def get_cv_positions(curve_shape: str) -> list[tuple[float, float, float]]:
+    """
+    Gets the positions of all CVs for a given curve shape.
+    Args:
+        curve_shape(str): Name of curve shape node.
+    Returns:
+        list: A list of CV positions as tuples
+    """
+    curve_info = cmds.createNode("curveInfo", name="temp_curveInfo")
+    cmds.connectAttr(f"{curve_shape}.worldSpace", f"{curve_info}.inputCurve")
+    cv_list: list[tuple[float, float, float]] = cmds.getAttr(f"{curve_info}.controlPoints[*]")
+    cmds.delete(curve_info)
+    position_list = [(position[0], position[1], position[2]) for position in cv_list]
+    return position_list
+
+
+def get_cv_weights(curve_shape: str) -> list[float]:
+    """
+    Gets the weights of all CVs for a given curve shape.
+    Args:
+        curve_shape(str): Name of curve shape node.
+    Returns:
+        list: A list of CV weight values.
+    """
+    curve_info = cmds.createNode("curveInfo", name="temp_curveInfo")
+    cmds.connectAttr(f"{curve_shape}.worldSpace", f"{curve_info}.inputCurve")
+    weights: list[float] = cmds.getAttr(f"{curve_info}.weights[*]")
+    cmds.delete(curve_info)
+    return weights
+
+
+def get_knots(curve_shape: str) -> list[float]:
+    """
+    Gets the knot vector for a given curve shape.
+    Args:
+        curve_shape(str): Name of curve shape node.
+    Returns:
+        list: A list of knot values. (aka knot vector)
+    """
+    curve_info = cmds.createNode("curveInfo", name="temp_curveInfo")
+    cmds.connectAttr(f"{curve_shape}.worldSpace", f"{curve_info}.inputCurve")
+    knots: list[float] = cmds.getAttr(f"{curve_info}.knots[*]")
+    cmds.delete(curve_info)
+    return knots
+
+
+def get_curve_info(curve: str):
+    curve_dict = {}
+    for curve in get_shapes(transform=curve):
+        degree = cmds.getAttr(curve + ".degree")
+        form = cmds.getAttr(curve + ".form")
+        cv_positions: list[tuple[float, float, float]] = get_cv_positions(curve_shape=curve)
+        cv_weights: list[float] = get_cv_weights(curve_shape=curve)
+        knots: list[float] = get_knots(curve_shape=curve)
+        curve_info = {
+            "degree": degree,
+            "form": form,
+            "cv_positions": cv_positions,
+            "cv_weights": cv_weights,
+            "knots": knots,
+        }
+        curve_dict[curve] = curve_info
+    return curve_dict
+
+
+def write_curve(control: str | None = None, name: str | None = None, force: bool = False):
+    """
+    Saves selected or defined curve to shape library.
+
+    Args:
+        control(str): Name of control to save. If None, uses the current selection.
+    Returns:
+        list: A list of CV weight values.
+    """
+    # make sure we either define a curve or have one selected
+    # also make sure we're using the transform node
+    if not control:
+        selection: list[str] = cmds.ls(selection=True)
+        if len(selection) == 0:
+            raise RuntimeError(
+                "Unable to write control shape to file, no control transform was defined, and no control is selected."
+            )
+        control: str = selection[0]
+
+    # if a name is not defined, use the curves name instead
+    if not name:
+        name: str = control
+
+    # get curve data
+    curve_data = get_curve_info(curve=control)
+
+    json_path = f"{CONTROL_DIR}/{name}.json"
+    json_dump = json.dumps(obj=curve_data, indent=4)
+
+    # write shape if forced or file does not exist
+    if force or os.path.isfile(path=json_path) is False:
+        with open(file=json_path, mode="w") as json_file:
+            json_file.write(json_dump)
+            json_file.close()
+    else:
+        cmds.error(
+            "The shape you are trying to save already exists in "
+            + "library, please use a different name, delete the "
+            + "existing file, or use the force flag to overwrite."
+        )
+
+
+def create_curve(curve_shape: ControlShape = ControlShape.CIRCLE) -> str:
+    """
+    Creates a curve from the specified item in the shape library.
+
+    Args:
+        curve_shape(ControlShape): Name of the control shape to generate.
+    Returns:
+        str: Name of the generated curve transform.
+    """
+    # check if curve dict is a file and convert it to dictionary if it is
+    file_path = f"{CONTROL_DIR}/{CONTROL_FILES[curve_shape]}.json"
+    if not os.path.isfile(file_path):
+        cmds.error("Shape does not exist in library. You must write out " + "shape before creating.")
+
+    json_file = open(file_path, "r")
+    json_data = json_file.read()
+    curve_dict = json.loads(json_data)
+    curve_transform: str
+    for index, shape in enumerate(curve_dict):
+        info = curve_dict[shape]
+        positions: list[tuple[float, float, float]] = info["cv_positions"]
+        degree: int = info["degree"]
+        periodic: bool = True if info["form"] == 2 else False
+        knots: list[float] = info["knots"]
+        weights: list[float] = info["cv_weights"]
+        position_weights: list[tuple[float, float, float, float]] = [
+            (position[0], position[1], position[2], weights[index]) for index, position in enumerate(positions)
+        ]
+        if index == 0:
+            curve_transform: str = cmds.curve(
+                name=CONTROL_FILES[curve_shape],
+                pointWeight=position_weights,
+                knot=knots,
+                periodic=periodic,
+                degree=degree,
+            )
+        else:
+            child_curve_transform: str = cmds.curve(
+                pointWeight=position_weights, knot=knots, periodic=periodic, degree=degree
+            )
+            curve_shape = get_shapes(child_curve_transform)[0]
+            cmds.parent(curve_shape, curve_transform, shape=True, relative=True)
+            cmds.delete(child_curve_transform)
+    cmds.select(curve_transform)
+    return curve_transform
+
+
+def combine_curves(main_curve: str | None = None, other_curves: list[str] | None = None):
+    """
+    This is a utility that can be used to combine curve shapes under one transform
+
+    Args:
+        curve(str): main transform that shapes will be parented under
+        shapes(list): a list of other shapes to combine under main transform
+    Returns:
+        str: Name of the merged curve transform.
+    """
+    selection: list[str] = cmds.ls(selection=True)
+    if not main_curve:
+        main_curve: str = selection[0]
+    cmds.makeIdentity(main_curve, apply=True)
+
+    if not other_curves:
+        if len(selection) > 1:
+            other_curves = cmds.ls(selection=True)
+        else:
+            other_curves = cmds.listRelatives(main_curve, children=True)
+
+    all_shapes = []
+    for curve in other_curves:
+        shape_list = get_shapes(transform=curve)
+        if shape_list:
+            all_shapes += shape_list
+
+    for shape in all_shapes:
+        transform = cmds.listRelatives(shape, parent=True)
+        cmds.makeIdentity(transform, apply=True)
+        if cmds.listRelatives(shape, parent=True)[0] == main_curve:
+            continue
+        cmds.parent(shape, main_curve, shape=True, relative=True)
+        if not cmds.listRelatives(transform, allDescendents=True):
+            cmds.delete(transform)
 
 
 def generate_control(
@@ -153,25 +259,8 @@ def generate_control(
     Returns:
         The name of the created control transform.
     """
-
-    # Retrieve the MEL command for the desired control shape.
-    mel_command = MEL_COMMANDS.get(control_shape)
-    if mel_command is None:
-        raise ValueError(f"Unsupported control shape: {control_shape}")
-
-    # Execute the MEL command to create the control curve.
-    mel.eval(mel_command)
-
-    # Retrieve the created control (assumes the curve is currently selected).
-    selection = cmds.ls(selection=True)
-    if not selection:
-        raise RuntimeError("No control created; check the MEL command output.")
-
-    # Get the transform node from the selected curve.
-    control_transform = cmds.listRelatives(selection[0], parent=True)
-    if not control_transform:
-        raise RuntimeError("Control creation failed; no parent transform found.")
-    control_transform = control_transform[0]
+    # Generate a curve
+    control_transform = create_curve(curve_shape=control_shape)
 
     # Adjust the control's scale, apply an offset, reset transforms, and reposition.
     cmds.select(control_transform)
@@ -239,24 +328,8 @@ def generate_surface_control(
         The name of the created control transform.
     """
 
-    # Retrieve the MEL command for the desired control shape.
-    mel_command = MEL_COMMANDS.get(control_shape)
-    if mel_command is None:
-        raise ValueError(f"Unsupported control shape: {control_shape}")
-
-    # Execute the MEL command to create the control curve.
-    mel.eval(mel_command)
-
-    # Retrieve the created control (assumes the curve is currently selected).
-    selection = cmds.ls(selection=True)
-    if not selection:
-        raise RuntimeError("No control created; check the MEL command output.")
-
-    # Get the transform node from the selected curve.
-    control_transform = cmds.listRelatives(selection[0], parent=True)
-    if not control_transform:
-        raise RuntimeError("Control creation failed; no parent transform found.")
-    control_transform = control_transform[0]
+    # Generate a curve
+    control_transform = create_curve(curve_shape=control_shape)
 
     # Adjust the control's scale, apply an offset, reset transforms, and reposition.
     cmds.select(control_transform)

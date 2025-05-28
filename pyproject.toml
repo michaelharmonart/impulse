@@ -8,3 +8,5 @@ dependencies = [
     "maya-stubs>=0.4.1",
     "ruff>=0.9.6",
 ]
+[tool.ruff]
+line-length = 120

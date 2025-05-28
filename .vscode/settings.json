@@ -1,7 +1,9 @@
 {
     "cSpell.words": [
+        "bitangent",
         "Descendents",
-        "isoparm"
+        "isoparm",
+        "NURBS"
     ],
     "python.analysis.extraPaths": [
         "/usr/autodesk/ApplicationPlugins/ngskintools2/Contents/scripts"
