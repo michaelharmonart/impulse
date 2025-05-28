@@ -14,6 +14,7 @@ class ControlShape(Enum):
     CIRCLE = 0
     SQUARE = 1
     CUBE = 2
+    SPHERE = 3
 
 
 class Direction(Enum):
@@ -29,6 +30,7 @@ CONTROL_FILES = {
     ControlShape.CIRCLE: "circle",
     ControlShape.SQUARE: "square",
     ControlShape.CUBE: "cube",
+    ControlShape.SPHERE: "sphere",
 }
 
 
