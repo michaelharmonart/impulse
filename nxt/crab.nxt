@@ -5,33 +5,102 @@
     "mute": false,
     "solo": false,
     "references": [
+        "/users/guest/g/graphite/maya-python/impulse/nxt/cleanup.nxt",
         "/users/guest/g/graphite/maya-python/impulse/nxt/setup.nxt"
     ],
+    "comp_overrides": {
+        "/users/guest/g/graphite/maya-python/impulse/nxt/base.nxt": {
+            "solo": false
+        },
+        "/users/guest/g/graphite/maya-python/impulse/nxt/cleanup.nxt": {
+            "mute": false,
+            "solo": false
+        },
+        "/users/guest/g/graphite/maya-python/impulse/nxt/setup.nxt": {
+            "solo": false
+        }
+    },
     "meta_data": {
         "colors": {
+            "/users/guest/g/graphite/maya-python/impulse/nxt/cleanup.nxt": "#2371d0",
             "/users/guest/g/graphite/maya-python/impulse/nxt/setup.nxt": "#49936d"
         },
         "positions": {
+            "/Cleanup": [
+                254.56621553954994,
+                -415.6939322616801
+            ],
             "/Controls": [
-                -44.308952777148775,
-                -387.34600653572033
+                -77.79478931477821,
+                -417.69582044412954
             ],
             "/SetupFile": [
-                -425.7322489515301,
-                -390.62743661017225
+                -421.80689444777397,
+                -416.04370990194315
+            ],
+            "/node": [
+                -316.1143531600834,
+                -570.7895530414045
             ]
         },
         "collapse": {
+            "/Cleanup": false,
             "/SetupFile": false,
-            "/SetupFile/LoadGuides": true
+            "/SetupFile/LoadGuides": false
         }
     },
     "nodes": {
+        "/Cleanup": {
+            "execute_in": "/Controls"
+        },
+        "/Controls": {
+            "execute_in": "/SetupFile",
+            "attrs": {
+                "ControlGroup": {
+                    "type": "str",
+                    "value": "\"CTLS\""
+                },
+                "GuidesGroup": {
+                    "type": "raw",
+                    "value": "${/SetupFile/LoadGuides.GuidesGroup}"
+                },
+                "RigGroup": {
+                    "type": "raw",
+                    "value": "${/SetupFile.RigGroup}"
+                }
+            },
+            "code": [
+                "control_group = cmds.group(name=${ControlGroup}, empty=True, parent=${RigGroup})",
+                "joints = cmds.listRelatives(${GuidesGroup}, allDescendents=True, type=\"joint\")",
+                "joints = reversed(joints)",
+                "joint_parents = []",
+                "for joint in joints:",
+                "    if joint.endswith(\"_END\"):",
+                "        continue",
+                "    parent = cmds.listRelatives(joint, parent=True)[0]",
+                "    if parent == ${GuidesGroup}:",
+                "        parent = None",
+                "    joint_parents.append((joint, parent))",
+                "",
+                "control_parent_joints = []",
+                "for joint, parent in joint_parents:",
+                "    control = impulse.utils.control.generate_control(joint, size=0.2)",
+                "    if parent:  ",
+                "        control_parent_joints.append((control, parent+\"_CTL\", joint))",
+                "    else:",
+                "        control_parent_joints.append((control, control_group, joint))",
+                "  ",
+                "for control, parent, joint in control_parent_joints:",
+                "    if parent:",
+                "        cmds.parent(control, parent, relative=False)",
+                "        impulse.utils.transform.match_transform(control, joint)",
+                "    "
+            ]
+        },
         "/SetupFile": {
             "start_point": true,
             "child_order": [
-                "LoadGeo",
-                "LoadGuides"
+                "LoadGeo"
             ],
             "attrs": {
                 "Geo": {

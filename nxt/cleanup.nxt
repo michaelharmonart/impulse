@@ -1,0 +1,29 @@
+{
+    "version": "1.17",
+    "alias": "cleanup",
+    "color": "#991c24",
+    "mute": false,
+    "solo": false,
+    "meta_data": {
+        "positions": {
+            "/Cleanup": [
+                499.3731812367213,
+                -292.6014733808914
+            ]
+        }
+    },
+    "nodes": {
+        "/Cleanup": {
+            "execute_in": "/SetupFile",
+            "attrs": {
+                "GuidesGroup": {
+                    "type": "raw",
+                    "value": "${/SetupFile/LoadGuides.GuidesGroup}"
+                }
+            },
+            "code": [
+                "cmds.delete(${GuidesGroup})"
+            ]
+        }
+    }
+}
