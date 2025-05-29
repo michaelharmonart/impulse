@@ -7,14 +7,19 @@
     "meta_data": {
         "positions": {
             "/node": [
-                1330.6756283723792,
-                283.4772641896045
+                107.65709580807118,
+                -439.17259718530636
             ]
+        },
+        "collapse": {
+            "/node": true
         }
     },
     "nodes": {
         "/": {
             "code": [
+                "import maya.cmds as cmds",
+                "",
                 "import sys",
                 "modules = [name for name in sys.modules.keys() if name.startswith(\"impulse\")]",
                 "for name in modules:",

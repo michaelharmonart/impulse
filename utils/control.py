@@ -470,7 +470,7 @@ def generate_surface_control(
     cmds.connectAttr(f"{v_clamp}.output", f"{uv_pin_node}.coordinate[0].coordinateV")
 
     if parent:
-        cmds.parent(offset_transform, parent)
+        cmds.parent(offset_transform, parent, relative=False)
 
     return offset_transform
 

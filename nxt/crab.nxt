@@ -1,0 +1,51 @@
+{
+    "version": "1.17",
+    "alias": "crab",
+    "color": "#aa3537",
+    "mute": false,
+    "solo": false,
+    "references": [
+        "/users/guest/g/graphite/maya-python/impulse/nxt/setup.nxt"
+    ],
+    "meta_data": {
+        "colors": {
+            "/users/guest/g/graphite/maya-python/impulse/nxt/setup.nxt": "#49936d"
+        },
+        "positions": {
+            "/Controls": [
+                -44.308952777148775,
+                -387.34600653572033
+            ],
+            "/SetupFile": [
+                -425.7322489515301,
+                -390.62743661017225
+            ]
+        },
+        "collapse": {
+            "/SetupFile": false,
+            "/SetupFile/LoadGuides": true
+        }
+    },
+    "nodes": {
+        "/SetupFile": {
+            "start_point": true,
+            "child_order": [
+                "LoadGeo",
+                "LoadGuides"
+            ],
+            "attrs": {
+                "Geo": {
+                    "type": "raw",
+                    "value": "${file::/groups/crabby/Assets/Rigging/Crab_v008.mb}"
+                },
+                "Guides": {
+                    "value": "${file::/groups/crabby/Assets/Rigging/Crab_Guides.mb}"
+                }
+            },
+            "code": [
+                "cmds.file(force=True, newFile=True)",
+                "cmds.group(empty=True, name=${RigGroup})"
+            ]
+        }
+    }
+}
