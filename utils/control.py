@@ -235,6 +235,15 @@ def combine_curves(main_curve: str | None = None, other_curves: list[str] | None
             cmds.delete(transform)
 
 
+class Control:
+    control_transform: str
+    offset_transform: str
+
+    def __init__(self, control_transform: str, offset_transform: str):
+        self.control_transform = control_transform
+        self.offset_transform = offset_transform
+
+
 def generate_control(
     name: str,
     parent: str = None,
@@ -244,7 +253,7 @@ def generate_control(
     size: float = 1,
     control_shape: ControlShape = ControlShape.CIRCLE,
     offset: float = 0,
-) -> str:
+) -> Control:
     """
     Create a control curve in Maya at a given position, scale it, offset it,
     and parent it under the specified transform.
@@ -285,12 +294,12 @@ def generate_control(
     cmds.makeIdentity(apply=True)
     cmds.xform(control_transform, pivots=(0, 0, 0))
 
-    control_transform = cmds.group(control_transform, name=f"{name}_OFFSET")
+    offset_transform: str = cmds.group(control_transform, name=f"{name}_OFFSET")
     cmds.move(position[0], position[1], position[2], relative=True, worldSpace=True)
     if parent:
         cmds.parent(control_transform, parent)
 
-    return control_transform
+    return Control(control_transform=control_transform, offset_transform=offset_transform)
 
 
 def generate_surface_control(
@@ -308,7 +317,7 @@ def generate_surface_control(
     size: float = 1,
     control_shape: ControlShape = ControlShape.CIRCLE,
     offset: float = 0.1,
-) -> str:
+) -> Control:
     """
     Create a control that moves only along a given surface (plus an offset).
 
@@ -472,46 +481,14 @@ def generate_surface_control(
     if parent:
         cmds.parent(offset_transform, parent, relative=False)
 
-    return offset_transform
+    return Control(control_transform=control_transform, offset_transform=offset_transform)
 
 
-def connect(
-    control_name: str,
+def connect_control(
+    control: Control,
     driven_name: str,
     connect_scale: bool = True,
 ) -> None:
-    children = cmds.listRelatives(control_name, allDescendents=True, type="transform") or []
-    if len(children) == 0:
-        raise RuntimeError(
-            f"{control_name} doesn't have any child transforms that could be a control shape, is it a valid control? Here are it's children: {children}"
-        )
-    control_transform: str = None
-    for child in children:
-        if child.endswith("_CTL"):
-            control_transform: str = child
-    if control_transform is None:
-        raise RuntimeError(
-            f"{control_name} doesn't have a child transform ending in CTL, is it a valid control? Here are it's children: {children}"
-        )
-    cmds.parentConstraint(control_transform, driven_name, weight=1)
+    cmds.parentConstraint(control.control_transform, driven_name, weight=1)
     if connect_scale:
-        cmds.scaleConstraint(control_transform, driven_name, weight=1)
-
-
-def get_control_transform(
-    control_name: str,
-) -> str:
-    children = cmds.listRelatives(control_name, allDescendents=True, type="transform") or []
-    if len(children) == 0:
-        raise RuntimeError(
-            f"{control_name} doesn't have any child transforms that could be a control shape, is it a valid control? Here are it's children: {children}"
-        )
-    control_transform: str = None
-    for child in children:
-        if child.endswith("_CTL"):
-            control_transform: str = child
-    if control_transform is None:
-        raise RuntimeError(
-            f"{control_name} doesn't have a child transform ending in CTL, is it a valid control? Here are it's children: {children}"
-        )
-    return control_transform
+        cmds.scaleConstraint(control.control_transform, driven_name, weight=1)

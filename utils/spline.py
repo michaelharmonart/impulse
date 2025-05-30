@@ -6,6 +6,7 @@ Functions for working with splines.
 from typing import Any
 import maya.cmds as cmds
 from ..structs.transform import Vector3 as Vector3
+from .control import Control, ControlShape, connect_control, generate_control
 
 
 def generate_knots(count: int, degree: int = 3) -> list[float]:
@@ -528,14 +529,14 @@ class MatrixSpline:
 
         cv_matrices: list[str] = []
         for index, cv_transform in enumerate(cv_transforms):
-            # Remove scale and shear from matrix since they will interfere with the 
+            # Remove scale and shear from matrix since they will interfere with the
             # linear interpolation of the basis vectors (causing flipping)
             pick_matrix = cmds.createNode("pickMatrix", name=f"{cv_transform}_PickMatrix")
             cmds.connectAttr(f"{cv_transform}.matrix", f"{pick_matrix}.inputMatrix")
             cmds.setAttr(f"{pick_matrix}.useShear", 0)
             cmds.setAttr(f"{pick_matrix}.useScale", 0)
 
-            # Add nodes to connect individual values from the matrix, 
+            # Add nodes to connect individual values from the matrix,
             # I don't know why maya makes us do this instead of just connecting directly
             deconstruct_matrix_attribute = f"{pick_matrix}.outputMatrix"
             row1 = cmds.createNode("rowFromMatrix", name=f"{cv_transform}_row1")
@@ -551,7 +552,7 @@ class MatrixSpline:
             cmds.connectAttr(deconstruct_matrix_attribute, f"{row4}.matrix")
             cmds.setAttr(f"{row4}.input", 3)
 
-            # Rebuild the matrix but encode the scale into the empty values in the matrix 
+            # Rebuild the matrix but encode the scale into the empty values in the matrix
             # (this needs to be extracted after the weighted matrix sum)
             cv_matrix = cmds.createNode("fourByFourMatrix", name=f"{cv_transform}_CvMatrix")
             cmds.connectAttr(f"{row1}.outputX", f"{cv_matrix}.in00")
@@ -725,7 +726,7 @@ def pinToMatrixSpline(matrix_spline: MatrixSpline, pinned_transform: str, parame
     cmds.connectAttr(f"{output_matrix}.output", f"{pinned_transform}.offsetParentMatrix")
 
 
-def curveToMatrixSpline(curve: str, segments: int) -> None:
+def curveToMatrixSpline(curve: str, segments: int, control_size: float = 0.1) -> None:
     """
     Takes a curve shape and returns the attributes of the offset_parent_matrix for each segment.
     Args:
@@ -760,13 +761,18 @@ def curveToMatrixSpline(curve: str, segments: int) -> None:
     cv_transforms: list[str] = []
     for i, cv_pos in enumerate(filtered_cv_positions):
         # Create Transform for CV and move it to the position of the CV on the curve
-        cv_transform = cmds.polySphere(name=f"{curve}_CV{i}")[0]
-        cmds.setAttr(
-            f"{cv_transform}.translate",
-            cv_pos.x,
-            cv_pos.y,
-            cv_pos.z,
+        control: Control = generate_control(
+            name=f"{curve}_CV{i}",
+            position=(
+                cv_pos.x,
+                cv_pos.y,
+                cv_pos.z,
+            ),
+            control_shape=ControlShape.SPHERE,
+            size=0.1,
         )
+        cv_transform: str = cmds.group(name=f"{curve}_CV{i}", empty=True)
+        connect_control(control=control, driven_name=cv_transform)
         cv_transforms.append(cv_transform)
     matrix_spline: MatrixSpline = MatrixSpline(
         cv_transforms=cv_transforms, degree=degree, knots=knots, periodic=periodic
@@ -780,5 +786,7 @@ def curveToMatrixSpline(curve: str, segments: int) -> None:
         segment_name = f"{matrix_spline.name}_matrixSpline_Segment{i + 1}"
         parameter = segment_parameters[i]
 
-        segment_transform = cmds.polyCube(name=segment_name)[0]
+        segment_transform = cmds.polyCube(
+            name=segment_name, width=control_size, depth=control_size, height=control_size
+        )[0]
         pinToMatrixSpline(matrix_spline=matrix_spline, pinned_transform=segment_transform, parameter=parameter)

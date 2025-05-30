@@ -10,7 +10,7 @@ It leverages custom control curves from the control_gen module.
 """
 
 import maya.cmds as cmds
-from . import control as control
+from .control import Control, connect_control, generate_control, generate_surface_control, Direction
 from . import pin as pin
 
 
@@ -25,7 +25,7 @@ def generate_ribbon(
     control_joints: bool = True,
     number_of_controls: int = None,
     half_controls: bool = True,
-    control_direction: control.Direction = None,
+    control_direction: Direction = None,
     control_normal_axis: str = None,
     control_tangent_axis: str = None,
     control_sensitivity: float = 1,
@@ -110,7 +110,7 @@ def generate_ribbon(
                 normal_axis=control_normal_axis,
                 tangent_axis=control_tangent_axis,
             )
-            ctl_name = control.generate_surface_control(
+            ctl: Control = generate_surface_control(
                 name=f"{ribbon_object}_ControlJoint{idx + 1}",
                 size=0.4,
                 parent=ribbon_group,
@@ -120,18 +120,18 @@ def generate_ribbon(
                 control_sensitivity=(control_sensitivity, control_sensitivity),
             )
             cmds.matchTransform(joint_name, temp_locator)
-            cmds.parent(ctl_name, ctl_group)
-            control.connect(ctl_name, joint_name)
+            cmds.parent(ctl.offset_transform, ctl_group)
+            connect_control(control=ctl, driven_name=joint_name)
         else:
-            ctl_name = control.generate_control(
+            ctl: Control = generate_control(
                 name=f"{ribbon_object}_ControlJoint{idx + 1}",
                 position=pos,
                 size=0.4,
                 parent=ribbon_group,
                 direction=control_direction,
             )
-            cmds.parent(ctl_name, ctl_group)
-            control.connect(ctl_name, joint_name)
+            cmds.parent(ctl.offset_transform, ctl_group)
+            connect_control(control=ctl, driven_name=joint_name)
             pin.make_uv_pin(
                 object_to_pin=temp_locator,
                 surface=ribbon_object,
@@ -141,7 +141,7 @@ def generate_ribbon(
                 normal_axis=control_normal_axis,
                 tangent_axis=control_tangent_axis,
             )
-            cmds.matchTransform(ctl_name, temp_locator)
+            cmds.matchTransform(ctl.offset_transform, temp_locator)
 
         cmds.delete(temp_locator)
         return joint_name
@@ -203,7 +203,7 @@ def generate_ribbon(
             cmds.connectAttr(f"{shape}{attr_world}", f"{cp_node}{cp_input}")
             cmds.connectAttr(f"{world_position}.output", f"{cp_node}.inPosition")
 
-            ctl_name = control.generate_surface_control(
+            ctl_name = generate_surface_control(
                 name=f"{ribbon_object}_point{idx + 1}",
                 size=0.2,
                 parent=ctl_group,
@@ -214,10 +214,10 @@ def generate_ribbon(
                 u_attribute=f"{cp_node}.result.parameterU",
                 v_attribute=f"{cp_node}.result.parameterV",
             )
-            control.connect(ctl_name, joint_name)
+            connect_control(ctl_name, joint_name)
             cmds.parent(pin_point, ctl_name)
         else:
-            ctl_name = control.generate_control(
+            ctl: Control = generate_control(
                 name=f"{ribbon_object}_point{idx + 1}",
                 position=pos,
                 size=0.2,
@@ -225,7 +225,7 @@ def generate_ribbon(
                 direction=control_direction,
             )
             pin.make_uv_pin(
-                object_to_pin=ctl_name,
+                object_to_pin=ctl.offset_transform,
                 surface=ribbon_object,
                 u=u_val,
                 v=v_val,
@@ -233,9 +233,9 @@ def generate_ribbon(
                 normal_axis=control_normal_axis,
                 tangent_axis=control_tangent_axis,
             )
-            cmds.makeIdentity(ctl_name, apply=False)
-            cmds.parent(ctl_name, ctl_group)
-            control.connect(ctl_name, joint_name)
+            cmds.makeIdentity(ctl.offset_transform, apply=False)
+            cmds.parent(ctl.offset_transform, ctl_group)
+            connect_control(control=ctl, driven_name=joint_name)
 
     # Helper to create a interpolation joint.
     def create_interpolation_joint(idx: int, total_joints: int) -> None:
@@ -471,7 +471,7 @@ def populate_surface(
 
     for row in range_v:
         for column in range_u:
-            control_name = control.generate_surface_control(
+            ctl: Control = generate_surface_control(
                 name=f"{surface}_tweak_{row}_{column}",
                 surface=surface,
                 uv_position=((column / divisor_u) * surface_u, (row / divisor_v) * surface_v),
@@ -481,6 +481,6 @@ def populate_surface(
             )
             joint_name = cmds.joint(radius=1, name=f"{surface}_tweak_{row}_{column}_JNT")
             cmds.parent(joint_name, group_name)
-            cmds.matchTransform(joint_name, control.get_control_transform(control_name=control_name))
-            control.connect(control_name=control_name, driven_name=joint_name)
+            cmds.matchTransform(joint_name, ctl.control_transform)
+            connect_control(control_name=ctl, driven_name=joint_name)
     return group_name
