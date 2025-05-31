@@ -4,3 +4,4 @@ from . import pin as pin
 from . import spline as spline
 from . import transform as transform
 from . import skin as skin
+from . import ik as ik
