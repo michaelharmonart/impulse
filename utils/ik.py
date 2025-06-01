@@ -37,7 +37,7 @@ def ik_fk_blend_list(ik_joints: list[str], fk_joints: list[str], blended_joints:
     """
     if not(len(ik_joints) == len(fk_joints) == len(blended_joints)):
         raise RuntimeError("Number of fk ik and blend joints don't match!")
-    for index, blended_joint in blended_joints:
+    for index, blended_joint in enumerate(blended_joints):
         ik_fk_blend(ik_joint=ik_joints[index], fk_joint=fk_joints[index], blended_joint=blended_joint, blend_attr=blend_attr)
 
 def blend_selected(blend_attr: str) -> None:
