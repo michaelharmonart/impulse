@@ -1,14 +1,13 @@
 import maya.cmds as cmds
 
 
-def match_transform(transform: str, target_transform: str, scale: bool = False) -> None:
+def match_transform(transform: str, target_transform: str) -> None:
     """
     Match a transform to another in world space.
 
     Args:
         transform: Object to be moved to the specified transform.
-        target_transform: Name of the transform to parent control to.
-        scale: If true, scale will be taken into account.
+        target_transform: Name of the transform to match to.
     """
     source_matrix = cmds.xform(target_transform, query=True, worldSpace=True, matrix=True)
     cmds.xform(transform, worldSpace=True, matrix=source_matrix)
@@ -50,6 +49,8 @@ def matrix_constraint(
 
     # If we have a parent transform we then put it into that space by multiplying by it's worldInverseMatrix
     if use_parent:
+        if not cmds.listRelatives(constrain_transform, parent=True):
+            raise RuntimeError(f"{constrain_transform} has no parent but use_parent is set to True!")
         constraint_parent: str = cmds.listRelatives(constrain_transform, parent=True)[0]
         cmds.connectAttr(f"{constraint_parent}.worldInverseMatrix[0]", f"{mult_matrix}.matrixIn[{mult_index}]")
         mult_index += 1

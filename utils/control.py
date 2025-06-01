@@ -271,15 +271,13 @@ def generate_control(
         The name of the created control transform.
     """
     # Generate a curve
-    control_transform = create_curve(curve_shape=control_shape)
+    control_transform: str = create_curve(curve_shape=control_shape)
 
     # Adjust the control's scale, apply an offset, reset transforms, and reposition.
-    cmds.select(control_transform)
-    control_transform = cmds.rename(control_transform, f"{name}_CTL")
-    cmds.scale(size, size, size, relative=True)
+    control_transform: str = cmds.rename(control_transform, f"{name}_CTL")
+    cmds.scale(size, size, size, relative=False)
     cmds.move(0, offset, 0, relative=True)
     cmds.makeIdentity(apply=True)
-    cmds.xform(control_transform, pivots=(0, 0, 0))
 
     if direction == Direction.X:
         if opposite_direction:
@@ -292,12 +290,11 @@ def generate_control(
         else:
             cmds.rotate(90, 0, 0)
     cmds.makeIdentity(apply=True)
-    cmds.xform(control_transform, pivots=(0, 0, 0))
 
     offset_transform: str = cmds.group(control_transform, name=f"{name}_OFFSET")
     cmds.move(position[0], position[1], position[2], relative=True, worldSpace=True)
     if parent:
-        cmds.parent(control_transform, parent)
+        cmds.parent(offset_transform, parent)
 
     return Control(control_transform=control_transform, offset_transform=offset_transform)
 

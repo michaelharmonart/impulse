@@ -735,7 +735,7 @@ def curveToMatrixSpline(curve: str, segments: int, control_size: float = 0.1) ->
     Returns:
         tuple: Tuple of the curve CV matrix attributes, and of the output matrix attributes.
     """
-    # Retrieve the surface shape and ensure it is a NURBS surface.
+    # Retrieve the shape and ensure it is a NURBS curve.
     curve_shapes = cmds.listRelatives(curve, shapes=True) or []
     if not curve_shapes:
         cmds.error(f"No shape node found for {curve_shapes}")
@@ -750,6 +750,18 @@ def curveToMatrixSpline(curve: str, segments: int, control_size: float = 0.1) ->
     cv_positions: list[Vector3] = get_cvs(curve_shape)
     knots: list[float] = get_knots(curve_shape)
     weights: list[float] = get_cv_weights(curve_shape)
+
+    if cmds.listRelatives(curve, parent=True):
+        curve_parent: str = cmds.listRelatives(curve, parent=True)[0]
+    else:
+        curve_parent: str = None
+    if curve_parent:
+        container_group: str = cmds.group(empty=True, parent=curve_parent, name=f"{curve}_MatrixSpline_GRP")
+    else:
+        container_group: str = cmds.group(empty=True, name=f"{curve}_MatrixSpline_GRP")
+    ctl_group: str = cmds.group(empty=True, parent=container_group, name=f"{curve}_CTLS")
+    mch_group: str = cmds.group(empty=True, parent=container_group, name=f"{curve}_MCH")
+    def_group: str = cmds.group(empty=True, parent=container_group, name=f"{curve}_DEF")
 
     filtered_cv_positions: list[Vector3] = list(cv_positions)
     # If the curve is periodic there are duplicate CVs that move together. Remove them.
@@ -769,11 +781,14 @@ def curveToMatrixSpline(curve: str, segments: int, control_size: float = 0.1) ->
                 cv_pos.z,
             ),
             control_shape=ControlShape.SPHERE,
-            size=0.1,
+            size=control_size,
         )
         cv_transform: str = cmds.group(name=f"{curve}_CV{i}", empty=True)
         connect_control(control=control, driven_name=cv_transform)
         cv_transforms.append(cv_transform)
+        cmds.parent(cv_transform, mch_group)
+        cmds.parent(control.offset_transform, ctl_group)
+
     matrix_spline: MatrixSpline = MatrixSpline(
         cv_transforms=cv_transforms, degree=degree, knots=knots, periodic=periodic
     )
@@ -786,7 +801,9 @@ def curveToMatrixSpline(curve: str, segments: int, control_size: float = 0.1) ->
         segment_name = f"{matrix_spline.name}_matrixSpline_Segment{i + 1}"
         parameter = segment_parameters[i]
 
-        segment_transform = cmds.polyCube(
-            name=segment_name, width=control_size, depth=control_size, height=control_size
-        )[0]
-        pinToMatrixSpline(matrix_spline=matrix_spline, pinned_transform=segment_transform, parameter=parameter)
+        segment_ctl: Control = generate_control(name=segment_name, control_shape=ControlShape.CUBE, size=control_size/2, parent=ctl_group)
+        segment_transform: str = cmds.joint(name=segment_name)
+        connect_control(control=segment_ctl, driven_name=segment_transform)
+        cmds.parent(segment_transform, def_group, absolute=False)
+        pinToMatrixSpline(matrix_spline=matrix_spline, pinned_transform=segment_ctl.offset_transform, parameter=parameter)
+        
