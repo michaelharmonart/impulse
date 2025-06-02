@@ -14,7 +14,7 @@ def match_transform(transform: str, target_transform: str) -> None:
 
 
 def matrix_constraint(
-    source_transform: str, constrain_transform: str, keep_offset: bool = True, use_parent: bool = True
+    source_transform: str, constrain_transform: str, keep_offset: bool = True, local_space: bool = True
 ) -> None:
     """
     Constrain a transform to another
@@ -23,7 +23,7 @@ def matrix_constraint(
         source_transform: joint to match.
         constrain_joint: joint to constrain.
         keep_offset: keep the offset of the constrained transform to the source at time of constraint generation.
-
+        local_space: if False the constrained transform will have inheritsTransform turned off
     """
 
     # Create node to multiply matrices, as well as a counter to make sure to input into the right slot.
@@ -48,15 +48,11 @@ def matrix_constraint(
     mult_index += 1
 
     # If we have a parent transform we then put it into that space by multiplying by it's worldInverseMatrix
-    if use_parent:
-        if not cmds.listRelatives(constrain_transform, parent=True):
-            raise RuntimeError(f"{constrain_transform} has no parent but use_parent is set to True!")
-        constraint_parent: str = cmds.listRelatives(constrain_transform, parent=True)[0]
-        cmds.connectAttr(f"{constraint_parent}.worldInverseMatrix[0]", f"{mult_matrix}.matrixIn[{mult_index}]")
+    if local_space:
+        cmds.connectAttr(f"{constrain_transform}.parentInverseMatrix[0]", f"{mult_matrix}.matrixIn[{mult_index}]")
         mult_index += 1
     else:
         cmds.setAttr(f"{constrain_transform}.inheritsTransform", 0)
-        mult_index += 1
 
     # Create the decomposed matrix and connect it's input
     decompose_matrix: str = cmds.createNode("decomposeMatrix", name=f"{constrain_transform}_ConstrainMatrixDecompose")
@@ -94,7 +90,7 @@ def matrix_constraint(
             # (otherwise just pre-calculate a matrix and plop it in)
             # Bless Jared Love for figuring this out https://www.youtube.com/watch?v=_LNhZB8jQyo
             # Essentially we need to take the inverse of the orient * the world matrix of the parent and multiply by that
-            if use_parent:
+            if local_space:
                 # Create a node to multiply the joint orient by the world matrix of the parent
                 orient_parent_mult_matrix: str = cmds.createNode(
                     "multMatrix", name=f"{constrain_transform}_ConstraintOrientMultMatrix"
