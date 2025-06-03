@@ -1,5 +1,7 @@
 import json
 import maya.cmds as cmds
+
+from .transform import matrix_constraint
 from . import pin as pin
 from . import math as math
 from enum import Enum
@@ -279,6 +281,18 @@ def generate_control(
     cmds.move(0, offset, 0, relative=True)
     cmds.makeIdentity(apply=True)
 
+    # Comfort feature: make it so it's not possible to have negative scale
+    min_scale: float = 0.01
+    cmds.transformLimits(
+        control_transform,
+        enableScaleX=(True, False),
+        scaleX=(min_scale, 1),
+        enableScaleY=(True, False),
+        scaleY=(min_scale, 1),
+        enableScaleZ=(True, False),
+        scaleZ=(min_scale, 1),
+    )
+
     if direction == Direction.X:
         if opposite_direction:
             cmds.rotate(0, 0, 90)
@@ -484,8 +498,8 @@ def generate_surface_control(
 def connect_control(
     control: Control,
     driven_name: str,
-    connect_scale: bool = True,
+    keep_offset: bool = False,
 ) -> None:
-    cmds.parentConstraint(control.control_transform, driven_name, weight=1)
-    if connect_scale:
-        cmds.scaleConstraint(control.control_transform, driven_name, weight=1)
+    matrix_constraint(
+        source_transform=control.control_transform, constrain_transform=driven_name, keep_offset=keep_offset
+    )
