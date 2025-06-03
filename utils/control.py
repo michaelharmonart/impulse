@@ -1,7 +1,7 @@
 import json
 import maya.cmds as cmds
 
-from .transform import matrix_constraint
+from . import transform
 from . import pin as pin
 from . import math as math
 from enum import Enum
@@ -249,7 +249,8 @@ class Control:
 def generate_control(
     name: str,
     parent: str = None,
-    position: tuple[float, float, float] = (0, 0, 0),
+    position: tuple[float, float, float] | None = None,
+    target_transform: str | None = None,
     direction: Direction = Direction.Y,
     opposite_direction: bool = False,
     size: float = 1,
@@ -262,6 +263,7 @@ def generate_control(
 
     Args:
         position: (x, y, z) coordinates for the control's final position.
+        target_transform: when set, the control will be generated to match the world space transform of the given transform node.
         parent: Name of the parent transform.
         direction: Direction control shape will face.
         size: Scaling factor for the control curve.
@@ -274,12 +276,12 @@ def generate_control(
     """
     # Generate a curve
     control_transform: str = create_curve(curve_shape=control_shape)
-
     # Adjust the control's scale, apply an offset, reset transforms, and reposition.
     control_transform: str = cmds.rename(control_transform, f"{name}_CTL")
     cmds.scale(size, size, size, relative=False)
     cmds.move(0, offset, 0, relative=True)
     cmds.makeIdentity(apply=True)
+    cmds.xform(control_transform, pivots=(0, 0, 0))
 
     # Comfort feature: make it so it's not possible to have negative scale
     min_scale: float = 0.01
@@ -304,11 +306,17 @@ def generate_control(
         else:
             cmds.rotate(90, 0, 0)
     cmds.makeIdentity(apply=True)
+    cmds.xform(control_transform, pivots=(0, 0, 0))
 
     offset_transform: str = cmds.group(control_transform, name=f"{name}_OFFSET")
-    cmds.move(position[0], position[1], position[2], relative=True, worldSpace=True)
+    cmds.xform(offset_transform, pivots=(0, 0, 0))
+    if target_transform:
+        transform.match_transform(transform=offset_transform, target_transform=target_transform)
+    elif position:
+        cmds.move(position[0], position[1], position[2], relative=True, worldSpace=True)
+
     if parent:
-        cmds.parent(offset_transform, parent)
+        cmds.parent(offset_transform, parent, relative=True)
 
     return Control(control_transform=control_transform, offset_transform=offset_transform)
 
@@ -318,7 +326,7 @@ def generate_surface_control(
     surface: str,
     parent: str = None,
     position: tuple[float, float, float] = (0, 0, 0),
-    match_transform: str = None,
+    target_transform: str = None,
     uv_position: tuple[float, float] = None,
     u_attribute: str = None,
     v_attribute: str = None,
@@ -336,7 +344,7 @@ def generate_surface_control(
         surface: The surface (mesh or NURBS) that the control will move along.
         parent: Name of the transform to parent control to.
         position: World space position that will be projected onto the surface to set the default control position in UV space.
-        match_transform: when set, the control will be generated to match the position and angle of the given transform node.
+        target_transform: when set, the control will be generated to match the position and angle of the given transform node.
         u_attribute: Attribute to use as U offset instead of the transform or position.
         v_attribute: Attribute to use as V offset instead of the transform or position.
         control_sensitivity: multiplier for UV space movement from the control transform (needed since the surface UV space will be 0-1 matter how large it is)
@@ -413,8 +421,8 @@ def generate_surface_control(
 
     x_attribute = f"{control_transform}.translate.translateX"
     z_attribute = f"{control_transform}.translate.translateZ"
-    if match_transform:
-        position = cmds.xform(match_transform, worldSpace=True, query=True, translation=True)
+    if target_transform:
+        position = cmds.xform(target_transform, worldSpace=True, query=True, translation=True)
         rotate_matrix = cmds.createNode("composeMatrix", name=f"{name}_rotationMatrixCompose")
         cmds.connectAttr(f"{offset_transform}.rotate.rotateY", f"{rotate_matrix}.inputRotate.inputRotateY")
         translate_matrix = cmds.createNode("composeMatrix", name=f"{name}_translateMatrixCompose")
@@ -452,9 +460,9 @@ def generate_surface_control(
     uv_pin_node = pin.make_uv_pin(
         object_to_pin=offset_transform, surface=surface, u=default_u, v=default_v, normalize=False
     )
-    if match_transform:
+    if target_transform:
         temp_locator = cmds.group(empty=True, parent=offset_transform)
-        cmds.parentConstraint(match_transform, temp_locator, maintainOffset=False)
+        cmds.parentConstraint(target_transform, temp_locator, maintainOffset=False)
         rotation_y = cmds.getAttr(f"{temp_locator}.rotate.rotateY")
         cmds.delete(temp_locator)
         cmds.xform(offset_transform, rotation=(0, rotation_y, 0), worldSpace=False)
@@ -500,6 +508,6 @@ def connect_control(
     driven_name: str,
     keep_offset: bool = False,
 ) -> None:
-    matrix_constraint(
+    transform.matrix_constraint(
         source_transform=control.control_transform, constrain_transform=driven_name, keep_offset=keep_offset
     )

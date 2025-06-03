@@ -1,4 +1,3 @@
-from shlex import join
 import maya.cmds as cmds
 
 
@@ -66,7 +65,7 @@ def matrix_constraint(
         if use_joint_orient:
             # Check if the joint orient isn't about 0
             joint_orient: tuple[float, float, float] = cmds.getAttr(f"{constrain_transform}.jointOrient")[0]
-            if (abs(joint_orient[0]), abs(joint_orient[1]), abs(joint_orient[2])) > ((0.01,) * 3):
+            if any(abs(i) > 0.01 for i in joint_orient):
                 # Get our joint orient and turn it into a matrix
                 orient_node: str = cmds.createNode("composeMatrix", name=f"{constrain_transform}_OrientMatrix")
                 cmds.connectAttr(f"{constrain_transform}.jointOrient", f"{orient_node}.inputRotate")
