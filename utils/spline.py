@@ -536,14 +536,6 @@ class MatrixSpline:
             cmds.setAttr(f"{pick_matrix}.useShear", 0)
             cmds.setAttr(f"{pick_matrix}.useScale", 0)
 
-            # Take the log of the scale values to interpolate scale more intuitively
-            x_log: str = cmds.createNode("log", name=f"{cv_transform}_xScaleLog")
-            cmds.setAttr(f"{x_log}.base", 2)
-            cmds.connectAttr(f"{cv_transform}.scaleX", f"{x_log}.input")
-            z_log: str = cmds.createNode("log", name=f"{cv_transform}_zScaleLog")
-            cmds.setAttr(f"{z_log}.base", 2)
-            cmds.connectAttr(f"{cv_transform}.scaleZ", f"{z_log}.input")
-
             # Add nodes to connect individual values from the matrix,
             # I don't know why maya makes us do this instead of just connecting directly
             deconstruct_matrix_attribute = f"{pick_matrix}.outputMatrix"
@@ -566,16 +558,17 @@ class MatrixSpline:
             cmds.connectAttr(f"{row1}.outputX", f"{cv_matrix}.in00")
             cmds.connectAttr(f"{row1}.outputY", f"{cv_matrix}.in01")
             cmds.connectAttr(f"{row1}.outputZ", f"{cv_matrix}.in02")
-            cmds.connectAttr(f"{x_log}.output", f"{cv_matrix}.in03")
+            cmds.connectAttr(f"{cv_transform}.scaleX", f"{cv_matrix}.in03")
 
             cmds.connectAttr(f"{row2}.outputX", f"{cv_matrix}.in10")
             cmds.connectAttr(f"{row2}.outputY", f"{cv_matrix}.in11")
             cmds.connectAttr(f"{row2}.outputZ", f"{cv_matrix}.in12")
+            cmds.connectAttr(f"{cv_transform}.scaleY", f"{cv_matrix}.in13")
 
             cmds.connectAttr(f"{row3}.outputX", f"{cv_matrix}.in20")
             cmds.connectAttr(f"{row3}.outputY", f"{cv_matrix}.in21")
             cmds.connectAttr(f"{row3}.outputZ", f"{cv_matrix}.in22")
-            cmds.connectAttr(f"{z_log}.output", f"{cv_matrix}.in23")
+            cmds.connectAttr(f"{cv_transform}.scaleZ", f"{cv_matrix}.in23")
 
             cmds.connectAttr(f"{row4}.outputX", f"{cv_matrix}.in30")
             cmds.connectAttr(f"{row4}.outputY", f"{cv_matrix}.in31")
@@ -681,13 +674,7 @@ def pinToMatrixSpline(matrix_spline: MatrixSpline, pinned_transform: str, parame
     # Create Nodes to re-apply scale
     x_scaled = cmds.createNode("multiplyDivide", name=f"{segment_name}_xScale")
     x_vector_attribute = f"{aim_matrix_row1}"
-
-    unmapped_x_scale_attribute = f"{blended_matrix_row1}.outputW"
-    x_pow = cmds.createNode("power", name=f"{segment_name}_xScalePow")
-    cmds.setAttr(f"{x_pow}.input", 3)
-    cmds.connectAttr(unmapped_x_scale_attribute, f"{x_pow}.exponent")
-    x_scale_attribute = f"{x_pow}.output"
-
+    x_scale_attribute = f"{blended_matrix_row1}.outputW"
     cmds.connectAttr(f"{x_vector_attribute}.outputX", f"{x_scaled}.input1X")
     cmds.connectAttr(f"{x_vector_attribute}.outputY", f"{x_scaled}.input1Y")
     cmds.connectAttr(f"{x_vector_attribute}.outputZ", f"{x_scaled}.input1Z")
@@ -709,13 +696,7 @@ def pinToMatrixSpline(matrix_spline: MatrixSpline, pinned_transform: str, parame
 
     z_scaled = cmds.createNode("multiplyDivide", name=f"{segment_name}_zScale")
     z_vector_attribute = f"{aim_matrix_row3}"
-
-    unmapped_z_scale_attribute = f"{blended_matrix_row3}.outputW"
-    z_pow = cmds.createNode("power", name=f"{segment_name}_zScalePow")
-    cmds.setAttr(f"{z_pow}.input", 3)
-    cmds.connectAttr(unmapped_z_scale_attribute, f"{z_pow}.exponent")
-    z_scale_attribute = f"{z_pow}.output"
-
+    z_scale_attribute = f"{blended_matrix_row3}.outputW"
     cmds.connectAttr(f"{z_vector_attribute}.outputX", f"{z_scaled}.input1X")
     cmds.connectAttr(f"{z_vector_attribute}.outputY", f"{z_scaled}.input1Y")
     cmds.connectAttr(f"{z_vector_attribute}.outputZ", f"{z_scaled}.input1Z")
