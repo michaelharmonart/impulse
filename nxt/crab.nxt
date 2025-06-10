@@ -54,7 +54,6 @@
             "execute_in": "/Controls"
         },
         "/Controls": {
-            "execute_in": "/SetupFile",
             "attrs": {
                 "ControlGroup": {
                     "type": "str",
@@ -105,10 +104,11 @@
             "attrs": {
                 "Geo": {
                     "type": "raw",
-                    "value": "${file::/groups/crabby/Assets/Rigging/Crab_v008.mb}"
+                    "value": "${file::/groups/crabby/Assets/Rigging/King Bling/King_v001.mb}"
                 },
                 "Guides": {
-                    "value": "${file::/groups/crabby/Assets/Rigging/Crab_Guides.mb}"
+                    "type": "raw",
+                    "value": "${file::/groups/crabby/Assets/Rigging/King Bling/King_Guides.mb}"
                 }
             },
             "code": [

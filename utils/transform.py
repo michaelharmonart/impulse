@@ -14,7 +14,7 @@ def match_transform(transform: str, target_transform: str) -> None:
 
 
 def matrix_constraint(
-    source_transform: str, constrain_transform: str, keep_offset: bool = True, local_space: bool = True, use_joint_orient: bool = True,
+    source_transform: str, constrain_transform: str, keep_offset: bool = True, local_space: bool = True, use_joint_orient: bool = False,
 ) -> None:
     """
     Constrain a transform to another
@@ -33,14 +33,20 @@ def matrix_constraint(
 
     # If we want to keep the offset, we put the position of the constrained transform into the source transform's space and record it.
     if keep_offset:
+        # Get the offset matrix
         offset_matrix_node: str = cmds.createNode("multMatrix", name=f"{constrain_transform}_OffsetMatrix")
         cmds.connectAttr(f"{constrain_transform}.worldMatrix[0]", f"{offset_matrix_node}.matrixIn[0]")
         cmds.connectAttr(f"{source_transform}.worldInverseMatrix[0]", f"{offset_matrix_node}.matrixIn[1]")
         offset_matrix = cmds.getAttr(f"{offset_matrix_node}.matrixSum")
-
-        # Put the offset into the matrix multiplier
-        cmds.setAttr(f"{mult_matrix}.matrixIn[{mult_index}]", offset_matrix, type="matrix")
-        mult_index += 1
+        
+        # Check the matrix against an identity matrix. If it's the same within a margin of error the transforms aren't offset.
+        # Meaning we can skip that extra matrix multiplication.
+        if any(abs(value - identity) > 0.001 for value, identity in zip(offset_matrix, [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1])):
+            # Put the offset into the matrix multiplier
+            cmds.setAttr(f"{mult_matrix}.matrixIn[{mult_index}]", offset_matrix, type="matrix")
+            mult_index += 1
+        else:
+            keep_offset = False
 
         cmds.delete(offset_matrix_node)
 
@@ -59,7 +65,7 @@ def matrix_constraint(
     decompose_matrix: str = cmds.createNode("decomposeMatrix", name=f"{constrain_transform}_ConstrainMatrixDecompose")
     cmds.connectAttr(f"{mult_matrix}.matrixSum", f"{decompose_matrix}.inputMatrix")
 
-    rotate_attr: str
+    rotate_attr: str = f"{decompose_matrix}.outputRotate"
     # If it's a joint we have to do a whole bunch of other nonsense to account for joint orient (I was up till 2am because of this)
     if cmds.nodeType(constrain_transform) == "joint":
         if use_joint_orient:
@@ -128,12 +134,8 @@ def matrix_constraint(
                 )
                 cmds.connectAttr(f"{orient_mult_matrix}.matrixSum", f"{orient_decompose_matrix}.inputMatrix")
                 rotate_attr = f"{orient_decompose_matrix}.outputRotate"
-            else: rotate_attr = f"{decompose_matrix}.outputRotate"
         else:
             cmds.setAttr(f"{constrain_transform}.jointOrient", 0,0,0, type="float3")
-    else:
-        rotate_attr = f"{decompose_matrix}.outputRotate"
-        
 
     cmds.connectAttr(rotate_attr, f"{constrain_transform}.rotate")
     cmds.connectAttr(f"{decompose_matrix}.outputTranslate", f"{constrain_transform}.translate")
