@@ -792,6 +792,7 @@ def curveToMatrixSpline(curve: str, segments: int, control_size: float = 0.1) ->
     matrix_spline: MatrixSpline = MatrixSpline(
         cv_transforms=cv_transforms, degree=degree, knots=knots, periodic=periodic
     )
+    matrix_spline.name = curve
 
     segment_parameters: list[float] = resample(
         cv_positions=cv_positions, number_of_points=segments, degree=degree, knots=knots
