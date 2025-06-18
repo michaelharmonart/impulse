@@ -10,7 +10,7 @@ It leverages custom control curves from the control_gen module.
 """
 
 import maya.cmds as cmds
-from impulse.utils.control import Control, connect_control, generate_control, generate_surface_control, Direction
+from impulse.utils.control import Control, connect_control, make_control, make_surface_control, Direction
 from impulse.utils import pin as pin
 
 
@@ -110,7 +110,7 @@ def generate_ribbon(
                 normal_axis=control_normal_axis,
                 tangent_axis=control_tangent_axis,
             )
-            ctl: Control = generate_surface_control(
+            ctl: Control = make_surface_control(
                 name=f"{ribbon_object}_ControlJoint{idx + 1}",
                 size=0.4,
                 parent=ribbon_group,
@@ -123,7 +123,7 @@ def generate_ribbon(
             cmds.parent(ctl.offset_transform, ctl_group)
             connect_control(control=ctl, driven_name=joint_name)
         else:
-            ctl: Control = generate_control(
+            ctl: Control = make_control(
                 name=f"{ribbon_object}_ControlJoint{idx + 1}",
                 position=pos,
                 size=0.4,
@@ -203,7 +203,7 @@ def generate_ribbon(
             cmds.connectAttr(f"{shape}{attr_world}", f"{cp_node}{cp_input}")
             cmds.connectAttr(f"{world_position}.output", f"{cp_node}.inPosition")
 
-            ctl_name = generate_surface_control(
+            ctl_name = make_surface_control(
                 name=f"{ribbon_object}_point{idx + 1}",
                 size=0.2,
                 parent=ctl_group,
@@ -217,7 +217,7 @@ def generate_ribbon(
             connect_control(ctl_name, joint_name)
             cmds.parent(pin_point, ctl_name)
         else:
-            ctl: Control = generate_control(
+            ctl: Control = make_control(
                 name=f"{ribbon_object}_point{idx + 1}",
                 position=pos,
                 size=0.2,
@@ -471,7 +471,7 @@ def populate_surface(
 
     for row in range_v:
         for column in range_u:
-            ctl: Control = generate_surface_control(
+            ctl: Control = make_surface_control(
                 name=f"{surface}_tweak_{row}_{column}",
                 surface=surface,
                 uv_position=((column / divisor_u) * surface_u, (row / divisor_v) * surface_v),

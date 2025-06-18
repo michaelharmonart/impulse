@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "debugpy>=1.8.14",
     "maya-stubs>=0.4.1",
     "ruff>=0.9.6",
 ]

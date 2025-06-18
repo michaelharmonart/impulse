@@ -247,7 +247,7 @@ class Control:
         self.offset_transform = offset_transform
 
 
-def generate_control(
+def make_control(
     name: str,
     parent: str = None,
     position: tuple[float, float, float] | None = None,
@@ -322,7 +322,7 @@ def generate_control(
     return Control(control_transform=control_transform, offset_transform=offset_transform)
 
 
-def generate_surface_control(
+def make_surface_control(
     name: str,
     surface: str,
     parent: str = None,

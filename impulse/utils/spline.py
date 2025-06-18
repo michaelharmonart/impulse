@@ -6,7 +6,7 @@ Functions for working with splines.
 from typing import Any
 import maya.cmds as cmds
 from impulse.structs.transform import Vector3 as Vector3
-from impulse.utils.control import Control, ControlShape, connect_control, generate_control
+from impulse.utils.control import Control, ControlShape, connect_control, make_control
 
 
 def generate_knots(count: int, degree: int = 3) -> list[float]:
@@ -769,7 +769,7 @@ def curveToMatrixSpline(curve: str, segments: int, control_size: float = 0.1) ->
     cv_transforms: list[str] = []
     for i, cv_pos in enumerate(filtered_cv_positions):
         # Create Transform for CV and move it to the position of the CV on the curve
-        control: Control = generate_control(
+        control: Control = make_control(
             name=f"{curve}_CV{i}",
             position=(
                 cv_pos.x,
@@ -798,7 +798,7 @@ def curveToMatrixSpline(curve: str, segments: int, control_size: float = 0.1) ->
         segment_name = f"{matrix_spline.name}_matrixSpline_Segment{i + 1}"
         parameter = segment_parameters[i]
 
-        segment_ctl: Control = generate_control(name=segment_name, control_shape=ControlShape.CUBE, size=control_size/2, parent=ctl_group)
+        segment_ctl: Control = make_control(name=segment_name, control_shape=ControlShape.CUBE, size=control_size/2, parent=ctl_group)
         segment_transform: str = cmds.joint(name=segment_name)
         connect_control(control=segment_ctl, driven_name=segment_transform)
         cmds.parent(segment_transform, def_group, absolute=False)

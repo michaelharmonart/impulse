@@ -1,4 +1,6 @@
 import maya.cmds as cmds
+
+
 def ik_fk_blend(ik_joint: str, fk_joint: str, blended_joint:str, blend_attr: str) -> None:
     """
     Takes two joints and blends their transforms based on an attribute. joints need the same hierarchy and orients.
