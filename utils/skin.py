@@ -1,7 +1,7 @@
 from ngSkinTools2 import api as ng
-from ..structs.transform import Vector3 as Vector3
 import maya.cmds as cmds
-from . import spline as spline
+from impulse.structs.transform import Vector3 as Vector3
+from impulse.utils import spline as spline
 
 def init_layers(shape: str) -> ng.Layers:
     skin_cluster = ng.target_info.get_related_skin_cluster(shape)

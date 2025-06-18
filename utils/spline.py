@@ -5,8 +5,8 @@ Functions for working with splines.
 
 from typing import Any
 import maya.cmds as cmds
-from ..structs.transform import Vector3 as Vector3
-from .control import Control, ControlShape, connect_control, generate_control
+from impulse.structs.transform import Vector3 as Vector3
+from impulse.utils.control import Control, ControlShape, connect_control, generate_control
 
 
 def generate_knots(count: int, degree: int = 3) -> list[float]:

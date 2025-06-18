@@ -1,9 +1,9 @@
 import json
 import maya.cmds as cmds
 
-from . import transform
-from . import pin as pin
-from . import math as math
+from impulse.utils import transform
+from impulse.utils import pin as pin
+from impulse.utils import math as math
 from enum import Enum
 import os
 
