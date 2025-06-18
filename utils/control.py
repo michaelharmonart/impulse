@@ -241,8 +241,6 @@ def combine_curves(main_curve: str | None = None, other_curves: list[str] | None
 
 
 class Control:
-    control_transform: str
-    offset_transform: str
 
     def __init__(self, control_transform: str, offset_transform: str):
         self.control_transform = control_transform

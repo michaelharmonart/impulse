@@ -502,12 +502,6 @@ def resample(
 
 
 class MatrixSpline:
-    name: str = "MatrixSpline"
-    periodic: bool
-    degree: int
-    knots: list[float]
-    cv_matrices: list[str]
-    cv_transforms: list[str]
 
     def __init__(
         self,
@@ -526,6 +520,8 @@ class MatrixSpline:
             self.knots = generate_knots(count=number_of_cvs, degree=degree)
         if name:
             self.name = name
+        else:
+            self.name = "MatrixSpline"
 
         cv_matrices: list[str] = []
         for index, cv_transform in enumerate(cv_transforms):
