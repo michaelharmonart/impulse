@@ -27,24 +27,53 @@
         },
         "positions": {
             "/Cleanup": [
-                254.56621553954994,
-                -415.6939322616801
+                955.239112846677,
+                -414.72823618234577
             ],
             "/Controls": [
-                -77.79478931477821,
-                -417.69582044412954
+                659.5433881056839,
+                -415.4740604063512
+            ],
+            "/Left": [
+                -56.828912077761075,
+                -415.8534541726588
+            ],
+            "/Left/Legs/Back": [
+                0.0,
+                0.0
+            ],
+            "/Left/Legs/Front": [
+                0.0,
+                0.0
+            ],
+            "/Leg": [
+                -415.3155049909202,
+                -123.47919027422259
+            ],
+            "/Leg2": [
+                -7.0,
+                -461.0
+            ],
+            "/Legs": [
+                66.2052106852218,
+                -438.6958204441296
+            ],
+            "/Right": [
+                300.25120217224895,
+                -418.2629790260373
             ],
             "/SetupFile": [
                 -421.80689444777397,
                 -416.04370990194315
             ],
-            "/node": [
-                -316.1143531600834,
-                -570.7895530414045
+            "/node2": [
+                -1746.0,
+                -1015.0
             ]
         },
         "collapse": {
             "/Cleanup": false,
+            "/Leg2": true,
             "/SetupFile": false,
             "/SetupFile/LoadGuides": false
         }
@@ -96,6 +125,76 @@
                 "    "
             ]
         },
+        "/Left": {
+            "execute_in": "/SetupFile",
+            "child_order": [
+                "Legs"
+            ],
+            "attrs": {
+                "Side": {
+                    "type": "raw",
+                    "value": "L"
+                }
+            }
+        },
+        "/Left/Legs": {
+            "child_order": [
+                "Front",
+                "Back"
+            ],
+            "attrs": {
+                "Chain": {
+                    "type": "list",
+                    "value": "['Section1', 'Section2', 'Section3', 'Section4', 'Section5', 'END']"
+                }
+            }
+        },
+        "/Left/Legs/Back": {
+            "instance": "/Leg",
+            "attrs": {
+                "Prefix": {
+                    "value": "Back_Leg"
+                }
+            }
+        },
+        "/Left/Legs/Front": {
+            "instance": "/Leg",
+            "attrs": {
+                "Prefix": {
+                    "value": "Front_Leg"
+                }
+            }
+        },
+        "/Leg": {
+            "attrs": {
+                "IkJoints": {},
+                "Name": {
+                    "type": "raw",
+                    "value": "${Prefix}_${Side}"
+                },
+                "PoleVector": {
+                    "type": "raw",
+                    "value": "PoleVector"
+                },
+                "Prefix": {
+                    "type": "raw",
+                    "value": "Leg"
+                }
+            },
+            "code": [
+                "self.IkJoints = [f\"{self.Prefix}_{self.Side}_{joint}\" for joint in self.Chain]",
+                "impulse.utils.ik.ik_from_guides(ik_guides=self.IkJoints, pole_vector_guide=\"${Name}_${PoleVector}\", name=\"${Name}_IK\")"
+            ]
+        },
+        "/Right": {
+            "instance": "/Left",
+            "execute_in": "/Left",
+            "attrs": {
+                "Side": {
+                    "value": "R"
+                }
+            }
+        },
         "/SetupFile": {
             "start_point": true,
             "child_order": [
@@ -104,11 +203,11 @@
             "attrs": {
                 "Geo": {
                     "type": "raw",
-                    "value": "${file::/groups/crabby/Assets/Rigging/King Bling/King_v001.mb}"
+                    "value": "/groups/crabby/Assets/Rigging/Scuttle/Work Files/Scuttle_v009.mb"
                 },
                 "Guides": {
                     "type": "raw",
-                    "value": "${file::/groups/crabby/Assets/Rigging/King Bling/King_Guides.mb}"
+                    "value": "/groups/crabby/Assets/Rigging/Scuttle/Work Files/Scuttle_Guides_v009.mb"
                 }
             },
             "code": [

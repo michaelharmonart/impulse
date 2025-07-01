@@ -1,5 +1,42 @@
 import maya.cmds as cmds
 
+from impulse.utils.transform import match_transform
+
+
+
+def ik_from_guides(ik_guides: list[str], pole_vector_guide: str, name: str | None = None) -> str:
+    """
+    Takes a hierarchy of guides and creates an IK chain.
+    Args:
+        guides: The guides that will become the IK joints.
+        pole_vector: The guide for placing the pole vector.
+        name: Name for the newly created IK Chain group.
+    Returns:
+        str: Name of the created IK chain group.
+    """
+    if not name:
+        name: str = f"{ik_guides[0].rsplit('_', 1)[0]}_IK"
+    # Create group for IK chain
+    ik_group: str = cmds.group(empty=True, world=True, name=name)
+
+    # Start by duplicating and renaming the guides
+    ik_joints: list[str] = []
+    for index, guide in enumerate(ik_guides):
+        ik_joint: str = cmds.duplicate(guide, name=f"{guide}_IK",parentOnly=True)[0]
+        ik_joints.append(ik_joint) 
+        if index > 0:
+            cmds.parent(ik_joint, ik_joints[index-1])
+        else:
+            cmds.parent(ik_joint, ik_group)
+    
+    # Create IK Handle
+    ik_handle: str = cmds.ikHandle(startJoint=ik_joints[0], endEffector=ik_joints[-1], name=f"{name}_ikHandle")[0]
+    cmds.parent(ik_handle, ik_group)
+    
+    # Create a transform for the Pole Vector and constrain ikHandle to it.
+    pole_vector: str = cmds.group(empty=True, name=f"{pole_vector_guide}_IN", parent=ik_group)
+    match_transform(transform=pole_vector, target_transform=pole_vector_guide)
+    cmds.poleVectorConstraint(pole_vector, ik_handle)
 
 def ik_fk_blend(ik_joint: str, fk_joint: str, blended_joint:str, blend_attr: str) -> None:
     """
@@ -45,3 +82,4 @@ def ik_fk_blend_list(ik_joints: list[str], fk_joints: list[str], blended_joints:
 def blend_selected(blend_attr: str) -> None:
     selection: list[str] = cmds.ls(selection=True)
     ik_fk_blend(ik_joint=selection[0], fk_joint=selection[1], blended_joint=selection[2], blend_attr=blend_attr)
+
