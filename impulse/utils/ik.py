@@ -3,8 +3,13 @@ import maya.cmds as cmds
 from impulse.utils.transform import match_transform
 
 
-
-def ik_from_guides(ik_guides: list[str], pole_vector_guide: str, name: str | None = None, parent: str | None = None) -> str:
+def ik_from_guides(
+    ik_guides: list[str],
+    pole_vector_guide: str,
+    name: str | None = None,
+    parent: str | None = None,
+    suffix: str = "_IK",
+) -> str:
     """
     Takes a hierarchy of guides and creates an IK chain.
     Args:
@@ -12,11 +17,12 @@ def ik_from_guides(ik_guides: list[str], pole_vector_guide: str, name: str | Non
         pole_vector: The guide for placing the pole vector.
         name: Name for the newly created IK Chain group.
         parent: Parent for the newly created IK Chain group.
+        suffix: Suffix to be added to joint names and IK chain group.
     Returns:
-        str: Name of the created IK chain group.
+        list[str]: Name of the created IK joints.
     """
     if not name:
-        name: str = f"{ik_guides[0].rsplit('_', 1)[0]}_IK"
+        name: str = f"{ik_guides[0].rsplit('_', 1)[0]}{suffix}"
     # Create group for IK chain
     ik_group: str = cmds.group(empty=True, world=True, name=name)
     if parent:
@@ -25,23 +31,59 @@ def ik_from_guides(ik_guides: list[str], pole_vector_guide: str, name: str | Non
     # Start by duplicating and renaming the guides
     ik_joints: list[str] = []
     for index, guide in enumerate(ik_guides):
-        ik_joint: str = cmds.duplicate(guide, name=f"{guide}_IK",parentOnly=True)[0]
-        ik_joints.append(ik_joint) 
+        ik_joint: str = cmds.duplicate(guide, name=f"{guide}{suffix}", parentOnly=True)[0]
+        ik_joints.append(ik_joint)
         if index > 0:
-            cmds.parent(ik_joint, ik_joints[index-1])
+            cmds.parent(ik_joint, ik_joints[index - 1])
         else:
             cmds.parent(ik_joint, ik_group)
-    
+
     # Create IK Handle
     ik_handle: str = cmds.ikHandle(startJoint=ik_joints[0], endEffector=ik_joints[-1], name=f"{name}_ikHandle")[0]
     cmds.parent(ik_handle, ik_group)
-    
+
     # Create a transform for the Pole Vector and constrain ikHandle to it.
     pole_vector: str = cmds.group(empty=True, name=f"{pole_vector_guide}_IN", parent=ik_group)
     match_transform(transform=pole_vector, target_transform=pole_vector_guide)
     cmds.poleVectorConstraint(pole_vector, ik_handle)
 
-def ik_fk_blend(ik_joint: str, fk_joint: str, blended_joint:str, blend_attr: str) -> None:
+    return ik_joints
+
+
+def fk_from_guides(
+    fk_guides: list[str], name: str | None = None, parent: str | None = None, suffix: str = "_FK"
+) -> str:
+    """
+    Takes a hierarchy of guides and creates an FK chain.
+    Args:
+        guides: The guides that will become the FK joints.
+        name: Name for the newly created FK Chain group.
+        parent: Parent for the newly created FK Chain group.
+        suffix: Suffix to be added to joint names and FK chain group.
+    Returns:
+        list[str]: Names of the created FK joints.
+    """
+    if not name:
+        name: str = f"{fk_guides[0].rsplit('_', 1)[0]}{suffix}"
+    # Create group for IK chain
+    fk_group: str = cmds.group(empty=True, world=True, name=name)
+    if parent:
+        cmds.parent(fk_group, parent, relative=False)
+
+    # Start by duplicating and renaming the guides
+    fk_joints: list[str] = []
+    for index, guide in enumerate(fk_guides):
+        fk_joint: str = cmds.duplicate(guide, name=f"{guide}{suffix}", parentOnly=True)[0]
+        fk_joints.append(fk_joint)
+        if index > 0:
+            cmds.parent(fk_joint, fk_joints[index - 1])
+        else:
+            cmds.parent(fk_joint, fk_group)
+
+    return fk_joints
+
+
+def ik_fk_blend(ik_joint: str, fk_joint: str, blended_joint: str, blend_attr: str) -> None:
     """
     Takes two joints and blends their transforms based on an attribute. joints need the same hierarchy and orients.
     Args:
@@ -61,12 +103,13 @@ def ik_fk_blend(ik_joint: str, fk_joint: str, blended_joint:str, blend_attr: str
     cmds.connectAttr(f"{blend_matrix}.outputMatrix", f"{decompose_matrix}.inputMatrix")
 
     # Reset blended joint orient and connect the joint to the decomposeMatrix values
-    cmds.setAttr(f"{blended_joint}.jointOrient", 0,0,0, type="float3")
+    cmds.setAttr(f"{blended_joint}.jointOrient", 0, 0, 0, type="float3")
 
     cmds.connectAttr(f"{decompose_matrix}.outputRotate", f"{blended_joint}.rotate")
     cmds.connectAttr(f"{decompose_matrix}.outputTranslate", f"{blended_joint}.translate")
     cmds.connectAttr(f"{decompose_matrix}.outputScale", f"{blended_joint}.scale")
     cmds.connectAttr(f"{decompose_matrix}.outputShear", f"{blended_joint}.shear")
+
 
 def ik_fk_blend_list(ik_joints: list[str], fk_joints: list[str], blended_joints: list[str], blend_attr: str) -> None:
     """
@@ -77,12 +120,14 @@ def ik_fk_blend_list(ik_joints: list[str], fk_joints: list[str], blended_joints:
         blended_joints: The joints to give the blended transform
         blend_attr: Attribute to use to determine blending.
     """
-    if not(len(ik_joints) == len(fk_joints) == len(blended_joints)):
+    if not (len(ik_joints) == len(fk_joints) == len(blended_joints)):
         raise RuntimeError("Number of fk ik and blend joints don't match!")
     for index, blended_joint in enumerate(blended_joints):
-        ik_fk_blend(ik_joint=ik_joints[index], fk_joint=fk_joints[index], blended_joint=blended_joint, blend_attr=blend_attr)
+        ik_fk_blend(
+            ik_joint=ik_joints[index], fk_joint=fk_joints[index], blended_joint=blended_joint, blend_attr=blend_attr
+        )
+
 
 def blend_selected(blend_attr: str) -> None:
     selection: list[str] = cmds.ls(selection=True)
     ik_fk_blend(ik_joint=selection[0], fk_joint=selection[1], blended_joint=selection[2], blend_attr=blend_attr)
-

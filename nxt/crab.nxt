@@ -50,24 +50,24 @@
                 -438.6958204441296
             ],
             "/left": [
-                -54.82891207776109,
-                -419.85345417265876
+                -30.82891207776109,
+                -416.85345417265876
             ],
             "/left/legs/front": [
                 0.0,
                 0.0
             ],
             "/leg": [
-                -405.3155049909202,
-                -155.4791902742226
+                -354.3155049909202,
+                -167.47919027422256
             ],
             "/node2": [
                 -1746.0,
                 -1015.0
             ],
             "/right": [
-                283.2512021722489,
-                -420.2629790260373
+                324.2512021722489,
+                -418.2629790260373
             ],
             "/setup_file": [
                 -382.80689444777397,
@@ -82,7 +82,7 @@
             "/left": false,
             "/left/legs/back": false,
             "/left/legs/front": false,
-            "/leg": true,
+            "/leg": false,
             "/right": false,
             "/setup_file/LoadGuides": false
         }
@@ -140,7 +140,10 @@
         },
         "/leg": {
             "attrs": {
+                "fk_joints": {},
                 "ik_joints": {},
+                "ik_switch": {},
+                "joints": {},
                 "name": {
                     "type": "raw",
                     "value": "${prefix}${side}"
@@ -149,6 +152,7 @@
                     "type": "raw",
                     "value": "PoleVector"
                 },
+                "pose_joints": {},
                 "prefix": {
                     "type": "raw",
                     "value": "Leg_"
@@ -159,8 +163,23 @@
                 }
             },
             "code": [
-                "self.ik_joints = [f\"${prefix}${side}_{joint}\" for joint in self.chain]",
-                "impulse.utils.ik.ik_from_guides(ik_guides=self.ik_joints, pole_vector_guide=\"${name}_${pole_vector}\", name=\"${name}_IK\", parent=\"${mch_group}\")"
+                "cmds.group(empty=True, name=\"${name}\", parent=\"${mch_group}\")",
+                "control_panel: str = cmds.createNode(\"network\", name=\"${name}_ControlPanel\")",
+                "cmds.addAttr(",
+                "            control_panel,",
+                "            longName=f\"IkFkSwitch\", ",
+                "            niceName=f\"IK FK Switch\", ",
+                "            minValue=0,",
+                "            maxValue=1,",
+                "            attributeType=\"float\",",
+                "            )",
+                "self.ik_switch = f\"{control_panel}.IkFkSwitch\"",
+                "self.joints = [f\"${prefix}${side}_{joint}\" for joint in self.chain]",
+                "self.ik_joints = impulse.utils.ik.ik_from_guides(ik_guides=self.joints, pole_vector_guide=\"${name}_${pole_vector}\", name=\"${name}_IK\", parent=\"${name}\")",
+                "self.fk_joints = impulse.utils.ik.fk_from_guides(fk_guides=self.joints, name=\"${name}_FK\", parent=\"${name}\")",
+                "self.pose_joints = impulse.utils.ik.fk_from_guides(fk_guides=self.joints, name=\"${name}_POSE\", parent=\"${name}\", suffix=\"_POSE\")",
+                "",
+                "impulse.utils.ik.ik_fk_blend_list(self.ik_joints, self.fk_joints, self.pose_joints, self.ik_switch)"
             ]
         },
         "/right": {

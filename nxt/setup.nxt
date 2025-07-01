@@ -59,14 +59,14 @@
             "child_order": [
                 "load_geo",
                 "load_guides",
-                "groups"
+                "create_groups"
             ],
             "code": [
                 "cmds.file(force=True, newFile=True)",
                 "cmds.group(empty=True, name=\"${rig_group}\")"
             ]
         },
-        "/setup_file/groups": {
+        "/setup_file/create_groups": {
             "code": [
                 "cmds.group(empty=True, name=\"${controls_group}\", parent=\"${rig_group}\")",
                 "cmds.group(empty=True, name=\"${mch_group}\", parent=\"${rig_group}\")"
