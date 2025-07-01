@@ -4,13 +4,14 @@ from impulse.utils.transform import match_transform
 
 
 
-def ik_from_guides(ik_guides: list[str], pole_vector_guide: str, name: str | None = None) -> str:
+def ik_from_guides(ik_guides: list[str], pole_vector_guide: str, name: str | None = None, parent: str | None = None) -> str:
     """
     Takes a hierarchy of guides and creates an IK chain.
     Args:
         guides: The guides that will become the IK joints.
         pole_vector: The guide for placing the pole vector.
         name: Name for the newly created IK Chain group.
+        parent: Parent for the newly created IK Chain group.
     Returns:
         str: Name of the created IK chain group.
     """
@@ -18,6 +19,8 @@ def ik_from_guides(ik_guides: list[str], pole_vector_guide: str, name: str | Non
         name: str = f"{ik_guides[0].rsplit('_', 1)[0]}_IK"
     # Create group for IK chain
     ik_group: str = cmds.group(empty=True, world=True, name=name)
+    if parent:
+        cmds.parent(ik_group, parent, relative=False)
 
     # Start by duplicating and renaming the guides
     ik_joints: list[str] = []

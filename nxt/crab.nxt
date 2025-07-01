@@ -5,7 +5,6 @@
     "mute": false,
     "solo": false,
     "references": [
-        "/users/guest/g/graphite/maya-python/impulse/nxt/cleanup.nxt",
         "/users/guest/g/graphite/maya-python/impulse/nxt/setup.nxt"
     ],
     "comp_overrides": {
@@ -34,10 +33,6 @@
                 659.5433881056839,
                 -415.4740604063512
             ],
-            "/Left": [
-                -56.828912077761075,
-                -415.8534541726588
-            ],
             "/Left/Legs/Back": [
                 0.0,
                 0.0
@@ -45,10 +40,6 @@
             "/Left/Legs/Front": [
                 0.0,
                 0.0
-            ],
-            "/Leg": [
-                -415.3155049909202,
-                -123.47919027422259
             ],
             "/Leg2": [
                 -7.0,
@@ -58,162 +49,136 @@
                 66.2052106852218,
                 -438.6958204441296
             ],
-            "/Right": [
-                300.25120217224895,
-                -418.2629790260373
+            "/left": [
+                -54.82891207776109,
+                -419.85345417265876
             ],
-            "/SetupFile": [
-                -421.80689444777397,
-                -416.04370990194315
+            "/left/legs/front": [
+                0.0,
+                0.0
+            ],
+            "/leg": [
+                -405.3155049909202,
+                -155.4791902742226
             ],
             "/node2": [
                 -1746.0,
                 -1015.0
+            ],
+            "/right": [
+                283.2512021722489,
+                -420.2629790260373
+            ],
+            "/setup_file": [
+                -382.80689444777397,
+                -415.0437099019432
             ]
         },
         "collapse": {
-            "/Cleanup": false,
+            "/Cleanup": true,
             "/Leg2": true,
             "/SetupFile": false,
-            "/SetupFile/LoadGuides": false
+            "/SetupFile/node": true,
+            "/left": false,
+            "/left/legs/back": false,
+            "/left/legs/front": false,
+            "/leg": true,
+            "/right": false,
+            "/setup_file/LoadGuides": false
         }
     },
     "nodes": {
-        "/Cleanup": {
-            "execute_in": "/Controls"
-        },
-        "/Controls": {
+        "/": {
             "attrs": {
-                "ControlGroup": {
-                    "type": "str",
-                    "value": "\"CTLS\""
-                },
-                "GuidesGroup": {
+                "asset_root": {
                     "type": "raw",
-                    "value": "${/SetupFile/LoadGuides.GuidesGroup}"
-                },
-                "RigGroup": {
-                    "type": "raw",
-                    "value": "${/SetupFile.RigGroup}"
+                    "value": "${path::/groups/crabby/Assets/Rigging/Scuttle/Build}"
                 }
-            },
-            "code": [
-                "control_group = cmds.group(name=${ControlGroup}, empty=True, parent=${RigGroup})",
-                "joints = cmds.listRelatives(${GuidesGroup}, allDescendents=True, type=\"joint\")",
-                "joints = reversed(joints)",
-                "joint_parents = []",
-                "for joint in joints:",
-                "    if joint.endswith(\"_END\"):",
-                "        continue",
-                "    parent = cmds.listRelatives(joint, parent=True)[0]",
-                "    if parent == ${GuidesGroup}:",
-                "        parent = None",
-                "    joint_parents.append((joint, parent))",
-                "",
-                "control_parent_joints = []",
-                "for joint, parent in joint_parents:",
-                "    control = impulse.utils.control.generate_control(joint, size=0.2)",
-                "    if parent:  ",
-                "        control_parent_joints.append((control, parent+\"_CTL\", joint))",
-                "    else:",
-                "        control_parent_joints.append((control, control_group, joint))",
-                "  ",
-                "for control, parent, joint in control_parent_joints:",
-                "    if parent:",
-                "        cmds.parent(control, parent, relative=False)",
-                "        impulse.utils.transform.match_transform(control, joint)",
-                "    "
-            ]
+            }
         },
-        "/Left": {
-            "execute_in": "/SetupFile",
+        "/left": {
+            "execute_in": "/setup_file",
             "child_order": [
-                "Legs"
+                "legs"
             ],
             "attrs": {
-                "Side": {
+                "side": {
                     "type": "raw",
                     "value": "L"
                 }
             }
         },
-        "/Left/Legs": {
+        "/left/legs": {
             "child_order": [
-                "Front",
-                "Back"
+                "front",
+                "back"
             ],
             "attrs": {
-                "Chain": {
+                "chain": {
                     "type": "list",
                     "value": "['Section1', 'Section2', 'Section3', 'Section4', 'Section5', 'END']"
                 }
             }
         },
-        "/Left/Legs/Back": {
-            "instance": "/Leg",
+        "/left/legs/back": {
+            "instance": "/leg",
             "attrs": {
-                "Prefix": {
-                    "value": "Back_Leg"
-                }
-            }
-        },
-        "/Left/Legs/Front": {
-            "instance": "/Leg",
-            "attrs": {
-                "Prefix": {
-                    "value": "Front_Leg"
-                }
-            }
-        },
-        "/Leg": {
-            "attrs": {
-                "IkJoints": {},
-                "Name": {
+                "prefix": {
                     "type": "raw",
-                    "value": "${Prefix}_${Side}"
+                    "value": "Back_Leg_"
+                }
+            }
+        },
+        "/left/legs/front": {
+            "instance": "/leg",
+            "attrs": {
+                "prefix": {
+                    "type": "raw",
+                    "value": "Front_Leg_"
+                }
+            }
+        },
+        "/leg": {
+            "attrs": {
+                "ik_joints": {},
+                "name": {
+                    "type": "raw",
+                    "value": "${prefix}${side}"
                 },
-                "PoleVector": {
+                "pole_vector": {
                     "type": "raw",
                     "value": "PoleVector"
                 },
-                "Prefix": {
+                "prefix": {
                     "type": "raw",
-                    "value": "Leg"
+                    "value": "Leg_"
+                },
+                "side": {
+                    "type": "raw",
+                    "value": "L"
                 }
             },
             "code": [
-                "self.IkJoints = [f\"{self.Prefix}_{self.Side}_{joint}\" for joint in self.Chain]",
-                "impulse.utils.ik.ik_from_guides(ik_guides=self.IkJoints, pole_vector_guide=\"${Name}_${PoleVector}\", name=\"${Name}_IK\")"
+                "self.ik_joints = [f\"${prefix}${side}_{joint}\" for joint in self.chain]",
+                "impulse.utils.ik.ik_from_guides(ik_guides=self.ik_joints, pole_vector_guide=\"${name}_${pole_vector}\", name=\"${name}_IK\", parent=\"${mch_group}\")"
             ]
         },
-        "/Right": {
-            "instance": "/Left",
-            "execute_in": "/Left",
+        "/right": {
+            "instance": "/left",
+            "execute_in": "/left",
             "attrs": {
-                "Side": {
+                "side": {
                     "value": "R"
                 }
             }
         },
-        "/SetupFile": {
+        "/setup_file": {
             "start_point": true,
-            "child_order": [
-                "LoadGeo"
-            ],
             "attrs": {
-                "Geo": {
-                    "type": "raw",
-                    "value": "/groups/crabby/Assets/Rigging/Scuttle/Work Files/Scuttle_v009.mb"
-                },
-                "Guides": {
-                    "type": "raw",
-                    "value": "/groups/crabby/Assets/Rigging/Scuttle/Work Files/Scuttle_Guides_v009.mb"
+                "asset_root": {
+                    "value": "/groups/crabby/Assets/Rigging/Scuttle/Build"
                 }
-            },
-            "code": [
-                "cmds.file(force=True, newFile=True)",
-                "cmds.group(empty=True, name=${RigGroup})"
-            ]
+            }
         }
     }
 }
