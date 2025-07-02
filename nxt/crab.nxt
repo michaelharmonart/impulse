@@ -103,8 +103,13 @@
         "/cleanup": {
             "execute_in": "/right",
             "code": [
+                "# Hide Rig Groups",
                 "cmds.hide(\"${guides_group}\")",
-                "cmds.hide(\"${mch_group}\")"
+                "cmds.hide(\"${mch_group}\")",
+                "",
+                "# Make Geo unselectable",
+                "cmds.setAttr(\"${geo_group}.overrideEnabled\", 1)",
+                "cmds.setAttr(\"${geo_group}.overrideDisplayType\", 2)"
             ]
         },
         "/left": {
@@ -174,38 +179,7 @@
                     "type": "int",
                     "value": "3"
                 }
-            },
-            "code": [
-                "cmds.group(empty=True, name=\"${name}\", parent=\"${mch_group}\")",
-                "control_panel: str = cmds.createNode(\"network\", name=\"${name}_ControlPanel\")",
-                "cmds.addAttr(",
-                "            control_panel,",
-                "            longName=f\"IkFkSwitch\", ",
-                "            niceName=f\"IK FK Switch\", ",
-                "            minValue=0,",
-                "            maxValue=1,",
-                "            attributeType=\"float\",",
-                "            )",
-                "            ",
-                "self.ik_switch = f\"{control_panel}.IkFkSwitch\"",
-                "self.joints = [f\"${prefix}${side}_{joint}\" for joint in self.chain]",
-                "",
-                "solve_joints = impulse.utils.ik.ik_from_guides(",
-                "    guides=self.joints, pole_vector_guide=\"${name}_${pole_vector}\", ",
-                "    name=\"${name}_IK\", parent=\"${name}\", reverse_segments=${reverse_segments}",
-                ")",
-                "if ${reverse_segments}:",
-                "    ik_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${name}_IkChain\", parent=\"${name}\", suffix=\"_IkChain\")",
-                "    impulse.utils.transform.constrain_transforms(solve_joints, ik_joints)",
-                "    self.ik_joints = ik_joints",
-                "else:",
-                "    self.ik_joints = solve_joints",
-                "    ",
-                "self.fk_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${name}_FK\", parent=\"${name}\")",
-                "self.pose_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${name}_POSE\", parent=\"${name}\", suffix=\"_POSE\")",
-                "",
-                "impulse.utils.ik.ik_fk_blend_list(self.ik_joints, self.fk_joints, self.pose_joints, self.ik_switch)"
-            ]
+            }
         },
         "/leg": {
             "child_order": [
@@ -216,7 +190,7 @@
                 "ik_joints": {},
                 "ik_switch": {},
                 "joints": {},
-                "name": {
+                "part_name": {
                     "type": "raw",
                     "value": "${prefix}${side}"
                 },
@@ -239,8 +213,8 @@
                 }
             },
             "code": [
-                "cmds.group(empty=True, name=\"${name}\", parent=\"${mch_group}\")",
-                "control_panel: str = cmds.createNode(\"network\", name=\"${name}_ControlPanel\")",
+                "cmds.group(empty=True, name=\"${part_name}\", parent=\"${mch_group}\")",
+                "control_panel: str = cmds.createNode(\"network\", name=\"${part_name}_ControlPanel\")",
                 "cmds.addAttr(",
                 "            control_panel,",
                 "            longName=f\"IkFkSwitch\", ",
@@ -249,23 +223,23 @@
                 "            maxValue=1,",
                 "            attributeType=\"float\",",
                 "            )",
-                "            ",
+                "cmds.setAttr(f\"{control_panel}.IkFkSwitch\", keyable=True)            ",
                 "self.ik_switch = f\"{control_panel}.IkFkSwitch\"",
                 "self.joints = [f\"${prefix}${side}_{joint}\" for joint in self.chain]",
                 "",
                 "solve_joints = impulse.utils.ik.ik_from_guides(",
-                "    guides=self.joints, pole_vector_guide=\"${name}_${pole_vector}\", ",
-                "    name=\"${name}_IK\", parent=\"${name}\", reverse_segments=${reverse_segments}",
+                "    guides=self.joints, pole_vector_guide=\"${part_name}_${pole_vector}\", ",
+                "    name=\"${part_name}_IK\", parent=\"${part_name}\", reverse_segments=${reverse_segments}",
                 ")",
                 "if ${reverse_segments}:",
-                "    ik_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${name}_IkChain\", parent=\"${name}\", suffix=\"_IkChain\")",
+                "    ik_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_name}_IkChain\", parent=\"${part_name}\", suffix=\"_IkChain\")",
                 "    impulse.utils.transform.constrain_transforms(solve_joints, ik_joints)",
                 "    self.ik_joints = ik_joints",
                 "else:",
                 "    self.ik_joints = solve_joints",
                 "    ",
-                "self.fk_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${name}_FK\", parent=\"${name}\")",
-                "self.pose_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${name}_POSE\", parent=\"${name}\", suffix=\"_POSE\")",
+                "self.fk_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_name}_FK\", parent=\"${part_name}\")",
+                "self.pose_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_name}_POSE\", parent=\"${part_name}\", suffix=\"_POSE\")",
                 "",
                 "impulse.utils.ik.ik_fk_blend_list(self.ik_joints, self.fk_joints, self.pose_joints, self.ik_switch)"
             ]
@@ -283,6 +257,7 @@
                 "fk_group = cmds.group(empty=True, name=\"${name}_FK_CTLS\", parent=control_group)",
                 "",
                 "for index, joint in enumerate(self.fk_joints):",
+                "    # Check if the joint has a child and if so, generate a control",
                 "    joint_children = cmds.listRelatives(joint, children=True, type=\"joint\") or []",
                 "    if len(joint_children) > 0:",
                 "        joint_child = joint_children[0]",
@@ -296,16 +271,26 @@
                 "            offset=y_translate/2,",
                 "            )",
                 "        controls.append(control)",
+                "        ",
+                "        # Parent to the control group, or the parent control.",
                 "        if index > 0:",
                 "            cmds.parent(control.offset_transform, controls[index - 1].control_transform)",
                 "        else:",
                 "            cmds.parent(control.offset_transform, fk_group)",
-                "            ",
+                "        ",
+                "         # Set up control colors    ",
                 "        control_transform = control.control_transform",
                 "        impulse.utils.control.connect_control(control, joint)",
                 "        cmds.connectAttr(\"${control_layer}.controlColor\", f\"{control_transform}.drawOverride.overrideColorRGB\")",
                 "        cmds.setAttr(f\"{control_transform}.overrideEnabled\", 1)",
-                "        cmds.setAttr(f\"{control_transform}.overrideRGBColors\", 1)"
+                "        cmds.setAttr(f\"{control_transform}.overrideRGBColors\", 1)",
+                "        ",
+                "        ",
+                "        cmds.addAttr(",
+                "            control_transform,",
+                "            longName=\"${part_name}_IkFkSwitch\", ",
+                "            niceName=f\"{self.part_name.replace('_', ' ')} IK FK Switch\", ",
+                "            proxy=\"${ik_switch}\")"
             ]
         },
         "/right": {
