@@ -1,4 +1,5 @@
 import json
+from typing import Any
 import maya.cmds as cmds
 
 from impulse.utils import transform
@@ -152,6 +153,25 @@ def write_curve(control: str | None = None, name: str | None = None, force: bool
             + "existing file, or use the force flag to overwrite."
         )
 
+_loaded_control_shapes = {}
+
+def get_curve_data(curve_shape: ControlShape):
+    """
+    Args:
+        curve_shape(ControlShape): Name of the control shape to retrieve.
+    Returns:
+        dict: Curve data.
+    """
+    if curve_shape not in _loaded_control_shapes:
+        # check if curve dict is a file and convert it to dictionary if it is
+        file_path = f"{CONTROL_DIR}/{CONTROL_FILES[curve_shape]}.json"
+        if not os.path.isfile(file_path):
+            cmds.error("Shape does not exist in library. You must write out " + "shape before reading.")
+
+        json_file = open(file_path, "r")
+        json_data = json_file.read()
+        _loaded_control_shapes[curve_shape] = json.loads(json_data)
+    return _loaded_control_shapes[curve_shape]
 
 def create_curve(curve_shape: ControlShape = ControlShape.CIRCLE) -> str:
     """
@@ -162,17 +182,11 @@ def create_curve(curve_shape: ControlShape = ControlShape.CIRCLE) -> str:
     Returns:
         str: Name of the generated curve transform.
     """
-    # check if curve dict is a file and convert it to dictionary if it is
-    file_path = f"{CONTROL_DIR}/{CONTROL_FILES[curve_shape]}.json"
-    if not os.path.isfile(file_path):
-        cmds.error("Shape does not exist in library. You must write out " + "shape before creating.")
 
-    json_file = open(file_path, "r")
-    json_data = json_file.read()
-    curve_dict = json.loads(json_data)
+    curve_data = get_curve_data(curve_shape=curve_shape)
     curve_transform: str
-    for index, shape in enumerate(curve_dict):
-        info = curve_dict[shape]
+    for index, shape in enumerate(curve_data):
+        info = curve_data[shape]
         positions: list[tuple[float, float, float]] = info["cv_positions"]
         degree: int = info["degree"]
         periodic: bool = True if info["form"] == 2 else False
@@ -198,7 +212,6 @@ def create_curve(curve_shape: ControlShape = ControlShape.CIRCLE) -> str:
             curve_shape_node: str = get_shapes(child_curve_transform)[0]
             curve_shape_node = cmds.rename(curve_shape_node, f"{CONTROL_FILES[curve_shape]}Shape{index}")
             cmds.parent(curve_shape_node, curve_transform, shape=True, relative=True)
-            cmds.delete(child_curve_transform)
     cmds.select(curve_transform)
     return curve_transform
 

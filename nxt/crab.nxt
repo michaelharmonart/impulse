@@ -65,6 +65,10 @@
                 -438.3155049909202,
                 -175.47919027422256
             ],
+            "/node": [
+                -268.77691323339127,
+                97.96991207827566
+            ],
             "/node2": [
                 -1746.0,
                 -1015.0
@@ -187,6 +191,7 @@
             ],
             "attrs": {
                 "fk_joints": {},
+                "ik_chain_joints": {},
                 "ik_joints": {},
                 "ik_switch": {},
                 "joints": {},
@@ -231,30 +236,44 @@
                 "    guides=self.joints, pole_vector_guide=\"${part_name}_${pole_vector}\", ",
                 "    name=\"${part_name}_IK\", parent=\"${part_name}\", reverse_segments=${reverse_segments}",
                 ")",
+                "",
                 "if ${reverse_segments}:",
-                "    ik_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_name}_IkChain\", parent=\"${part_name}\", suffix=\"_IkChain\")",
-                "    impulse.utils.transform.constrain_transforms(solve_joints, ik_joints)",
-                "    self.ik_joints = ik_joints",
+                "    ik_chain_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_name}_IkChain\", parent=\"${part_name}\", suffix=\"_IkChain\")",
+                "    impulse.utils.transform.constrain_transforms(solve_joints, ik_chain_joints)",
+                "    self.ik_chain_joints = ik_chain_joints",
                 "else:",
-                "    self.ik_joints = solve_joints",
-                "    ",
+                "    self.ik_chain_joints = solve_joints",
+                "",
+                "self.ik_joints = solve_joints    ",
                 "self.fk_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_name}_FK\", parent=\"${part_name}\")",
                 "self.pose_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_name}_POSE\", parent=\"${part_name}\", suffix=\"_POSE\")",
                 "",
-                "impulse.utils.ik.ik_fk_blend_list(self.ik_joints, self.fk_joints, self.pose_joints, self.ik_switch)"
+                "impulse.utils.ik.ik_fk_blend_list(self.ik_chain_joints, self.fk_joints, self.pose_joints, self.ik_switch)"
             ]
         },
         "/leg/controls": {
+            "child_order": [
+                "fk",
+                "ik"
+            ],
             "attrs": {
                 "control_size": {
                     "type": "float",
                     "value": "0.2"
+                },
+                "part_ctls": {
+                    "type": "raw",
+                    "value": "${part_name}_CTLS"
                 }
             },
             "code": [
-                "control_group = cmds.group(empty=True, name=\"${name}_CTLS\", parent=\"${controls_group}\")",
+                "self.part_ctls = cmds.group(empty=True, name=\"${part_name}_CTLS\", parent=\"${controls_group}\")"
+            ]
+        },
+        "/leg/controls/fk": {
+            "code": [
                 "controls = []",
-                "fk_group = cmds.group(empty=True, name=\"${name}_FK_CTLS\", parent=control_group)",
+                "fk_group = cmds.group(empty=True, name=\"${part_name}_FK_CTLS\", parent=\"${part_ctls}\")",
                 "",
                 "for index, joint in enumerate(self.fk_joints):",
                 "    # Check if the joint has a child and if so, generate a control",
@@ -281,7 +300,10 @@
                 "         # Set up control colors    ",
                 "        control_transform = control.control_transform",
                 "        impulse.utils.control.connect_control(control, joint)",
-                "        cmds.connectAttr(\"${control_layer}.controlColor\", f\"{control_transform}.drawOverride.overrideColorRGB\")",
+                "        cmds.connectAttr(",
+                "            \"${control_layer}.controlColor\", ",
+                "            f\"{control_transform}.drawOverride.overrideColorRGB\"",
+                "        )",
                 "        cmds.setAttr(f\"{control_transform}.overrideEnabled\", 1)",
                 "        cmds.setAttr(f\"{control_transform}.overrideRGBColors\", 1)",
                 "        ",
@@ -291,6 +313,52 @@
                 "            longName=\"${part_name}_IkFkSwitch\", ",
                 "            niceName=f\"{self.part_name.replace('_', ' ')} IK FK Switch\", ",
                 "            proxy=\"${ik_switch}\")"
+            ]
+        },
+        "/leg/controls/ik": {
+            "code": [
+                "controls = []",
+                "ik_group = cmds.group(empty=True, name=\"${part_name}_IK_CTLS\", parent=\"${part_ctls}\")",
+                "ik_joints = self.ik_joints",
+                "reversed_joints = ik_joints[::-1]",
+                "control_joints = [ik_joints[0]]+reversed_joints[:${reverse_segments}]",
+                "for index, joint in enumerate(control_joints):",
+                "    if index == 1:",
+                "        control_shape=impulse.utils.control.ControlShape.CUBE",
+                "    else:",
+                "        control_shape=impulse.utils.control.ControlShape.CIRCLE",
+                "        ",
+                "    control = impulse.utils.control.make_control(",
+                "        name=joint, ",
+                "        target_transform=joint, ",
+                "        size=${control_size}, ",
+                "        control_shape=control_shape,",
+                "        offset=0,",
+                "        )",
+                "    controls.append(control)",
+                "        ",
+                "    # Parent to the control group, or the parent control.",
+                "    if index > 1:",
+                "        cmds.parent(control.offset_transform, controls[index - 1].control_transform)",
+                "    else:",
+                "        cmds.parent(control.offset_transform, ik_group)",
+                "        ",
+                "     # Set up control colors    ",
+                "    control_transform = control.control_transform",
+                "    impulse.utils.control.connect_control(control, joint)",
+                "    cmds.connectAttr(",
+                "        \"${control_layer}.controlColor\", ",
+                "        f\"{control_transform}.drawOverride.overrideColorRGB\"",
+                "    )",
+                "    cmds.setAttr(f\"{control_transform}.overrideEnabled\", 1)",
+                "    cmds.setAttr(f\"{control_transform}.overrideRGBColors\", 1)",
+                "    ",
+                "    ",
+                "    cmds.addAttr(",
+                "        control_transform,",
+                "        longName=\"${part_name}_IkFkSwitch\", ",
+                "        niceName=f\"{self.part_name.replace('_', ' ')} IK FK Switch\", ",
+                "        proxy=\"${ik_switch}\")"
             ]
         },
         "/right": {
