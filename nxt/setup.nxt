@@ -25,6 +25,10 @@
                 "asset_root": {
                     "type": "raw"
                 },
+                "controls": {
+                    "type": "list",
+                    "value": "[]"
+                },
                 "controls_group": {
                     "type": "raw",
                     "value": "CTLS"
@@ -61,6 +65,9 @@
                 "load_guides",
                 "create_groups"
             ],
+            "attrs": {
+                "attr": {}
+            },
             "code": [
                 "cmds.file(force=True, newFile=True)",
                 "cmds.group(empty=True, name=\"${rig_group}\")"

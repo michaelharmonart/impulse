@@ -49,29 +49,33 @@
                 66.2052106852218,
                 -438.6958204441296
             ],
+            "/cleanup": [
+                811.0,
+                -419.0
+            ],
             "/left": [
-                -30.82891207776109,
-                -416.85345417265876
+                -45.82891207776109,
+                -417.85345417265876
             ],
             "/left/legs/front": [
                 0.0,
                 0.0
             ],
             "/leg": [
-                -416.3155049909202,
-                -179.47919027422256
+                -438.3155049909202,
+                -175.47919027422256
             ],
             "/node2": [
                 -1746.0,
                 -1015.0
             ],
             "/right": [
-                324.2512021722489,
-                -418.2629790260373
+                346.2512021722489,
+                -419.2629790260373
             ],
             "/setup_file": [
-                -445.80689444777397,
-                -419.0437099019432
+                -452.80689444777397,
+                -418.0437099019432
             ]
         },
         "collapse": {
@@ -96,17 +100,43 @@
                 }
             }
         },
+        "/cleanup": {
+            "execute_in": "/right",
+            "code": [
+                "cmds.hide(\"${guides_group}\")",
+                "cmds.hide(\"${mch_group}\")"
+            ]
+        },
         "/left": {
             "execute_in": "/setup_file",
             "child_order": [
                 "legs"
             ],
             "attrs": {
+                "control_color": {
+                    "type": "list",
+                    "value": "[0.105, 0.247, 0.411]"
+                },
+                "control_layer": {
+                    "type": "raw",
+                    "value": "${side}_ControlLayer"
+                },
                 "side": {
                     "type": "raw",
                     "value": "L"
                 }
-            }
+            },
+            "code": [
+                "settings = cmds.createNode(\"network\", name=\"${control_layer}\")",
+                "cmds.addAttr(settings, longName='controlColor', usedAsColor=True, attributeType='float3' )",
+                "cmds.addAttr(settings, longName='controlColorR', attributeType='float', parent='controlColor')",
+                "cmds.addAttr(settings, longName='controlColorG', attributeType='float', parent='controlColor')",
+                "cmds.addAttr(settings, longName='controlColorB', attributeType='float', parent='controlColor')",
+                "",
+                "cmds.setAttr(f\"{settings}.controlColor\", type=\"float3\", *${control_color})",
+                "",
+                "cmds.refresh()"
+            ]
         },
         "/left/legs": {
             "child_order": [
@@ -144,9 +174,43 @@
                     "type": "int",
                     "value": "3"
                 }
-            }
+            },
+            "code": [
+                "cmds.group(empty=True, name=\"${name}\", parent=\"${mch_group}\")",
+                "control_panel: str = cmds.createNode(\"network\", name=\"${name}_ControlPanel\")",
+                "cmds.addAttr(",
+                "            control_panel,",
+                "            longName=f\"IkFkSwitch\", ",
+                "            niceName=f\"IK FK Switch\", ",
+                "            minValue=0,",
+                "            maxValue=1,",
+                "            attributeType=\"float\",",
+                "            )",
+                "            ",
+                "self.ik_switch = f\"{control_panel}.IkFkSwitch\"",
+                "self.joints = [f\"${prefix}${side}_{joint}\" for joint in self.chain]",
+                "",
+                "solve_joints = impulse.utils.ik.ik_from_guides(",
+                "    guides=self.joints, pole_vector_guide=\"${name}_${pole_vector}\", ",
+                "    name=\"${name}_IK\", parent=\"${name}\", reverse_segments=${reverse_segments}",
+                ")",
+                "if ${reverse_segments}:",
+                "    ik_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${name}_IkChain\", parent=\"${name}\", suffix=\"_IkChain\")",
+                "    impulse.utils.transform.constrain_transforms(solve_joints, ik_joints)",
+                "    self.ik_joints = ik_joints",
+                "else:",
+                "    self.ik_joints = solve_joints",
+                "    ",
+                "self.fk_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${name}_FK\", parent=\"${name}\")",
+                "self.pose_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${name}_POSE\", parent=\"${name}\", suffix=\"_POSE\")",
+                "",
+                "impulse.utils.ik.ik_fk_blend_list(self.ik_joints, self.fk_joints, self.pose_joints, self.ik_switch)"
+            ]
         },
         "/leg": {
+            "child_order": [
+                "controls"
+            ],
             "attrs": {
                 "fk_joints": {},
                 "ik_joints": {},
@@ -206,10 +270,52 @@
                 "impulse.utils.ik.ik_fk_blend_list(self.ik_joints, self.fk_joints, self.pose_joints, self.ik_switch)"
             ]
         },
+        "/leg/controls": {
+            "attrs": {
+                "control_size": {
+                    "type": "float",
+                    "value": "0.2"
+                }
+            },
+            "code": [
+                "control_group = cmds.group(empty=True, name=\"${name}_CTLS\", parent=\"${controls_group}\")",
+                "controls = []",
+                "fk_group = cmds.group(empty=True, name=\"${name}_FK_CTLS\", parent=control_group)",
+                "",
+                "for index, joint in enumerate(self.fk_joints):",
+                "    joint_children = cmds.listRelatives(joint, children=True, type=\"joint\") or []",
+                "    if len(joint_children) > 0:",
+                "        joint_child = joint_children[0]",
+                "        y_translate = cmds.getAttr(f\"{joint_child}.translateY\")",
+                "    ",
+                "        control = impulse.utils.control.make_control(",
+                "            name=joint, ",
+                "            target_transform=joint, ",
+                "            size=${control_size}, ",
+                "            control_shape=impulse.utils.control.ControlShape.CIRCLE,",
+                "            offset=y_translate/2,",
+                "            )",
+                "        controls.append(control)",
+                "        if index > 0:",
+                "            cmds.parent(control.offset_transform, controls[index - 1].control_transform)",
+                "        else:",
+                "            cmds.parent(control.offset_transform, fk_group)",
+                "            ",
+                "        control_transform = control.control_transform",
+                "        impulse.utils.control.connect_control(control, joint)",
+                "        cmds.connectAttr(\"${control_layer}.controlColor\", f\"{control_transform}.drawOverride.overrideColorRGB\")",
+                "        cmds.setAttr(f\"{control_transform}.overrideEnabled\", 1)",
+                "        cmds.setAttr(f\"{control_transform}.overrideRGBColors\", 1)"
+            ]
+        },
         "/right": {
             "instance": "/left",
             "execute_in": "/left",
             "attrs": {
+                "control_color": {
+                    "type": "list",
+                    "value": "[0.411, 0.080, 0.108]"
+                },
                 "side": {
                     "value": "R"
                 }
