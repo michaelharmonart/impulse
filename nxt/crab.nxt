@@ -58,8 +58,8 @@
                 0.0
             ],
             "/leg": [
-                -354.3155049909202,
-                -167.47919027422256
+                -416.3155049909202,
+                -179.47919027422256
             ],
             "/node2": [
                 -1746.0,
@@ -70,8 +70,8 @@
                 -418.2629790260373
             ],
             "/setup_file": [
-                -382.80689444777397,
-                -415.0437099019432
+                -445.80689444777397,
+                -419.0437099019432
             ]
         },
         "collapse": {
@@ -126,6 +126,10 @@
                 "prefix": {
                     "type": "raw",
                     "value": "Back_Leg_"
+                },
+                "reverse_segments": {
+                    "type": "int",
+                    "value": "3"
                 }
             }
         },
@@ -135,6 +139,10 @@
                 "prefix": {
                     "type": "raw",
                     "value": "Front_Leg_"
+                },
+                "reverse_segments": {
+                    "type": "int",
+                    "value": "3"
                 }
             }
         },
@@ -157,6 +165,10 @@
                     "type": "raw",
                     "value": "Leg_"
                 },
+                "reverse_segments": {
+                    "type": "int",
+                    "value": "0"
+                },
                 "side": {
                     "type": "raw",
                     "value": "L"
@@ -173,11 +185,23 @@
                 "            maxValue=1,",
                 "            attributeType=\"float\",",
                 "            )",
+                "            ",
                 "self.ik_switch = f\"{control_panel}.IkFkSwitch\"",
                 "self.joints = [f\"${prefix}${side}_{joint}\" for joint in self.chain]",
-                "self.ik_joints = impulse.utils.ik.ik_from_guides(ik_guides=self.joints, pole_vector_guide=\"${name}_${pole_vector}\", name=\"${name}_IK\", parent=\"${name}\")",
-                "self.fk_joints = impulse.utils.ik.fk_from_guides(fk_guides=self.joints, name=\"${name}_FK\", parent=\"${name}\")",
-                "self.pose_joints = impulse.utils.ik.fk_from_guides(fk_guides=self.joints, name=\"${name}_POSE\", parent=\"${name}\", suffix=\"_POSE\")",
+                "",
+                "solve_joints = impulse.utils.ik.ik_from_guides(",
+                "    guides=self.joints, pole_vector_guide=\"${name}_${pole_vector}\", ",
+                "    name=\"${name}_IK\", parent=\"${name}\", reverse_segments=${reverse_segments}",
+                ")",
+                "if ${reverse_segments}:",
+                "    ik_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${name}_IkChain\", parent=\"${name}\", suffix=\"_IkChain\")",
+                "    impulse.utils.transform.constrain_transforms(solve_joints, ik_joints)",
+                "    self.ik_joints = ik_joints",
+                "else:",
+                "    self.ik_joints = solve_joints",
+                "    ",
+                "self.fk_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${name}_FK\", parent=\"${name}\")",
+                "self.pose_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${name}_POSE\", parent=\"${name}\", suffix=\"_POSE\")",
                 "",
                 "impulse.utils.ik.ik_fk_blend_list(self.ik_joints, self.fk_joints, self.pose_joints, self.ik_switch)"
             ]

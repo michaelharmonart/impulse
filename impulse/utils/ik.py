@@ -4,8 +4,9 @@ from impulse.utils.transform import match_transform
 
 
 def ik_from_guides(
-    ik_guides: list[str],
+    guides: list[str],
     pole_vector_guide: str,
+    reverse_segments: int = 0,
     name: str | None = None,
     parent: str | None = None,
     suffix: str = "_IK",
@@ -15,43 +16,77 @@ def ik_from_guides(
     Args:
         guides: The guides that will become the IK joints.
         pole_vector: The guide for placing the pole vector.
+        reverse_segments: How many of the segments on the chain should be reverse IK.
         name: Name for the newly created IK Chain group.
         parent: Parent for the newly created IK Chain group.
         suffix: Suffix to be added to joint names and IK chain group.
     Returns:
         list[str]: Name of the created IK joints.
     """
+    reverse: bool = reverse_segments != 0
+
     if not name:
-        name: str = f"{ik_guides[0].rsplit('_', 1)[0]}{suffix}"
+        name: str = f"{guides[0].rsplit('_', 1)[0]}{suffix}"
     # Create group for IK chain
     ik_group: str = cmds.group(empty=True, world=True, name=name)
     if parent:
         cmds.parent(ik_group, parent, relative=False)
 
-    # Start by duplicating and renaming the guides
+    ik_guides: list[str] = guides
+    reverse_guides: list[str] = []
+    if reverse:
+        reverse_guides: list[str] = guides[-(reverse_segments):]
+        if reverse_segments > 0:
+            ik_guides: list[str] = guides[:-(reverse_segments-1)]
+
+
+    # Duplicating and rename the IK guides
     ik_joints: list[str] = []
     for index, guide in enumerate(ik_guides):
         ik_joint: str = cmds.duplicate(guide, name=f"{guide}{suffix}", parentOnly=True)[0]
-        ik_joints.append(ik_joint)
         if index > 0:
             cmds.parent(ik_joint, ik_joints[index - 1])
         else:
             cmds.parent(ik_joint, ik_group)
+        
+        if reverse:
+            if index == len(ik_guides) - 1:
+                ik_joint = cmds.rename(ik_joint, f"{name}_Effector")
+        ik_joints.append(ik_joint)
+
+    # Duplicating and rename the reverse guides
+    reversed_reverse_guides: list[str] = reverse_guides[::-1]
+    reverse_joints: list[str] = []
+    for index, guide in enumerate(reversed_reverse_guides):
+        reverse_joint: str = cmds.duplicate(guide, name=f"{guide}{suffix}", parentOnly=True)[0]
+        reverse_joints.append(reverse_joint)
+        if index > 0:
+            cmds.parent(reverse_joint, reverse_joints[index])
+        else:
+            cmds.parent(reverse_joint, ik_group)
+    reverse_joints.reverse()
+
+    ik_chain: list[str] = ik_joints
+    if reverse:
+        ik_chain: list[str] = ik_joints[:-1] + reverse_joints
 
     # Create IK Handle
     ik_handle: str = cmds.ikHandle(startJoint=ik_joints[0], endEffector=ik_joints[-1], name=f"{name}_ikHandle")[0]
-    cmds.parent(ik_handle, ik_group)
+    if reverse:
+        cmds.parent(ik_handle, reverse_joints[0])
+    else:
+        cmds.parent(ik_handle, ik_group)
 
     # Create a transform for the Pole Vector and constrain ikHandle to it.
     pole_vector: str = cmds.group(empty=True, name=f"{pole_vector_guide}_IN", parent=ik_group)
     match_transform(transform=pole_vector, target_transform=pole_vector_guide)
     cmds.poleVectorConstraint(pole_vector, ik_handle)
 
-    return ik_joints
+    return ik_chain
 
 
 def fk_from_guides(
-    fk_guides: list[str], name: str | None = None, parent: str | None = None, suffix: str = "_FK"
+    guides: list[str], name: str | None = None, parent: str | None = None, suffix: str = "_FK"
 ) -> str:
     """
     Takes a hierarchy of guides and creates an FK chain.
@@ -64,7 +99,7 @@ def fk_from_guides(
         list[str]: Names of the created FK joints.
     """
     if not name:
-        name: str = f"{fk_guides[0].rsplit('_', 1)[0]}{suffix}"
+        name: str = f"{guides[0].rsplit('_', 1)[0]}{suffix}"
     # Create group for IK chain
     fk_group: str = cmds.group(empty=True, world=True, name=name)
     if parent:
@@ -72,7 +107,7 @@ def fk_from_guides(
 
     # Start by duplicating and renaming the guides
     fk_joints: list[str] = []
-    for index, guide in enumerate(fk_guides):
+    for index, guide in enumerate(guides):
         fk_joint: str = cmds.duplicate(guide, name=f"{guide}{suffix}", parentOnly=True)[0]
         fk_joints.append(fk_joint)
         if index > 0:
