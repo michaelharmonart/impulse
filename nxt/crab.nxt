@@ -50,8 +50,8 @@
                 -438.6958204441296
             ],
             "/cleanup": [
-                811.0,
-                -419.0
+                908.218426214469,
+                -417.232392250646
             ],
             "/left": [
                 -45.82891207776109,
@@ -62,8 +62,8 @@
                 0.0
             ],
             "/leg": [
-                -438.3155049909202,
-                -175.47919027422256
+                -436.51987547605665,
+                -173.18751206791862
             ],
             "/node": [
                 -268.77691323339127,
@@ -74,8 +74,8 @@
                 -1015.0
             ],
             "/right": [
-                346.2512021722489,
-                -419.2629790260373
+                372.23984087980006,
+                -420.16197846351787
             ],
             "/setup_file": [
                 -452.80689444777397,
@@ -201,7 +201,7 @@
                 },
                 "pole_vector": {
                     "type": "raw",
-                    "value": "PoleVector"
+                    "value": "${part_name}_PoleVector"
                 },
                 "pose_joints": {},
                 "prefix": {
@@ -233,7 +233,7 @@
                 "self.joints = [f\"${prefix}${side}_{joint}\" for joint in self.chain]",
                 "",
                 "solve_joints = impulse.utils.ik.ik_from_guides(",
-                "    guides=self.joints, pole_vector_guide=\"${part_name}_${pole_vector}\", ",
+                "    guides=self.joints, pole_vector_guide=\"${pole_vector}\", ",
                 "    name=\"${part_name}_IK\", parent=\"${part_name}\", reverse_segments=${reverse_segments}",
                 ")",
                 "",
@@ -248,7 +248,12 @@
                 "self.fk_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_name}_FK\", parent=\"${part_name}\")",
                 "self.pose_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_name}_POSE\", parent=\"${part_name}\", suffix=\"_POSE\")",
                 "",
-                "impulse.utils.ik.ik_fk_blend_list(self.ik_chain_joints, self.fk_joints, self.pose_joints, self.ik_switch)"
+                "impulse.utils.ik.ik_fk_blend_list(self.ik_chain_joints, self.fk_joints, self.pose_joints, self.ik_switch)",
+                "",
+                "def_joints = impulse.utils.ik.fk_from_guides(guides=self.joints[:-1], name=\"${part_name}_DEF\", parent=\"${def_group}\", suffix=\"_DEF\")",
+                "impulse.utils.transform.constrain_transforms(self.pose_joints[:-1], def_joints)",
+                "",
+                ""
             ]
         },
         "/leg/controls": {
@@ -274,7 +279,7 @@
             "code": [
                 "controls = []",
                 "fk_group = cmds.group(empty=True, name=\"${part_name}_FK_CTLS\", parent=\"${part_ctls}\")",
-                "",
+                "cmds.connectAttr(\"${ik_switch}\", f\"{fk_group}.visibility\")",
                 "for index, joint in enumerate(self.fk_joints):",
                 "    # Check if the joint has a child and if so, generate a control",
                 "    joint_children = cmds.listRelatives(joint, children=True, type=\"joint\") or []",
@@ -316,12 +321,24 @@
             ]
         },
         "/leg/controls/ik": {
+            "attrs": {
+                "pole_vector_size": {
+                    "type": "float",
+                    "value": "0.05"
+                }
+            },
             "code": [
                 "controls = []",
                 "ik_group = cmds.group(empty=True, name=\"${part_name}_IK_CTLS\", parent=\"${part_ctls}\")",
                 "ik_joints = self.ik_joints",
+                "ik_switch_reverse = cmds.createNode(\"subtract\")",
+                "cmds.setAttr(\"subtract1.input1\", 1)",
+                "cmds.connectAttr(\"${ik_switch}\", f\"{ik_switch_reverse}.input2\")",
+                "cmds.connectAttr(f\"{ik_switch_reverse}.output\", f\"{ik_group}.visibility\")",
+                "",
                 "reversed_joints = ik_joints[::-1]",
                 "control_joints = [ik_joints[0]]+reversed_joints[:${reverse_segments}]",
+                "pole_vector_parent: str",
                 "for index, joint in enumerate(control_joints):",
                 "    if index == 1:",
                 "        control_shape=impulse.utils.control.ControlShape.CUBE",
@@ -342,10 +359,23 @@
                 "        cmds.parent(control.offset_transform, controls[index - 1].control_transform)",
                 "    else:",
                 "        cmds.parent(control.offset_transform, ik_group)",
-                "        ",
-                "     # Set up control colors    ",
+                "    if index == ${reverse_segments}:",
+                "        pole_vector_parent = control.control_transform",
                 "    control_transform = control.control_transform",
                 "    impulse.utils.control.connect_control(control, joint)",
+                "",
+                "pv_control = impulse.utils.control.make_control(",
+                "    name=\"${pole_vector}\", ",
+                "    target_transform=\"${pole_vector}\", ",
+                "    size=${pole_vector_size}, ",
+                "    control_shape=impulse.utils.control.ControlShape.SPHERE,",
+                "    offset=0,",
+                "    )    ",
+                "cmds.parent(pv_control.offset_transform, pole_vector_parent)",
+                "impulse.utils.control.connect_control(pv_control, \"${pole_vector}_IN\")            ",
+                "for control in controls: ",
+                "    control_transform = control.control_transform       ",
+                "    # Set up control colors    ",
                 "    cmds.connectAttr(",
                 "        \"${control_layer}.controlColor\", ",
                 "        f\"{control_transform}.drawOverride.overrideColorRGB\"",

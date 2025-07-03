@@ -33,6 +33,10 @@
                     "type": "raw",
                     "value": "CTLS"
                 },
+                "def_group": {
+                    "type": "raw",
+                    "value": "DEF"
+                },
                 "geo_group": {
                     "type": "raw",
                     "value": "GEO"
@@ -59,6 +63,18 @@
                 }
             }
         },
+        "/cleanup": {
+            "code": [
+                "# Hide Rig Groups",
+                "cmds.hide(\"${guides_group}\")",
+                "cmds.hide(\"${mch_group}\")",
+                "cmds.hide(\"${def_group}\")",
+                "",
+                "# Make Geo unselectable",
+                "cmds.setAttr(\"${geo_group}.overrideEnabled\", 1)",
+                "cmds.setAttr(\"${geo_group}.overrideDisplayType\", 2)"
+            ]
+        },
         "/setup_file": {
             "child_order": [
                 "load_geo",
@@ -76,7 +92,8 @@
         "/setup_file/create_groups": {
             "code": [
                 "cmds.group(empty=True, name=\"${controls_group}\", parent=\"${rig_group}\")",
-                "cmds.group(empty=True, name=\"${mch_group}\", parent=\"${rig_group}\")"
+                "cmds.group(empty=True, name=\"${mch_group}\", parent=\"${rig_group}\")",
+                "cmds.group(empty=True, name=\"${def_group}\", parent=\"${rig_group}\")"
             ]
         },
         "/setup_file/load_geo": {

@@ -212,6 +212,7 @@ def create_curve(curve_shape: ControlShape = ControlShape.CIRCLE) -> str:
             curve_shape_node: str = get_shapes(child_curve_transform)[0]
             curve_shape_node = cmds.rename(curve_shape_node, f"{CONTROL_FILES[curve_shape]}Shape{index}")
             cmds.parent(curve_shape_node, curve_transform, shape=True, relative=True)
+            cmds.delete(child_curve_transform)
     cmds.select(curve_transform)
     return curve_transform
 
