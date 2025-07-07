@@ -1,5 +1,14 @@
 import maya.cmds as cmds
 
+from impulse.utils.naming import flip_side
+
+
+def is_identity_matrix(matrix: list[float], epsilon: float = 0.001) -> bool:
+    return all(
+        abs(value - identity) < epsilon
+        for value, identity in zip(matrix, [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
+    )
+
 
 def match_transform(transform: str, target_transform: str) -> None:
     """
@@ -46,10 +55,7 @@ def matrix_constraint(
 
         # Check the matrix against an identity matrix. If it's the same within a margin of error the transforms aren't offset.
         # Meaning we can skip that extra matrix multiplication.
-        if any(
-            abs(value - identity) > 0.001
-            for value, identity in zip(offset_matrix, [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
-        ):
+        if not is_identity_matrix(matrix=offset_matrix):
             # Put the offset into the matrix multiplier
             cmds.setAttr(f"{mult_matrix}.matrixIn[{mult_index}]", offset_matrix, type="matrix")
             mult_index += 1
@@ -113,7 +119,9 @@ def matrix_constraint(
                         "multMatrix", name=f"{constraint_name}_ConstraintOrientMultMatrix"
                     )
                     cmds.setAttr(f"{orient_parent_mult_matrix}.matrixIn[0]", orient_matrix, type="matrix")
-                    cmds.connectAttr(f"{constrain_transform}.parentMatrix[0]", f"{orient_parent_mult_matrix}.matrixIn[1]")
+                    cmds.connectAttr(
+                        f"{constrain_transform}.parentMatrix[0]", f"{orient_parent_mult_matrix}.matrixIn[1]"
+                    )
 
                     # Create an inverse node and connect it to the result of the last step
                     cmds.connectAttr(f"{orient_parent_mult_matrix}.matrixSum", f"{orient_offset_node}.inputMatrix")
@@ -163,3 +171,75 @@ def constrain_transforms(source_transforms: list[str], constrain_transforms: lis
         raise RuntimeError("Number of joints in source joints and constraint joints don't match!")
     for index, transform in enumerate(constrain_transforms):
         matrix_constraint(source_transform=source_transforms[index], constrain_transform=transform)
+
+
+def orient_to_world(transform: str) -> None:
+    """
+    Orient a transform to the world.
+
+    Args:
+        transform: transform or joint to orient to the world.
+    """
+    # Remember parent so we can reparent later
+    parents: list[str] = cmds.listRelatives(transform, parent=True)
+    parent: str | None = parents[0] if parents else None
+
+    # Unparent to world to avoid inherited transforms
+    if parent:
+        cmds.parent(transform, world=True, absolute=True)
+
+    # Zero out rotate and jointOrient by using identity rotation
+    cmds.makeIdentity(transform, translate=False, rotate=True, scale=False, apply=True)
+    if cmds.nodeType(transform) == "joint":
+        cmds.makeIdentity(transform, translate=False, rotate=True, jointOrient=True, scale=False, apply=True)
+
+    # Now joint is aligned to world, reparent it back
+    if parent:
+        cmds.parent(transform, parent, absolute=True)
+
+
+def mirror_transform(transform: str, from_side: str = "L", to_side: str = "R") -> str:
+    """
+    Duplicate and mirror the specified transform (and optionally children) along the X axis.
+
+    Args:
+        transform: transform or joint to orient to the world.
+        replace_from: Substring to replace in the original name.
+        replace_to: Replacement substring for the mirrored name.
+
+    Returns:
+        str: name of the new mirrored transform.
+    """
+
+    
+    mirror_group = cmds.group(empty=True)
+    
+    # Duplicate full hierarchy
+    mirrored_roots: list[str] = cmds.duplicate(transform, renameChildren=True)
+    mirrored_root: str = mirrored_roots[0]
+
+    # Remember parent so we can reparent later
+    parents: list[str] = cmds.listRelatives(mirrored_root, parent=True)
+    parent: str | None = parents[0] if parents else None
+
+    # Reparent, apply negative scale in X,and restore original parent. 
+    cmds.parent(mirrored_root, mirror_group, absolute=True)
+    cmds.scale(-1, 1, 1, mirror_group, absolute=True)
+    if parent:
+        cmds.parent(mirrored_root, parent, absolute=True)
+    else:
+        cmds.parent(mirrored_root, world=True, absolute=True)
+    cmds.delete(mirror_group)
+
+    # Get original and mirrored transforms in top-down order
+    original = [transform] + (cmds.listRelatives(transform, allDescendents=True) or [])
+    mirrored = [mirrored_root] + (cmds.listRelatives(mirrored_root, allDescendents=True) or [])
+
+    # Rename all transforms
+    renamed_transforms = []
+    for orig, mirror in zip(original, mirrored):
+        new_name = flip_side(orig, from_side, to_side)
+        renamed = cmds.rename(mirror, new_name)
+        renamed_transforms.append(renamed)
+
+    return renamed_transforms[0]

@@ -50,8 +50,8 @@
                 -438.6958204441296
             ],
             "/cleanup": [
-                908.218426214469,
-                -417.232392250646
+                807.2899884999038,
+                -426.00877813886905
             ],
             "/left": [
                 -45.82891207776109,
@@ -62,8 +62,8 @@
                 0.0
             ],
             "/leg": [
-                -484.31397067645736,
-                -169.51104320634934
+                -945.0742298081675,
+                14.793060446334778
             ],
             "/node": [
                 -268.77691323339127,
@@ -78,8 +78,8 @@
                 -420.16197846351787
             ],
             "/setup_file": [
-                -452.80689444777397,
-                -418.0437099019432
+                -968.4195653808782,
+                -398.2968416534414
             ]
         },
         "collapse": {
@@ -218,7 +218,7 @@
                 }
             },
             "code": [
-                "cmds.group(empty=True, name=\"${part_name}\", parent=\"${mch_group}\")",
+                "part_group = cmds.group(empty=True, name=\"${part_name}_MCH\", parent=\"${mch_group}\")",
                 "control_panel: str = cmds.createNode(\"network\", name=\"${part_name}_ControlPanel\")",
                 "cmds.addAttr(",
                 "            control_panel,",
@@ -234,19 +234,19 @@
                 "",
                 "solve_joints = impulse.utils.ik.ik_from_guides(",
                 "    guides=self.joints, pole_vector_guide=\"${pole_vector}\", ",
-                "    name=\"${part_name}_IK\", parent=\"${part_name}\", reverse_segments=${reverse_segments}",
+                "    name=\"${part_name}_IK\", parent=part_group, reverse_segments=${reverse_segments}",
                 ")",
                 "",
                 "if ${reverse_segments}:",
-                "    ik_chain_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_name}_IkChain\", parent=\"${part_name}\", suffix=\"_IkChain\")",
+                "    ik_chain_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_name}_IkChain\", parent=part_group, suffix=\"_IkChain\")",
                 "    impulse.utils.transform.constrain_transforms(solve_joints, ik_chain_joints)",
                 "    self.ik_chain_joints = ik_chain_joints",
                 "else:",
                 "    self.ik_chain_joints = solve_joints",
                 "",
                 "self.ik_joints = solve_joints    ",
-                "self.fk_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_name}_FK\", parent=\"${part_name}\")",
-                "self.pose_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_name}_POSE\", parent=\"${part_name}\", suffix=\"_POSE\")",
+                "self.fk_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_name}_FK\", parent=part_group)",
+                "self.pose_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_name}_POSE\", parent=part_group, suffix=\"_POSE\")",
                 "",
                 "impulse.utils.ik.ik_fk_blend_list(self.ik_chain_joints, self.fk_joints, self.pose_joints, self.ik_switch)",
                 "",

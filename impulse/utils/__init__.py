@@ -5,3 +5,4 @@ from . import spline as spline
 from . import transform as transform
 from . import skin as skin
 from . import ik as ik
+from . import naming as naming
