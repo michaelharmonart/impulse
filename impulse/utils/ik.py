@@ -86,7 +86,7 @@ def ik_from_guides(
 
 
 def fk_from_guides(
-    guides: list[str], name: str | None = None, parent: str | None = None, suffix: str = "_FK"
+    guides: list[str], name: str | None = None, parent: str | None = None, suffix: str = "_FK", side_mult: int = 1
 ) -> str:
     """
     Takes a hierarchy of guides and creates an FK chain.
@@ -95,6 +95,7 @@ def fk_from_guides(
         name: Name for the newly created FK Chain group.
         parent: Parent for the newly created FK Chain group.
         suffix: Suffix to be added to joint names and FK chain group.
+        side_mult: Allows for scaling of the parent group for mirroring purposes.
     Returns:
         list[str]: Names of the created FK joints.
     """
@@ -102,6 +103,7 @@ def fk_from_guides(
         name: str = f"{guides[0].rsplit('_', 1)[0]}{suffix}"
     # Create group for IK chain
     fk_group: str = cmds.group(empty=True, world=True, name=name)
+    cmds.scale(side_mult, 1, 1, fk_group, absolute=True)
     if parent:
         cmds.parent(fk_group, parent, relative=False)
 

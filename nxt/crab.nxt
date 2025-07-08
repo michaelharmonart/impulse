@@ -1,7 +1,7 @@
 {
     "version": "1.17",
     "alias": "crab",
-    "color": "#aa3537",
+    "color": "#bc422a",
     "mute": false,
     "solo": false,
     "references": [
@@ -64,8 +64,8 @@
                 -934.7650968060259
             ],
             "/cleanup": [
-                1216.2384226721326,
-                -421.7857699091831
+                1213.6927572037612,
+                -416.6944389724407
             ],
             "/constrain": [
                 -1121.160508405177,
@@ -136,8 +136,8 @@
                 -1114.765096806026
             ],
             "/right": [
-                782.0604089237983,
-                -417.4907767534516
+                784.1801029278697,
+                -419.61047075752293
             ],
             "/setup_file": [
                 -975.6257851978987,
@@ -232,7 +232,7 @@
                 "            name=\"${local_name}\", ",
                 "            size=${size}*0.9, ",
                 "            control_shape=impulse.utils.control.ControlShape.CIRCLE,",
-                "            parent = root.offset_transform,",
+                "            parent = root.control_transform,",
                 ")",
                 "controls.append(local)",
                 "",
@@ -248,9 +248,17 @@
         },
         "/cleanup": {
             "execute_in": "/right",
+            "attrs": {
+                "release": {
+                    "type": "bool",
+                    "value": "True"
+                }
+            },
             "code": [
                 "# Hide Rig Groups",
                 "cmds.hide(\"${guides_group}\")",
+                "if ${release}:",
+                "    cmds.delete(\"${guides_group}\")",
                 "cmds.hide(\"${mch_group}\")",
                 "",
                 "# Make Geo unselectable",
@@ -262,13 +270,13 @@
             "instance": "/side",
             "execute_in": "/middle",
             "child_order": [
-                "legs",
-                "arms"
+                "arms",
+                "legs"
             ],
             "attrs": {
                 "control_color": {
                     "type": "list",
-                    "value": "[0.105, 0.247, 0.411]"
+                    "value": "[0.105, 0.447, 0.911]"
                 },
                 "control_layer": {
                     "type": "raw",
@@ -522,10 +530,10 @@
                 "",
                 "impulse.utils.ik.ik_fk_blend_list(self.ik_chain_joints, self.fk_joints, self.pose_joints, self.ik_switch)",
                 "",
-                "def_joints = impulse.utils.ik.fk_from_guides(guides=self.joints[:-1], name=\"${part_name}_DEF\", parent=\"${def_group}\", suffix=\"_DEF\")",
+                "def_joints = impulse.utils.ik.fk_from_guides(guides=self.joints[:-1], name=\"${part_name}_DEF\", parent=\"${def_group}\", suffix=\"_DEF\", side_mult=${side_mult})",
                 "impulse.utils.transform.constrain_transforms(self.pose_joints[:-1], def_joints)",
                 "",
-                ""
+                "cmds.refresh()"
             ]
         },
         "/limb/controls": {
@@ -666,20 +674,45 @@
                 "        proxy=\"${ik_switch}\")"
             ]
         },
-        "/main_window/manual_tab/curve/grid/control_selector": {
-            "attrs": {
-                "menu_value": {
-                    "value": "Cube"
-                }
-            }
+        "/main_window": {
+            "child_order": [
+                "manual_tab"
+            ]
         },
+        "/main_window/manual_tab": {
+            "child_order": [
+                "selection_panel",
+                "main_panel",
+                "curve"
+            ]
+        },
+        "/main_window/manual_tab/curve": {
+            "child_order": [
+                "grid",
+                "create_control"
+            ]
+        },
+        "/main_window/manual_tab/curve/grid": {
+            "child_order": [
+                "combine_curve",
+                "write_curve",
+                "size_selector",
+                "control_selector"
+            ]
+        },
+        "/main_window/manual_tab/curve/grid/control_selector": {},
         "/middle": {
             "instance": "/side",
             "execute_in": "/base",
             "child_order": [
+                "cog",
                 "shell"
             ],
             "attrs": {
+                "cog_guide": {
+                    "type": "raw",
+                    "value": "COG"
+                },
                 "control_color": {
                     "type": "list",
                     "value": "[0.149, 0.760, 0.360]"
@@ -695,15 +728,47 @@
                 "cmds.setAttr(f\"{settings}.controlColor\", type=\"float3\", *${control_color})"
             ]
         },
+        "/middle/cog": {
+            "attrs": {
+                "size": {
+                    "type": "int",
+                    "value": "1"
+                }
+            },
+            "code": [
+                "controls = []",
+                "cog = impulse.utils.control.make_control(",
+                "            name=\"${cog_guide}\", ",
+                "            size=${size}, ",
+                "            target_transform=\"${cog_guide}\",",
+                "            control_shape=impulse.utils.control.ControlShape.CIRCLE,",
+                "            parent=\"${controls_parent}\",",
+                ")",
+                "controls.append(cog)",
+                "",
+                "for control in controls:",
+                "    control_transform = control.control_transform",
+                "    cmds.connectAttr(",
+                "                \"${control_layer}.controlColor\", ",
+                "                f\"{control_transform}.drawOverride.overrideColorRGB\"",
+                "            )",
+                "    cmds.setAttr(f\"{control_transform}.overrideEnabled\", 1)",
+                "    cmds.setAttr(f\"{control_transform}.overrideRGBColors\", 1)"
+            ]
+        },
         "/middle/shell": {
             "attrs": {
-                "curve": {
+                "guide_prefix": {
                     "type": "raw",
-                    "value": "Shell"
+                    "value": "${part_name}_Squash"
+                },
+                "guides": {
+                    "type": "list",
+                    "value": "['${guide_prefix}_BEGIN', '${guide_prefix}_MID', '${guide_prefix}_END']"
                 },
                 "main_control": {
                     "type": "raw",
-                    "value": "${part_name}_${side}_Main"
+                    "value": "${part_name}_Main"
                 },
                 "main_size": {
                     "type": "float",
@@ -711,7 +776,15 @@
                 },
                 "part_name": {
                     "type": "raw",
-                    "value": "Shell"
+                    "value": "${prefix}${side}"
+                },
+                "prefix": {
+                    "type": "raw",
+                    "value": "Shell_"
+                },
+                "segments": {
+                    "type": "int",
+                    "value": "3"
                 }
             },
             "code": [
@@ -721,15 +794,18 @@
                 "            target_transform=\"${main_control}\",",
                 "            size=${main_size}, ",
                 "            control_shape=impulse.utils.control.ControlShape.CIRCLE,",
-                "            parent=\"${controls_group}\",",
+                "            parent=\"${cog_guide}_CTL\",",
+                "            offset=2,",
                 ")",
                 "controls.append(shell_main)",
-                "impulse.utils.spline.curveToMatrixSpline(",
-                "    \"${curve}\", ",
-                "    segments=3, ",
-                "    control_size=${main_size},",
+                "impulse.utils.spline.matrix_spline_from_guides(",
+                "    name=\"${guide_prefix}\",",
+                "    guides=${guides}, ",
+                "    degree=2,",
+                "    segments=${segments}, ",
+                "    control_size=${main_size}*0.5,",
                 "    control_shape=impulse.utils.control.ControlShape.CIRCLE,",
-                "    tweak_control_height=0.5, ",
+                "    tweak_control_height=0.2, ",
                 "    parent=\"${main_control}_CTL\"",
                 ")",
                 "",
@@ -749,7 +825,7 @@
             "attrs": {
                 "control_color": {
                     "type": "list",
-                    "value": "[0.411, 0.080, 0.108]"
+                    "value": "[0.811, 0.080, 0.108]"
                 },
                 "side": {
                     "value": "R"

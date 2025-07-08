@@ -334,14 +334,15 @@ def make_control(
 
     offset_transform: str = cmds.group(control_transform, name=f"{name}_OFFSET")
     cmds.xform(offset_transform, pivots=(0, 0, 0))
-    if target_transform:
-        transform.match_transform(transform=offset_transform, target_transform=target_transform)
-    elif position:
-        cmds.move(position[0], position[1], position[2], relative=True, worldSpace=True)
 
     if parent:
         cmds.parent(offset_transform, parent, relative=True)
 
+    if target_transform:
+        transform.match_transform(transform=offset_transform, target_transform=target_transform)
+    elif position:
+        cmds.move(position[0], position[1], position[2], relative=True, worldSpace=True)
+        
     return Control(control_transform=control_transform, offset_transform=offset_transform)
 
 

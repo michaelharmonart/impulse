@@ -3,6 +3,7 @@ Functions for working with splines.
 
 """
 
+from turtle import position
 from typing import Any
 import maya.cmds as cmds
 from impulse.structs.transform import Vector3 as Vector3
@@ -580,7 +581,7 @@ class MatrixSpline:
         self.cv_matrices = cv_matrices
 
 
-def pinToMatrixSpline(matrix_spline: MatrixSpline, pinned_transform: str, parameter: float) -> None:
+def pin_to_matrix_spline(matrix_spline: MatrixSpline, pinned_transform: str, parameter: float) -> None:
     cv_matrices: list[str] = matrix_spline.cv_matrices
     degree: int = matrix_spline.degree
     knots: list[float] = matrix_spline.knots
@@ -721,7 +722,7 @@ def pinToMatrixSpline(matrix_spline: MatrixSpline, pinned_transform: str, parame
     cmds.connectAttr(f"{output_matrix}.output", f"{pinned_transform}.offsetParentMatrix")
 
 
-def curveToMatrixSpline(
+def matrix_spline_from_curve(
     curve: str,
     segments: int,
     name: str | None = None,
@@ -731,9 +732,9 @@ def curveToMatrixSpline(
     tweak_control_shape: ControlShape = ControlShape.CUBE,
     tweak_control_height: float = 1,
     parent: str | None = None,
-) -> None:
+) -> MatrixSpline:
     """
-    Takes a curve shape and returns the attributes of the offset_parent_matrix for each segment.
+    Takes a curve shape and creates a matrix spline with controls and deformation joints.
     Args:
         curve: The curve transform.
         segments: Number of matrices to pin to the curve.
@@ -745,7 +746,7 @@ def curveToMatrixSpline(
         tweak_control_size: Height multiplier for generated tweak controls.
         parent: Parent for the newly created matrix spline group.
     Returns:
-        tuple: Tuple of the curve CV matrix attributes, and of the output matrix attributes.
+        matrix_spline: The resulting matrix spline.
     """
     # Retrieve the shape and ensure it is a NURBS curve.
     curve_shapes = cmds.listRelatives(curve, shapes=True) or []
@@ -829,6 +830,108 @@ def curveToMatrixSpline(
         segment_transform: str = cmds.joint(name=segment_name)
         connect_control(control=segment_ctl, driven_name=segment_transform)
         cmds.parent(segment_transform, def_group, absolute=False)
-        pinToMatrixSpline(
+        pin_to_matrix_spline(
             matrix_spline=matrix_spline, pinned_transform=segment_ctl.offset_transform, parameter=parameter
         )
+    return matrix_spline
+
+def matrix_spline_from_guides(
+    guides: list[str],
+    segments: int,
+    periodic: bool = False,
+    degree: int = 3,
+    name: str | None = None,
+    control_size: float = 0.1,
+    control_shape: ControlShape = ControlShape.SPHERE,
+    tweak_control_size: float = 1,
+    tweak_control_shape: ControlShape = ControlShape.CUBE,
+    tweak_control_height: float = 1,
+    parent: str | None = None,
+) -> MatrixSpline:
+    """
+    Takes a set of guides (cvs) and creates a matrix spline with controls and deformation joints.
+    Args:
+        curve: The curve transform.
+        segments: Number of matrices to pin to the curve.
+        name: Name of the matrix spline group to be created.
+        control_size: Size of generated controls.
+        control_shape: Shape of primary controls.
+        tweak_control_size: Size multiplier for tweak controls
+        tweak_control_shape: Shape of tweak controls.
+        tweak_control_size: Height multiplier for generated tweak controls.
+        parent: Parent for the newly created matrix spline group.
+    Returns:
+        matrix_spline: The resulting matrix spline.
+    """
+
+    cv_positions: list[str] = []
+
+    for guide in guides:
+        position = cmds.xform(guide, query=True, worldSpace=True, translation=True)
+        cv_positions.append(Vector3(*position))
+
+    if not parent:
+        if cmds.listRelatives(guides[0], parent=True):
+            curve_parent: str = cmds.listRelatives(guides[0], parent=True)[0]
+        else:
+            curve_parent: str = None
+        if curve_parent:
+            container_group: str = cmds.group(empty=True, parent=curve_parent, name=f"{name}_MatrixSpline_GRP")
+        else:
+            container_group: str = cmds.group(empty=True, name=f"{name}_MatrixSpline_GRP")
+    else:
+        container_group: str = cmds.group(empty=True, parent=parent, name=f"{name}_MatrixSpline_GRP")
+    
+    ctl_group: str = cmds.group(empty=True, parent=container_group, name=f"{name}_CTLS")
+    mch_group: str = cmds.group(empty=True, parent=container_group, name=f"{name}_MCH")
+    def_group: str = cmds.group(empty=True, parent=container_group, name=f"{name}_DEF")
+
+    filtered_guides: list[Vector3] = list(guides)
+    # If the curve is periodic there are duplicate CVs that move together. Remove them.
+    if periodic:
+        for i in range(degree):
+            guides.pop(-1)
+
+    # Create CV Transforms
+    cv_transforms: list[str] = []
+    for i, guide in enumerate(guides):
+        # Create Transform for CV and move it to the position of the CV on the curve
+        control: Control = make_control(
+            name=f"{name}_CV{i}",
+            target_transform=guide,
+            control_shape=control_shape,
+            size=control_size,
+        )
+        cv_transform: str = cmds.group(name=f"{name}_CV{i}", empty=True)
+        connect_control(control=control, driven_name=cv_transform)
+        cv_transforms.append(cv_transform)
+        cmds.parent(cv_transform, mch_group)
+        cmds.parent(control.offset_transform, ctl_group)
+
+    matrix_spline: MatrixSpline = MatrixSpline(
+        cv_transforms=cv_transforms, degree=degree, periodic=periodic
+    )
+    matrix_spline.name = name
+
+    segment_parameters: list[float] = resample(
+        cv_positions=cv_positions, number_of_points=segments, degree=degree
+    )
+
+    for i in range(segments):
+        segment_name = f"{matrix_spline.name}_matrixSpline_Segment{i + 1}"
+        parameter = segment_parameters[i]
+
+        segment_ctl: Control = make_control(
+            name=segment_name,
+            control_shape=tweak_control_shape,
+            size=control_size * tweak_control_size,
+            dimensions=(1, 1 * tweak_control_height, 1),
+            parent=ctl_group,
+        )
+        segment_transform: str = cmds.joint(name=segment_name)
+        connect_control(control=segment_ctl, driven_name=segment_transform)
+        cmds.parent(segment_transform, def_group, absolute=False)
+        pin_to_matrix_spline(
+            matrix_spline=matrix_spline, pinned_transform=segment_ctl.offset_transform, parameter=parameter
+        )
+    return matrix_spline
