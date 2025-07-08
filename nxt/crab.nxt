@@ -51,6 +51,10 @@
                 66.2052106852218,
                 -438.6958204441296
             ],
+            "/base": [
+                -496.62329257252367,
+                -414.0677603584538
+            ],
             "/button": [
                 -1607.5243713135055,
                 -994.7650968060259
@@ -60,8 +64,8 @@
                 -934.7650968060259
             ],
             "/cleanup": [
-                807.2899884999038,
-                -426.00877813886905
+                1216.2384226721326,
+                -421.7857699091831
             ],
             "/constrain": [
                 -1121.160508405177,
@@ -88,16 +92,16 @@
                 -754.7650968060259
             ],
             "/left": [
-                -45.82891207776109,
-                -417.85345417265876
+                370.87855469256624,
+                -415.18225246259254
             ],
             "/left/legs/front": [
                 0.0,
                 0.0
             ],
-            "/leg": [
-                -945.0742298081675,
-                14.793060446334778
+            "/limb": [
+                -854.4977016497701,
+                5.8370603441208
             ],
             "/main_window": [
                 -982.3084207374891,
@@ -111,9 +115,13 @@
                 -1607.5243713135055,
                 -814.7650968060259
             ],
+            "/middle": [
+                -35.277208503850495,
+                -415.8295250669091
+            ],
             "/node": [
-                -541.1336786571001,
-                -1755.079652931847
+                -41.00262026750312,
+                -234.05662402699681
             ],
             "/node/node2": [
                 0.0,
@@ -128,12 +136,20 @@
                 -1114.765096806026
             ],
             "/right": [
-                365.35294215347096,
-                -420.16197846351787
+                782.0604089237983,
+                -417.4907767534516
             ],
             "/setup_file": [
-                -901.2357952513265,
-                -415.70539799038903
+                -975.6257851978987,
+                -414.22890002889284
+            ],
+            "/side": [
+                -845.5425987520201,
+                -117.51608999604343
+            ],
+            "/spine": [
+                -825.3660779866253,
+                229.54740039424746
             ],
             "/tab": [
                 -1607.5243713135055,
@@ -149,13 +165,16 @@
             "/Leg2": true,
             "/SetupFile": false,
             "/SetupFile/node": true,
+            "/base": false,
             "/left": false,
+            "/left/arms": false,
             "/left/legs/back": false,
             "/left/legs/front": false,
-            "/leg": false,
+            "/limb": false,
             "/main_window/manual_tab/main_panel/grid": false,
             "/main_window/manual_tab/main_panel/node": true,
             "/right": false,
+            "/right/arms": false,
             "/setup_file/LoadGuides": false
         }
     },
@@ -167,6 +186,65 @@
                     "value": "${path::/groups/crabby/Assets/Rigging/Scuttle/Build}"
                 }
             }
+        },
+        "/base": {
+            "execute_in": "/setup_file",
+            "attrs": {
+                "control_color": {
+                    "type": "list",
+                    "value": "[0.6190000176429749, 0.1729000061750412, 0.09700000286102295]"
+                },
+                "control_layer": {
+                    "type": "raw",
+                    "value": "Base_ControlLayer"
+                },
+                "local_name": {
+                    "type": "raw",
+                    "value": "LOCAL"
+                },
+                "root_name": {
+                    "type": "raw",
+                    "value": "ROOT"
+                },
+                "size": {
+                    "type": "int",
+                    "value": "3"
+                }
+            },
+            "code": [
+                "settings = cmds.createNode(\"network\", name=\"${control_layer}\")",
+                "cmds.addAttr(settings, longName='controlColor', usedAsColor=True, attributeType='float3' )",
+                "cmds.addAttr(settings, longName='controlColorR', attributeType='float', parent='controlColor')",
+                "cmds.addAttr(settings, longName='controlColorG', attributeType='float', parent='controlColor')",
+                "cmds.addAttr(settings, longName='controlColorB', attributeType='float', parent='controlColor')",
+                "",
+                "cmds.setAttr(f\"{settings}.controlColor\", type=\"float3\", *${control_color})",
+                "",
+                "controls = []",
+                "root = impulse.utils.control.make_control(",
+                "            name=\"${root_name}\", ",
+                "            size=${size}, ",
+                "            control_shape=impulse.utils.control.ControlShape.CIRCLE,",
+                "            parent=\"${controls_group}\",",
+                ")",
+                "controls.append(root)",
+                "local = impulse.utils.control.make_control(",
+                "            name=\"${local_name}\", ",
+                "            size=${size}*0.9, ",
+                "            control_shape=impulse.utils.control.ControlShape.CIRCLE,",
+                "            parent = root.offset_transform,",
+                ")",
+                "controls.append(local)",
+                "",
+                "for control in controls:",
+                "    control_transform = control.control_transform",
+                "    cmds.connectAttr(",
+                "                \"${control_layer}.controlColor\", ",
+                "                f\"{control_transform}.drawOverride.overrideColorRGB\"",
+                "            )",
+                "    cmds.setAttr(f\"{control_transform}.overrideEnabled\", 1)",
+                "    cmds.setAttr(f\"{control_transform}.overrideRGBColors\", 1)"
+            ]
         },
         "/cleanup": {
             "execute_in": "/right",
@@ -181,9 +259,11 @@
             ]
         },
         "/left": {
-            "execute_in": "/setup_file",
+            "instance": "/side",
+            "execute_in": "/middle",
             "child_order": [
-                "legs"
+                "legs",
+                "arms"
             ],
             "attrs": {
                 "control_color": {
@@ -197,6 +277,10 @@
                 "side": {
                     "type": "raw",
                     "value": "L"
+                },
+                "side_mult": {
+                    "type": "int",
+                    "value": "1"
                 }
             },
             "code": [
@@ -211,11 +295,29 @@
                 "cmds.refresh()"
             ]
         },
+        "/left/arms": {
+            "instance": "/limb",
+            "attrs": {
+                "chain": {
+                    "type": "list",
+                    "value": "['Section1', 'Section2', 'ClawConnection', 'Claw', 'Pincers']"
+                },
+                "prefix": {
+                    "type": "raw",
+                    "value": "Arm_"
+                },
+                "reverse_segments": {
+                    "type": "int",
+                    "value": "2"
+                }
+            }
+        },
         "/left/legs": {
             "child_order": [
                 "front",
                 "back"
             ],
+            "enabled": true,
             "attrs": {
                 "chain": {
                     "type": "list",
@@ -224,7 +326,7 @@
             }
         },
         "/left/legs/back": {
-            "instance": "/leg",
+            "instance": "/limb",
             "attrs": {
                 "prefix": {
                     "type": "raw",
@@ -237,7 +339,7 @@
             }
         },
         "/left/legs/front": {
-            "instance": "/leg",
+            "instance": "/limb",
             "attrs": {
                 "prefix": {
                     "type": "raw",
@@ -247,42 +349,10 @@
                     "type": "int",
                     "value": "3"
                 }
-            }
-        },
-        "/leg": {
-            "child_order": [
-                "controls"
-            ],
-            "attrs": {
-                "fk_joints": {},
-                "ik_chain_joints": {},
-                "ik_joints": {},
-                "ik_switch": {},
-                "joints": {},
-                "part_name": {
-                    "type": "raw",
-                    "value": "${prefix}${side}"
-                },
-                "pole_vector": {
-                    "type": "raw",
-                    "value": "${part_name}_PoleVector"
-                },
-                "pose_joints": {},
-                "prefix": {
-                    "type": "raw",
-                    "value": "Leg_"
-                },
-                "reverse_segments": {
-                    "type": "int",
-                    "value": "0"
-                },
-                "side": {
-                    "type": "raw",
-                    "value": "L"
-                }
             },
             "code": [
                 "part_group = cmds.group(empty=True, name=\"${part_name}_MCH\", parent=\"${mch_group}\")",
+                "cmds.scale(${side_mult}, 1, 1, part_group, absolute=True)",
                 "control_panel: str = cmds.createNode(\"network\", name=\"${part_name}_ControlPanel\")",
                 "cmds.addAttr(",
                 "            control_panel,",
@@ -320,77 +390,7 @@
                 ""
             ]
         },
-        "/leg/controls": {
-            "child_order": [
-                "fk",
-                "ik"
-            ],
-            "attrs": {
-                "control_size": {
-                    "type": "float",
-                    "value": "0.2"
-                },
-                "part_ctls": {
-                    "type": "raw",
-                    "value": "${part_name}_CTLS"
-                }
-            },
-            "code": [
-                "self.part_ctls = cmds.group(empty=True, name=\"${part_name}_CTLS\", parent=\"${controls_group}\")"
-            ]
-        },
-        "/leg/controls/fk": {
-            "code": [
-                "controls = []",
-                "fk_group = cmds.group(empty=True, name=\"${part_name}_FK_CTLS\", parent=\"${part_ctls}\")",
-                "cmds.connectAttr(\"${ik_switch}\", f\"{fk_group}.visibility\")",
-                "for index, joint in enumerate(self.fk_joints):",
-                "    # Check if the joint has a child and if so, generate a control",
-                "    joint_children = cmds.listRelatives(joint, children=True, type=\"joint\") or []",
-                "    if len(joint_children) > 0:",
-                "        joint_child = joint_children[0]",
-                "        y_translate = cmds.getAttr(f\"{joint_child}.translateY\")",
-                "    ",
-                "        control = impulse.utils.control.make_control(",
-                "            name=joint, ",
-                "            target_transform=joint, ",
-                "            size=${control_size}, ",
-                "            control_shape=impulse.utils.control.ControlShape.CIRCLE,",
-                "            offset=y_translate/2,",
-                "            )",
-                "        controls.append(control)",
-                "        ",
-                "        # Parent to the control group, or the parent control.",
-                "        if index > 0:",
-                "            cmds.parent(control.offset_transform, controls[index - 1].control_transform)",
-                "        else:",
-                "            cmds.parent(control.offset_transform, fk_group)",
-                "        ",
-                "         # Set up control colors    ",
-                "        control_transform = control.control_transform",
-                "        impulse.utils.control.connect_control(control, joint)",
-                "        cmds.connectAttr(",
-                "            \"${control_layer}.controlColor\", ",
-                "            f\"{control_transform}.drawOverride.overrideColorRGB\"",
-                "        )",
-                "        cmds.setAttr(f\"{control_transform}.overrideEnabled\", 1)",
-                "        cmds.setAttr(f\"{control_transform}.overrideRGBColors\", 1)",
-                "        ",
-                "        ",
-                "        cmds.addAttr(",
-                "            control_transform,",
-                "            longName=\"${part_name}_IkFkSwitch\", ",
-                "            niceName=f\"{self.part_name.replace('_', ' ')} IK FK Switch\", ",
-                "            proxy=\"${ik_switch}\")"
-            ]
-        },
-        "/leg/controls/ik": {
-            "attrs": {
-                "pole_vector_size": {
-                    "type": "float",
-                    "value": "0.05"
-                }
-            },
+        "/left/legs/front/controls/ik": {
             "code": [
                 "controls = []",
                 "ik_group = cmds.group(empty=True, name=\"${part_name}_IK_CTLS\", parent=\"${part_ctls}\")",
@@ -402,6 +402,7 @@
                 "",
                 "reversed_joints = ik_joints[::-1]",
                 "control_joints = [ik_joints[0]]+reversed_joints[:${reverse_segments}]",
+                "print(control_joints)",
                 "pole_vector_parent: str",
                 "for index, joint in enumerate(control_joints):",
                 "    if index == 1:",
@@ -455,7 +456,293 @@
                 "        proxy=\"${ik_switch}\")"
             ]
         },
-        "/node/node2": {},
+        "/limb": {
+            "child_order": [
+                "controls"
+            ],
+            "attrs": {
+                "fk_joints": {},
+                "ik_chain_joints": {},
+                "ik_joints": {},
+                "ik_switch": {},
+                "joints": {},
+                "part_name": {
+                    "type": "raw",
+                    "value": "${prefix}${side}"
+                },
+                "pole_vector": {
+                    "type": "raw",
+                    "value": "${part_name}_PoleVector"
+                },
+                "pose_joints": {},
+                "prefix": {
+                    "type": "raw",
+                    "value": "Leg_"
+                },
+                "reverse_segments": {
+                    "type": "int",
+                    "value": "0"
+                },
+                "side": {
+                    "type": "raw",
+                    "value": "L"
+                }
+            },
+            "code": [
+                "part_group = cmds.group(empty=True, name=\"${part_name}_MCH\", parent=\"${mch_group}\")",
+                "cmds.scale(${side_mult}, 1, 1, part_group, absolute=True)",
+                "control_panel: str = cmds.createNode(\"network\", name=\"${part_name}_ControlPanel\")",
+                "cmds.addAttr(",
+                "            control_panel,",
+                "            longName=f\"IkFkSwitch\", ",
+                "            niceName=f\"IK FK Switch\", ",
+                "            minValue=0,",
+                "            maxValue=1,",
+                "            attributeType=\"float\",",
+                "            )",
+                "cmds.setAttr(f\"{control_panel}.IkFkSwitch\", keyable=True)            ",
+                "self.ik_switch = f\"{control_panel}.IkFkSwitch\"",
+                "self.joints = [f\"${prefix}${side}_{joint}\" for joint in self.chain]",
+                "",
+                "solve_joints = impulse.utils.ik.ik_from_guides(",
+                "    guides=self.joints, pole_vector_guide=\"${pole_vector}\", ",
+                "    name=\"${part_name}_IK\", parent=part_group, reverse_segments=${reverse_segments}",
+                ")",
+                "",
+                "if ${reverse_segments}:",
+                "    ik_chain_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_name}_IkChain\", parent=part_group, suffix=\"_IkChain\")",
+                "    impulse.utils.transform.constrain_transforms(solve_joints, ik_chain_joints)",
+                "    self.ik_chain_joints = ik_chain_joints",
+                "else:",
+                "    self.ik_chain_joints = solve_joints",
+                "",
+                "self.ik_joints = solve_joints    ",
+                "self.fk_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_name}_FK\", parent=part_group)",
+                "self.pose_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_name}_POSE\", parent=part_group, suffix=\"_POSE\")",
+                "",
+                "impulse.utils.ik.ik_fk_blend_list(self.ik_chain_joints, self.fk_joints, self.pose_joints, self.ik_switch)",
+                "",
+                "def_joints = impulse.utils.ik.fk_from_guides(guides=self.joints[:-1], name=\"${part_name}_DEF\", parent=\"${def_group}\", suffix=\"_DEF\")",
+                "impulse.utils.transform.constrain_transforms(self.pose_joints[:-1], def_joints)",
+                "",
+                ""
+            ]
+        },
+        "/limb/controls": {
+            "child_order": [
+                "fk",
+                "ik"
+            ],
+            "attrs": {
+                "control_size": {
+                    "type": "float",
+                    "value": "0.2"
+                },
+                "part_ctls": {
+                    "type": "raw",
+                    "value": "${part_name}_CTLS"
+                }
+            },
+            "code": [
+                "ctls = cmds.group(empty=True, name=\"${part_name}_CTLS\", parent=\"${controls_parent}\")",
+                "cmds.scale(${side_mult}, 1, 1, ctls, absolute=True)",
+                "self.part_ctls = ctls"
+            ]
+        },
+        "/limb/controls/fk": {
+            "code": [
+                "controls = []",
+                "fk_group = cmds.group(empty=True, name=\"${part_name}_FK_CTLS\", parent=\"${part_ctls}\")",
+                "cmds.connectAttr(\"${ik_switch}\", f\"{fk_group}.visibility\")",
+                "for index, joint in enumerate(self.fk_joints):",
+                "    # Check if the joint has a child and if so, generate a control",
+                "    joint_children = cmds.listRelatives(joint, children=True, type=\"joint\") or []",
+                "    if len(joint_children) > 0:",
+                "        joint_child = joint_children[0]",
+                "        y_translate = cmds.getAttr(f\"{joint_child}.translateY\")",
+                "    ",
+                "        control = impulse.utils.control.make_control(",
+                "            name=joint, ",
+                "            target_transform=joint, ",
+                "            size=${control_size}, ",
+                "            control_shape=impulse.utils.control.ControlShape.CIRCLE,",
+                "            offset=y_translate/2,",
+                "            )",
+                "        controls.append(control)",
+                "        ",
+                "        # Parent to the control group, or the parent control.",
+                "        if index > 0:",
+                "            cmds.parent(control.offset_transform, controls[index - 1].control_transform)",
+                "        else:",
+                "            cmds.parent(control.offset_transform, fk_group)",
+                "        ",
+                "         # Set up control colors    ",
+                "        control_transform = control.control_transform",
+                "        impulse.utils.control.connect_control(control, joint)",
+                "        cmds.connectAttr(",
+                "            \"${control_layer}.controlColor\", ",
+                "            f\"{control_transform}.drawOverride.overrideColorRGB\"",
+                "        )",
+                "        cmds.setAttr(f\"{control_transform}.overrideEnabled\", 1)",
+                "        cmds.setAttr(f\"{control_transform}.overrideRGBColors\", 1)",
+                "        ",
+                "        ",
+                "        cmds.addAttr(",
+                "            control_transform,",
+                "            longName=\"${part_name}_IkFkSwitch\", ",
+                "            niceName=f\"{self.part_name.replace('_', ' ')} IK FK Switch\", ",
+                "            proxy=\"${ik_switch}\")"
+            ]
+        },
+        "/limb/controls/ik": {
+            "attrs": {
+                "pole_vector_size": {
+                    "type": "float",
+                    "value": "0.05"
+                }
+            },
+            "code": [
+                "controls = []",
+                "ik_group = cmds.group(empty=True, name=\"${part_name}_IK_CTLS\", parent=\"${part_ctls}\")",
+                "ik_joints = self.ik_joints",
+                "ik_switch_reverse = cmds.createNode(\"subtract\")",
+                "cmds.setAttr(f\"{ik_switch_reverse}.input1\", 1)",
+                "cmds.connectAttr(\"${ik_switch}\", f\"{ik_switch_reverse}.input2\")",
+                "cmds.connectAttr(f\"{ik_switch_reverse}.output\", f\"{ik_group}.visibility\")",
+                "",
+                "reversed_joints = ik_joints[::-1]",
+                "control_joints = [ik_joints[0]]+reversed_joints[:${reverse_segments}]",
+                "print(control_joints)",
+                "pole_vector_parent: str",
+                "for index, joint in enumerate(control_joints):",
+                "    if index == 1:",
+                "        control_shape=impulse.utils.control.ControlShape.CUBE",
+                "    else:",
+                "        control_shape=impulse.utils.control.ControlShape.CIRCLE",
+                "        ",
+                "    control = impulse.utils.control.make_control(",
+                "        name=joint, ",
+                "        target_transform=joint, ",
+                "        size=${control_size}, ",
+                "        control_shape=control_shape,",
+                "        offset=0,",
+                "        )",
+                "    controls.append(control)",
+                "        ",
+                "    # Parent to the control group, or the parent control.",
+                "    if index > 1:",
+                "        cmds.parent(control.offset_transform, controls[index - 1].control_transform)",
+                "    else:",
+                "        cmds.parent(control.offset_transform, ik_group)",
+                "    if index == ${reverse_segments}:",
+                "        pole_vector_parent = control.control_transform",
+                "    control_transform = control.control_transform",
+                "    impulse.utils.control.connect_control(control, joint)",
+                "",
+                "pv_control = impulse.utils.control.make_control(",
+                "    name=\"${pole_vector}\", ",
+                "    target_transform=\"${pole_vector}\", ",
+                "    size=${pole_vector_size}, ",
+                "    control_shape=impulse.utils.control.ControlShape.SPHERE,",
+                "    offset=0,",
+                "    )    ",
+                "cmds.parent(pv_control.offset_transform, pole_vector_parent)",
+                "impulse.utils.control.connect_control(pv_control, \"${pole_vector}_IN\")            ",
+                "for control in controls: ",
+                "    control_transform = control.control_transform       ",
+                "    # Set up control colors    ",
+                "    cmds.connectAttr(",
+                "        \"${control_layer}.controlColor\", ",
+                "        f\"{control_transform}.drawOverride.overrideColorRGB\"",
+                "    )",
+                "    cmds.setAttr(f\"{control_transform}.overrideEnabled\", 1)",
+                "    cmds.setAttr(f\"{control_transform}.overrideRGBColors\", 1)",
+                "    ",
+                "    ",
+                "    cmds.addAttr(",
+                "        control_transform,",
+                "        longName=\"${part_name}_IkFkSwitch\", ",
+                "        niceName=f\"{self.part_name.replace('_', ' ')} IK FK Switch\", ",
+                "        proxy=\"${ik_switch}\")"
+            ]
+        },
+        "/main_window/manual_tab/curve/grid/control_selector": {
+            "attrs": {
+                "menu_value": {
+                    "value": "Cube"
+                }
+            }
+        },
+        "/middle": {
+            "instance": "/side",
+            "execute_in": "/base",
+            "child_order": [
+                "shell"
+            ],
+            "attrs": {
+                "control_color": {
+                    "type": "list",
+                    "value": "[0.149, 0.760, 0.360]"
+                }
+            },
+            "code": [
+                "settings = cmds.createNode(\"network\", name=\"${control_layer}\")",
+                "cmds.addAttr(settings, longName='controlColor', usedAsColor=True, attributeType='float3' )",
+                "cmds.addAttr(settings, longName='controlColorR', attributeType='float', parent='controlColor')",
+                "cmds.addAttr(settings, longName='controlColorG', attributeType='float', parent='controlColor')",
+                "cmds.addAttr(settings, longName='controlColorB', attributeType='float', parent='controlColor')",
+                "",
+                "cmds.setAttr(f\"{settings}.controlColor\", type=\"float3\", *${control_color})"
+            ]
+        },
+        "/middle/shell": {
+            "attrs": {
+                "curve": {
+                    "type": "raw",
+                    "value": "Shell"
+                },
+                "main_control": {
+                    "type": "raw",
+                    "value": "${part_name}_${side}_Main"
+                },
+                "main_size": {
+                    "type": "float",
+                    "value": "0.8"
+                },
+                "part_name": {
+                    "type": "raw",
+                    "value": "Shell"
+                }
+            },
+            "code": [
+                "controls = []",
+                "shell_main = impulse.utils.control.make_control(",
+                "            name=\"${main_control}\", ",
+                "            target_transform=\"${main_control}\",",
+                "            size=${main_size}, ",
+                "            control_shape=impulse.utils.control.ControlShape.CIRCLE,",
+                "            parent=\"${controls_group}\",",
+                ")",
+                "controls.append(shell_main)",
+                "impulse.utils.spline.curveToMatrixSpline(",
+                "    \"${curve}\", ",
+                "    segments=3, ",
+                "    control_size=${main_size},",
+                "    control_shape=impulse.utils.control.ControlShape.CIRCLE,",
+                "    tweak_control_height=0.5, ",
+                "    parent=\"${main_control}_CTL\"",
+                ")",
+                "",
+                "for control in controls:",
+                "    control_transform = control.control_transform",
+                "    cmds.connectAttr(",
+                "                \"${control_layer}.controlColor\", ",
+                "                f\"{control_transform}.drawOverride.overrideColorRGB\"",
+                "            )",
+                "    cmds.setAttr(f\"{control_transform}.overrideEnabled\", 1)",
+                "    cmds.setAttr(f\"{control_transform}.overrideRGBColors\", 1)"
+            ]
+        },
         "/right": {
             "instance": "/left",
             "execute_in": "/left",
@@ -466,6 +753,9 @@
                 },
                 "side": {
                     "value": "R"
+                },
+                "side_mult": {
+                    "value": "-1"
                 }
             }
         },
@@ -476,6 +766,38 @@
                     "value": "/groups/crabby/Assets/Rigging/Scuttle/Build"
                 }
             }
-        }
+        },
+        "/side": {
+            "attrs": {
+                "control_color": {
+                    "type": "list",
+                    "value": "[0.105, 0.247, 0.411]"
+                },
+                "control_layer": {
+                    "type": "raw",
+                    "value": "${side}_ControlLayer"
+                },
+                "side": {
+                    "type": "raw",
+                    "value": "M"
+                },
+                "side_mult": {
+                    "type": "int",
+                    "value": "1"
+                }
+            },
+            "code": [
+                "settings = cmds.createNode(\"network\", name=\"${control_layer}\")",
+                "cmds.addAttr(settings, longName='controlColor', usedAsColor=True, attributeType='float3' )",
+                "cmds.addAttr(settings, longName='controlColorR', attributeType='float', parent='controlColor')",
+                "cmds.addAttr(settings, longName='controlColorG', attributeType='float', parent='controlColor')",
+                "cmds.addAttr(settings, longName='controlColorB', attributeType='float', parent='controlColor')",
+                "",
+                "cmds.setAttr(f\"{settings}.controlColor\", type=\"float3\", *${control_color})",
+                "",
+                "cmds.refresh()"
+            ]
+        },
+        "/spine": {}
     }
 }

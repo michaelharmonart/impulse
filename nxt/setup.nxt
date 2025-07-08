@@ -34,6 +34,10 @@
                     "type": "raw",
                     "value": "CTLS"
                 },
+                "controls_parent": {
+                    "type": "raw",
+                    "value": "LOCAL_CTL"
+                },
                 "def_group": {
                     "type": "raw",
                     "value": "DEF"

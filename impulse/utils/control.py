@@ -273,6 +273,7 @@ def make_control(
     direction: Direction = Direction.Y,
     opposite_direction: bool = False,
     size: float = 1,
+    dimensions: tuple[float, float, float] = (1,1,1),
     control_shape: ControlShape | str = ControlShape.CIRCLE,
     offset: float = 0,
 ) -> Control:
@@ -286,6 +287,7 @@ def make_control(
         parent: Name of the parent transform.
         direction: Direction control shape will face.
         size: Scaling factor for the control curve.
+        dimensions: Dimensions of the resulting control curve.
         control_shape: The type of control shape to create.
         offset: Vertical offset applied immediately after creation.
         use_opm: Use offset parent matrix instead of offset transform group (cleaner hierarchy)
@@ -299,7 +301,8 @@ def make_control(
     control_transform: str = create_curve(curve_shape=control_shape)
     # Adjust the control's scale, apply an offset, reset transforms, and reposition.
     control_transform: str = cmds.rename(control_transform, f"{name}_CTL")
-    cmds.scale(size, size, size, relative=False)
+    scaled_dimensions = [size * dimension for dimension in dimensions]
+    cmds.scale(*scaled_dimensions, relative=False)
     cmds.move(0, offset, 0, relative=True)
     cmds.makeIdentity(apply=True)
     cmds.xform(control_transform, pivots=(0, 0, 0))
