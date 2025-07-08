@@ -21,8 +21,10 @@
     },
     "meta_data": {
         "colors": {
+            "$NXT_BUILTINS/WidgetNodes.nxt": "#28549b",
             "/users/guest/g/graphite/maya-python/impulse/nxt/cleanup.nxt": "#2371d0",
-            "/users/guest/g/graphite/maya-python/impulse/nxt/setup.nxt": "#49936d"
+            "/users/guest/g/graphite/maya-python/impulse/nxt/setup.nxt": "#49936d",
+            "/users/guest/g/graphite/maya-python/impulse/nxt/tools.nxt": "#d0a31a"
         },
         "positions": {
             "/Cleanup": [
@@ -49,9 +51,41 @@
                 66.2052106852218,
                 -438.6958204441296
             ],
+            "/button": [
+                -1607.5243713135055,
+                -994.7650968060259
+            ],
+            "/checkbox": [
+                -1607.5243713135055,
+                -934.7650968060259
+            ],
             "/cleanup": [
                 807.2899884999038,
                 -426.00877813886905
+            ],
+            "/constrain": [
+                -1121.160508405177,
+                -981.7967620797133
+            ],
+            "/create_control": [
+                -1231.169439061695,
+                -511.835204413823
+            ],
+            "/dropDownMenu": [
+                -1607.5243713135055,
+                -874.7650968060259
+            ],
+            "/grid": [
+                -1057.774901511954,
+                -1035.36206367962
+            ],
+            "/gridLayout": [
+                -1607.5243713135055,
+                -1054.765096806026
+            ],
+            "/itemSelector": [
+                -1607.5243713135055,
+                -754.7650968060259
             ],
             "/left": [
                 -45.82891207776109,
@@ -65,21 +99,49 @@
                 -945.0742298081675,
                 14.793060446334778
             ],
+            "/main_window": [
+                -982.3084207374891,
+                -1761.544218151311
+            ],
+            "/matrix_constrain": [
+                -597.1133077527552,
+                -1242.4812298659265
+            ],
+            "/menuItem": [
+                -1607.5243713135055,
+                -814.7650968060259
+            ],
             "/node": [
-                -268.77691323339127,
-                97.96991207827566
+                -541.1336786571001,
+                -1755.079652931847
+            ],
+            "/node/node2": [
+                0.0,
+                0.0
             ],
             "/node2": [
-                -1746.0,
-                -1015.0
+                -1323.883065502404,
+                -933.6414024787582
+            ],
+            "/panel": [
+                -1607.5243713135055,
+                -1114.765096806026
             ],
             "/right": [
                 365.35294215347096,
                 -420.16197846351787
             ],
             "/setup_file": [
-                -968.4195653808782,
-                -398.2968416534414
+                -901.2357952513265,
+                -415.70539799038903
+            ],
+            "/tab": [
+                -1607.5243713135055,
+                -1174.765096806026
+            ],
+            "/window": [
+                -1607.5243713135055,
+                -1234.765096806026
             ]
         },
         "collapse": {
@@ -91,6 +153,8 @@
             "/left/legs/back": false,
             "/left/legs/front": false,
             "/leg": false,
+            "/main_window/manual_tab/main_panel/grid": false,
+            "/main_window/manual_tab/main_panel/node": true,
             "/right": false,
             "/setup_file/LoadGuides": false
         }
@@ -391,6 +455,7 @@
                 "        proxy=\"${ik_switch}\")"
             ]
         },
+        "/node/node2": {},
         "/right": {
             "instance": "/left",
             "execute_in": "/left",

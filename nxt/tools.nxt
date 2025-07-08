@@ -1,0 +1,339 @@
+{
+    "version": "1.17",
+    "alias": "tools",
+    "color": "#991c24",
+    "mute": false,
+    "solo": false,
+    "references": [
+        "$NXT_BUILTINS/WidgetNodes.nxt"
+    ],
+    "meta_data": {
+        "positions": {
+            "/button": [
+                -1160.1899959037398,
+                -733.186860840478
+            ],
+            "/checkbox": [
+                -1160.1899959037398,
+                -673.186860840478
+            ],
+            "/constrain": [
+                -932.7891977788381,
+                -1221.0551092259636
+            ],
+            "/create_control": [
+                -932.7891977788381,
+                -1221.0551092259636
+            ],
+            "/dropDownMenu": [
+                -1160.1899959037398,
+                -613.186860840478
+            ],
+            "/grid": [
+                -932.7891977788381,
+                -1221.0551092259636
+            ],
+            "/gridLayout": [
+                -1160.1899959037398,
+                -793.186860840478
+            ],
+            "/itemSelector": [
+                -1160.1899959037398,
+                -493.18686084047795
+            ],
+            "/main_window": [
+                -728.5749456282554,
+                -976.3751451587958
+            ],
+            "/menuItem": [
+                -1160.1899959037398,
+                -553.186860840478
+            ],
+            "/node": [
+                -932.7891977788381,
+                -1221.0551092259636
+            ],
+            "/panel": [
+                -1160.1899959037398,
+                -853.186860840478
+            ],
+            "/tab": [
+                -1160.1899959037398,
+                -913.186860840478
+            ],
+            "/window": [
+                -1160.1899959037398,
+                -973.186860840478
+            ]
+        },
+        "colors": {
+            "$NXT_BUILTINS/WidgetNodes.nxt": "#26aebd"
+        }
+    },
+    "nodes": {
+        "/main_window": {
+            "instance": "/window",
+            "child_order": [
+                "manual_tab"
+            ],
+            "attrs": {
+                "_widget_window": {
+                    "value": "True"
+                },
+                "background_color": {
+                    "type": "raw"
+                }
+            }
+        },
+        "/main_window/manual_tab": {
+            "instance": "/tab",
+            "child_order": [
+                "selection_panel",
+                "main_panel",
+                "curve"
+            ],
+            "attrs": {
+                "text": {
+                    "value": "Manual Tools"
+                }
+            }
+        },
+        "/main_window/manual_tab/curve": {
+            "instance": "/panel",
+            "child_order": [
+                "grid",
+                "create_control"
+            ],
+            "attrs": {
+                "text": {
+                    "type": "raw",
+                    "value": "Control"
+                }
+            }
+        },
+        "/main_window/manual_tab/curve/create_control": {
+            "instance": "/button",
+            "attrs": {
+                "control_shape": {
+                    "type": "raw",
+                    "value": "${../grid/control_selector.menu_value}"
+                },
+                "control_size": {
+                    "type": "raw",
+                    "value": "${../grid/size_selector.menu_value}"
+                },
+                "text": {
+                    "type": "raw",
+                    "value": "Create Control(s)"
+                }
+            },
+            "code": [
+                "selection = cmds.ls(selection=True)",
+                "for object in selection:",
+                "    impulse.utils.control.make_control(",
+                "            name=object.split('|')[-1], ",
+                "            target_transform=object, ",
+                "            size=${control_size}, ",
+                "            control_shape=\"${control_shape}\",",
+                "            offset=0,",
+                "            )"
+            ]
+        },
+        "/main_window/manual_tab/curve/grid": {
+            "instance": "/gridLayout",
+            "child_order": [
+                "combine_curve",
+                "write_curve",
+                "control_selector",
+                "size_selector"
+            ]
+        },
+        "/main_window/manual_tab/curve/grid/combine_curve": {
+            "instance": "/button",
+            "attrs": {
+                "text": {
+                    "type": "raw",
+                    "value": "Combine Curves"
+                }
+            },
+            "code": [
+                "impulse.utils.control.combine_curves()",
+                ""
+            ]
+        },
+        "/main_window/manual_tab/curve/grid/control_selector": {
+            "instance": "/dropDownMenu",
+            "attrs": {
+                "menu_items": {
+                    "type": "raw",
+                    "value": "Circle Square Sphere Cube Locator"
+                },
+                "menu_value": {
+                    "type": "raw",
+                    "value": "Circle"
+                },
+                "text": {
+                    "type": "raw",
+                    "value": "Control Shape"
+                }
+            }
+        },
+        "/main_window/manual_tab/curve/grid/size_selector": {
+            "instance": "/dropDownMenu",
+            "attrs": {
+                "menu_items": {
+                    "type": "raw",
+                    "value": "0.1 0.2 0.5 1 5"
+                },
+                "menu_value": {
+                    "type": "float",
+                    "value": "0.2"
+                },
+                "text": {
+                    "type": "raw",
+                    "value": "Control Shape"
+                }
+            }
+        },
+        "/main_window/manual_tab/curve/grid/write_curve": {
+            "instance": "/button",
+            "attrs": {
+                "text": {
+                    "value": "Write Curve"
+                }
+            },
+            "code": [
+                "impulse.utils.control.write_curve(force=True)",
+                ""
+            ]
+        },
+        "/main_window/manual_tab/main_panel": {
+            "instance": "/panel",
+            "child_order": [
+                "grid"
+            ],
+            "attrs": {
+                "text": {
+                    "value": "Transform"
+                }
+            }
+        },
+        "/main_window/manual_tab/main_panel/grid": {
+            "instance": "/gridLayout",
+            "child_order": [
+                "constrain",
+                "multi_constrain",
+                "orient_world",
+                "mirror"
+            ]
+        },
+        "/main_window/manual_tab/main_panel/grid/constrain": {
+            "instance": "/button",
+            "attrs": {
+                "text": {
+                    "value": "Matrix Constrain"
+                }
+            },
+            "code": [
+                "selection = cmds.ls(selection=True)",
+                "impulse.utils.transform.matrix_constraint(selection[0], selection[1])",
+                ""
+            ]
+        },
+        "/main_window/manual_tab/main_panel/grid/mirror": {
+            "instance": "/button",
+            "attrs": {
+                "text": {
+                    "type": "raw",
+                    "value": "Mirror"
+                }
+            },
+            "code": [
+                "selected = cmds.ls(selection=True)",
+                "for object in selected:",
+                "    impulse.utils.transform.mirror_transform(transform=object)"
+            ]
+        },
+        "/main_window/manual_tab/main_panel/grid/multi_constrain": {
+            "instance": "/button",
+            "attrs": {
+                "text": {
+                    "type": "raw",
+                    "value": "Multi Matrix Constrain"
+                }
+            },
+            "code": [
+                "impulse.utils.transform.constrain_transforms(STAGE.selection1, STAGE.selection2)"
+            ]
+        },
+        "/main_window/manual_tab/main_panel/grid/orient_world": {
+            "instance": "/button",
+            "attrs": {
+                "text": {
+                    "value": "Orient To World"
+                }
+            },
+            "code": [
+                "selected = cmds.ls(selection=True)",
+                "for object in selected:",
+                "    impulse.utils.transform.orient_to_world(transform=object)"
+            ]
+        },
+        "/main_window/manual_tab/selection_panel": {
+            "instance": "/panel",
+            "child_order": [
+                "grid"
+            ],
+            "attrs": {
+                "text": {
+                    "value": "Selection"
+                }
+            }
+        },
+        "/main_window/manual_tab/selection_panel/grid": {
+            "instance": "/gridLayout",
+            "child_order": [
+                "selection1",
+                "selection2",
+                "selection3"
+            ],
+            "attrs": {
+                "max_columns": {
+                    "value": "3"
+                }
+            }
+        },
+        "/main_window/manual_tab/selection_panel/grid/selection1": {
+            "instance": "/button",
+            "attrs": {
+                "selection_num": {
+                    "type": "int",
+                    "value": "1"
+                },
+                "text": {
+                    "type": "raw",
+                    "value": "Selection ${selection_num}"
+                }
+            },
+            "code": [
+                "STAGE.selection${selection_num} = cmds.ls(selection=True)"
+            ]
+        },
+        "/main_window/manual_tab/selection_panel/grid/selection2": {
+            "instance": "/main_window/manual_tab/selection_panel/grid/selection1",
+            "attrs": {
+                "selection_num": {
+                    "value": "2"
+                }
+            }
+        },
+        "/main_window/manual_tab/selection_panel/grid/selection3": {
+            "instance": "/main_window/manual_tab/selection_panel/grid/selection1",
+            "attrs": {
+                "selection_num": {
+                    "value": "3"
+                }
+            }
+        }
+    }
+}

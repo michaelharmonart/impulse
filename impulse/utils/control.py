@@ -1,5 +1,4 @@
 import json
-from typing import Any
 import maya.cmds as cmds
 
 from impulse.utils import transform
@@ -18,6 +17,7 @@ class ControlShape(Enum):
     SQUARE = 1
     CUBE = 2
     SPHERE = 3
+    LOCATOR = 4
 
 
 class Direction(Enum):
@@ -34,6 +34,7 @@ CONTROL_FILES = {
     ControlShape.SQUARE: "square",
     ControlShape.CUBE: "cube",
     ControlShape.SPHERE: "sphere",
+    ControlShape.LOCATOR: "locator",
 }
 
 
@@ -155,13 +156,15 @@ def write_curve(control: str | None = None, name: str | None = None, force: bool
 
 _loaded_control_shapes = {}
 
-def get_curve_data(curve_shape: ControlShape):
+def get_curve_data(curve_shape: ControlShape | str) -> dict:
     """
     Args:
         curve_shape(ControlShape): Name of the control shape to retrieve.
     Returns:
         dict: Curve data.
     """
+    if isinstance(curve_shape, str):
+        curve_shape: ControlShape = ControlShape[curve_shape.strip().upper()]
     if curve_shape not in _loaded_control_shapes:
         # check if curve dict is a file and convert it to dictionary if it is
         file_path = f"{CONTROL_DIR}/{CONTROL_FILES[curve_shape]}.json"
@@ -173,7 +176,7 @@ def get_curve_data(curve_shape: ControlShape):
         _loaded_control_shapes[curve_shape] = json.loads(json_data)
     return _loaded_control_shapes[curve_shape]
 
-def create_curve(curve_shape: ControlShape = ControlShape.CIRCLE) -> str:
+def create_curve(curve_shape: ControlShape | str = ControlShape.CIRCLE) -> str:
     """
     Creates a curve from the specified item in the shape library.
 
@@ -182,7 +185,8 @@ def create_curve(curve_shape: ControlShape = ControlShape.CIRCLE) -> str:
     Returns:
         str: Name of the generated curve transform.
     """
-
+    if isinstance(curve_shape, str):
+        curve_shape: ControlShape = ControlShape[curve_shape.strip().upper()]
     curve_data = get_curve_data(curve_shape=curve_shape)
     curve_transform: str
     for index, shape in enumerate(curve_data):
@@ -269,7 +273,7 @@ def make_control(
     direction: Direction = Direction.Y,
     opposite_direction: bool = False,
     size: float = 1,
-    control_shape: ControlShape = ControlShape.CIRCLE,
+    control_shape: ControlShape | str = ControlShape.CIRCLE,
     offset: float = 0,
 ) -> Control:
     """
@@ -289,6 +293,8 @@ def make_control(
     Returns:
         The name of the created control transform.
     """
+    if isinstance(control_shape, str):
+        control_shape: ControlShape = ControlShape[control_shape.strip().upper()]
     # Generate a curve
     control_transform: str = create_curve(curve_shape=control_shape)
     # Adjust the control's scale, apply an offset, reset transforms, and reposition.
