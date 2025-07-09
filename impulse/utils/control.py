@@ -261,9 +261,13 @@ def combine_curves(main_curve: str | None = None, other_curves: list[str] | None
 
 class Control:
 
-    def __init__(self, control_transform: str, offset_transform: str):
+    def __init__(self, control_transform: str, offset_transform: str, name: str | None):
         self.control_transform = control_transform
         self.offset_transform = offset_transform
+        if name:
+            self.name = name
+        else:
+            self.name = control_transform
 
 def draw_on_top(control: Control, enable: bool = True) -> None:
     shapes: list[str] = get_shapes(control.control_transform)
@@ -308,9 +312,9 @@ def make_control(
     # Adjust the control's scale, apply an offset, reset transforms, and reposition.
     control_transform: str = cmds.rename(control_transform, f"{name}_CTL")
     scaled_dimensions = [size * dimension for dimension in dimensions]
-    cmds.scale(*scaled_dimensions, relative=False)
-    cmds.move(0, offset, 0, relative=True)
-    cmds.makeIdentity(apply=True)
+    cmds.scale(*scaled_dimensions, control_transform, relative=False)
+    cmds.move(0, offset, 0, control_transform, relative=True)
+    cmds.makeIdentity(control_transform, apply=True)
     cmds.xform(control_transform, pivots=(0, 0, 0))
 
     # Comfort feature: make it so it's not possible to have negative scale
@@ -335,7 +339,7 @@ def make_control(
             cmds.rotate(-90, 0, 0)
         else:
             cmds.rotate(90, 0, 0)
-    cmds.makeIdentity(apply=True)
+    cmds.makeIdentity(control_transform, apply=True)
     cmds.xform(control_transform, pivots=(0, 0, 0))
 
     offset_transform: str = cmds.group(control_transform, name=f"{name}_OFFSET")
@@ -349,7 +353,7 @@ def make_control(
     elif position:
         cmds.move(position[0], position[1], position[2], relative=True, worldSpace=True)
         
-    return Control(control_transform=control_transform, offset_transform=offset_transform)
+    return Control(control_transform=control_transform, offset_transform=offset_transform, name=name)
 
 
 def make_surface_control(
@@ -531,7 +535,7 @@ def make_surface_control(
     if parent:
         cmds.parent(offset_transform, parent, relative=False)
 
-    return Control(control_transform=control_transform, offset_transform=offset_transform)
+    return Control(control_transform=control_transform, offset_transform=offset_transform, name=name)
 
 
 def connect_control(
