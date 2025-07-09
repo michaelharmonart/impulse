@@ -852,9 +852,9 @@ def matrix_spline_from_curve(
             dimensions=(1, 1 * tweak_control_height, 1),
             parent=ctl_group,
         )
-        segment_transform: str = cmds.joint(name=segment_name)
-        connect_control(control=segment_ctl, driven_name=segment_transform)
+        segment_transform: str = cmds.joint(name=segment_name, scaleCompensate=False)
         cmds.parent(segment_transform, def_group, absolute=False)
+        connect_control(control=segment_ctl, driven_name=segment_transform)
         pin_to_matrix_spline(
             matrix_spline=matrix_spline,
             pinned_transform=segment_ctl.offset_transform,
@@ -949,9 +949,9 @@ def matrix_spline_from_transforms(
             dimensions=(1, 1 * control_height, 1),
             parent=ctl_group,
         )
-        segment_transform: str = cmds.joint(name=segment_name)
-        connect_control(control=segment_ctl, driven_name=segment_transform)
+        segment_transform: str = cmds.joint(name=segment_name, scaleCompensate=False)
         cmds.parent(segment_transform, def_group, absolute=False)
+        connect_control(control=segment_ctl, driven_name=segment_transform)
         pin_to_matrix_spline(
             matrix_spline=matrix_spline,
             pinned_transform=segment_ctl.offset_transform,

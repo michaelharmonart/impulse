@@ -712,7 +712,7 @@
             "attrs": {
                 "control_size": {
                     "type": "float",
-                    "value": "0.1"
+                    "value": "0.5"
                 },
                 "guide_prefix": {
                     "type": "raw",
