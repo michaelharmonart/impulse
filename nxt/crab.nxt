@@ -546,7 +546,7 @@
                 "            cmds.parent(control.offset_transform, fk_group)",
                 "",
                 "            socket = ${socket} or fk_group",
-                "            socket_group = cmds.group(empty=True, name=f\"{control}_Socket\", parent=socket)",
+                "            socket_group = cmds.group(empty=True, name=f\"{control.name}_Socket\", parent=socket)",
                 "            impulse.utils.transform.match_transform(socket_group, control.control_transform)",
                 "            cmds.pointConstraint(socket_group, control.offset_transform, maintainOffset=True)",
                 "            ",
@@ -601,7 +601,7 @@
                 "        ",
                 "    if index == 0:",
                 "        socket = ${socket} or ik_group",
-                "        socket_group = cmds.group(empty=True, name=f\"{control}_Socket\", parent=socket)",
+                "        socket_group = cmds.group(empty=True, name=f\"{control.name}_Socket\", parent=socket)",
                 "        impulse.utils.transform.match_transform(socket_group, control.control_transform)",
                 "        cmds.pointConstraint(socket_group, control.offset_transform, maintainOffset=True)",
                 "",
@@ -847,7 +847,7 @@
                 },
                 "tangent_offset": {
                     "type": "float",
-                    "value": "0.3"
+                    "value": "0.2"
                 }
             },
             "code": [
@@ -902,6 +902,7 @@
                 "    if i == 0:",
                 "        tangent = cmds.group(empty=True, parent=control.control_transform, name=f\"{guide}_Tangent\")",
                 "        cmds.move(0, offset, 0, tangent, localSpace=True)",
+                "        base_control = control",
                 "        controls.append(control.control_transform)",
                 "        controls.append(tangent)",
                 "        ",
@@ -921,6 +922,7 @@
                 "        cmds.makeIdentity(control.control_transform, apply=True)",
                 "        cmds.xform(control.control_transform, pivots=(0, 0, 0)) ",
                 "        impulse.utils.transform.matrix_constraint(control.control_transform, spline_end, keep_offset=True)",
+                "        cmds.parent(control.offset_transform, base_control.control_transform)",
                 "        tangent = cmds.group(empty=True, parent=spline_end, name=f\"{guide}_Tangent\")",
                 "        cmds.move(0, offset, 0, tangent, localSpace=True)",
                 "        controls.append(tangent)",
