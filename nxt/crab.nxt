@@ -474,7 +474,6 @@
                 "    transforms=controls, ",
                 "    degree=2,",
                 "    segments=${segments}, ",
-                "    skip_first=True,",
                 "    control_size=${tweak_size},",
                 "    control_shape=impulse.utils.control.ControlShape.CUBE,",
                 "    control_height=1,",

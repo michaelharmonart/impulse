@@ -429,16 +429,18 @@ def resample(
     degree: int = 3,
     knots: list[float] | None = None,
     weights: list[float] | None = None,
+    padded: bool = True,
     sample_points: int = 256,
 ) -> list[float]:
     """
     Takes curve CV positions and returns the parameter of evenly spaced points along the curve.
     Args:
         cv_positions: list of vectors containing XYZ of the CV positions.
-        segments: Number of point positions along the curve.
+        number_of_points: Number of point positions along the curve.
         degree: Degree of the spline CVs
         knots(list): A list of knot values.
         weights(list): A list of CV weight values.
+        padded(bool): When True, the points are returned such that the end points have half a segment of spacing from the ends of the curve.
         sample_points: The number of points to sample along the curve to find even arc-length segments. More points will be more accurate/evenly spaced.
     Returns:
         list: List of the parameter values of the picked points along the curve.
@@ -465,7 +467,10 @@ def resample(
     total_length: float = arc_lengths[len(arc_lengths) - 1]
     point_parameters: list[float] = []
     for i in range(number_of_points):
-        u: float = i / (number_of_points - 1)
+        if padded:
+            u: float = (i + 0.5) / (number_of_points)
+        else:
+            u: float = i / (number_of_points - 1)
         mapped_t: float = u
         target_length: float = u * total_length
 
@@ -485,11 +490,14 @@ def resample(
             index -= 1
         length_before: float = arc_lengths[index]
 
-        # If the sample is exactly our target point return it, if it's the last, return 1, otherwise interpolate between the closest samples
+        # If the sample is exactly our target point return it, if it's the last, return the end point, otherwise interpolate between the closest samples
         if length_before == target_length:
             mapped_t = index / len(arc_lengths)
         elif i == number_of_points - 1:
-            mapped_t = 1
+            if padded:
+                mapped_t = 1 - (0.5 / number_of_points)
+            else:
+                mapped_t = 1
         else:
             sample_distance = arc_lengths[index + 1] - arc_lengths[index]
             sample_fraction = (
@@ -674,12 +682,16 @@ def pin_to_matrix_spline(
         # Get tangent vector magnitude
         tangent_vector_length = cmds.createNode("length", name=f"{segment_name}_tangentVectorLength")
         cmds.connectAttr(f"{tangent_vector}.output", f"{tangent_vector_length}.input")
-        tangent_vector_length_scaled = cmds.createNode("multDoubleLinear", name=f"{segment_name}_tangentVectorLengthScaled")
+        tangent_vector_length_scaled = cmds.createNode(
+            "multDoubleLinear", name=f"{segment_name}_tangentVectorLengthScaled"
+        )
         cmds.connectAttr(f"{tangent_vector_length}.output", f"{tangent_vector_length_scaled}.input1")
         tangent_sample = cmds.getAttr(f"{tangent_vector}.output")[0]
         tangent_length = Vector3(tangent_sample[0], tangent_sample[1], tangent_sample[2]).length()
         if tangent_length == 0:
-            raise RuntimeError(f"{pinned_transform} had a tangent magnitude of 0 and wasn't able to be pinned with stretching enabled.")
+            raise RuntimeError(
+                f"{pinned_transform} had a tangent magnitude of 0 and wasn't able to be pinned with stretching enabled."
+            )
         cmds.setAttr(
             f"{tangent_vector_length_scaled}.input2",
             1 / tangent_length,
@@ -747,6 +759,7 @@ def pin_to_matrix_spline(
 def matrix_spline_from_curve(
     curve: str,
     segments: int,
+    padded: bool = True,
     name: str | None = None,
     control_size: float = 0.1,
     control_shape: ControlShape = ControlShape.SPHERE,
@@ -761,6 +774,7 @@ def matrix_spline_from_curve(
     Args:
         curve: The curve transform.
         segments: Number of matrices to pin to the curve.
+        padded: When True, segments are sampled such that the end points have half a segment of spacing from the ends of the spline.
         name: Name of the matrix spline group to be created.
         control_size: Size of generated controls.
         control_shape: Shape of primary controls.
@@ -837,7 +851,7 @@ def matrix_spline_from_curve(
     matrix_spline.name = name
 
     segment_parameters: list[float] = resample(
-        cv_positions=cv_positions, number_of_points=segments, degree=degree, knots=knots
+        cv_positions=cv_positions, number_of_points=segments, degree=degree, knots=knots, padded=padded
     )
 
     for i in range(segments):
@@ -868,6 +882,7 @@ def matrix_spline_from_transforms(
     segments: int,
     periodic: bool = False,
     degree: int = 3,
+    padded: bool = True,
     name: str | None = None,
     control_size: float = 0.1,
     control_shape: ControlShape = ControlShape.CUBE,
@@ -877,13 +892,16 @@ def matrix_spline_from_transforms(
     skip_first: bool = False,
     spline_group: str | None = None,
     ctl_group: str | None = None,
-    def_group: str | None = None, 
+    def_group: str | None = None,
 ) -> MatrixSpline:
     """
     Takes a set of transforms (cvs) and creates a matrix spline with controls and deformation joints.
     Args:
         curve: The curve transform.
         segments: Number of matrices to pin to the curve.
+        periodic: Whether the given transforms form a periodic curve or not (no need for repeated CVs)
+        degree: Degree of the spline to be created.
+        padded: When True, segments are sampled such that the end points have half a segment of spacing from the ends of the spline.
         name: Name of the matrix spline group to be created.
         control_size: Size of generated controls.
         control_shape: Shape of primary controls.
@@ -892,7 +910,6 @@ def matrix_spline_from_transforms(
         tweak_control_size: Height multiplier for generated tweak controls.
         parent: Parent for the newly created matrix spline group.
         stretch: Whether to apply automatic scaling along the spline tangent.
-        skip_first: When True, the first generated segment will be skipped. Useful for when connecting chains of splines.
         spline_group: The container group for all the generated subcontrols and joints.
         ctl_group: The container for the generated sub-controls.
         def_group: The container for the generated deformation joints.
@@ -921,7 +938,7 @@ def matrix_spline_from_transforms(
         container_group = spline_group
 
     if not ctl_group:
-        ctl_group:str = cmds.group(empty=True, parent=container_group, name=f"{name}_CTLS")
+        ctl_group: str = cmds.group(empty=True, parent=container_group, name=f"{name}_CTLS")
     mch_group: str = cmds.group(empty=True, parent=container_group, name=f"{name}_MCH")
     if not def_group:
         def_group: str = cmds.group(empty=True, parent=container_group, name=f"{name}_DEF")
@@ -937,11 +954,11 @@ def matrix_spline_from_transforms(
     matrix_spline: MatrixSpline = MatrixSpline(cv_transforms=cv_transforms, degree=degree, periodic=periodic)
     matrix_spline.name = name
 
-    segment_parameters: list[float] = resample(cv_positions=cv_positions, number_of_points=segments, degree=degree)
+    segment_parameters: list[float] = resample(
+        cv_positions=cv_positions, number_of_points=segments, degree=degree, padded=padded
+    )
 
     for i in range(segments):
-        if i == 0 and skip_first:
-            continue
         segment_name = f"{matrix_spline.name}_matrixSpline_Segment{i + 1}"
         parameter = segment_parameters[i]
 
