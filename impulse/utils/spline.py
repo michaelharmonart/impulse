@@ -8,6 +8,7 @@ from typing import Any
 import maya.cmds as cmds
 from impulse.structs.transform import Vector3 as Vector3
 from impulse.utils.control import Control, ControlShape, connect_control, make_control
+from impulse.utils.transform import matrix_constraint
 
 
 def generate_knots(count: int, degree: int = 3) -> list[float]:
@@ -581,7 +582,21 @@ class MatrixSpline:
         self.cv_matrices = cv_matrices
 
 
-def pin_to_matrix_spline(matrix_spline: MatrixSpline, pinned_transform: str, parameter: float) -> None:
+def pin_to_matrix_spline(
+    matrix_spline: MatrixSpline, pinned_transform: str, parameter: float, stretch: bool = True
+) -> None:
+    """
+    Pins a transform to a matrix spline at a given parameter along the curve.
+
+    Args:
+        matrix_spline: The matrix spline data object.
+        pinned_transform: Transform to pin to the spline.
+        parameter: Position along the spline (0–1).
+        stretch: Whether to apply automatic scaling along the spline tangent.
+
+    Returns:
+        None
+    """
     cv_matrices: list[str] = matrix_spline.cv_matrices
     degree: int = matrix_spline.degree
     knots: list[float] = matrix_spline.knots
@@ -656,16 +671,20 @@ def pin_to_matrix_spline(matrix_spline: MatrixSpline, pinned_transform: str, par
     cmds.connectAttr(deconstruct_matrix_attribute, f"{aim_matrix_row3}.matrix")
     cmds.setAttr(f"{aim_matrix_row3}.input", 2)
 
-    # Get tangent vector magnitude
-    tangent_vector_length = cmds.createNode("length", name=f"{segment_name}_tangentVectorLength")
-    cmds.connectAttr(f"{tangent_vector}.output", f"{tangent_vector_length}.input")
-    tangent_vector_length_scaled = cmds.createNode("multDoubleLinear", name=f"{segment_name}_tangentVectorLengthScaled")
-    cmds.connectAttr(f"{tangent_vector_length}.output", f"{tangent_vector_length_scaled}.input1")
-    tangent_sample = cmds.getAttr(f"{tangent_vector}.output")[0]
-    cmds.setAttr(
-        f"{tangent_vector_length_scaled}.input2",
-        1 / Vector3(tangent_sample[0], tangent_sample[1], tangent_sample[2]).length(),
-    )
+    if stretch:
+        # Get tangent vector magnitude
+        tangent_vector_length = cmds.createNode("length", name=f"{segment_name}_tangentVectorLength")
+        cmds.connectAttr(f"{tangent_vector}.output", f"{tangent_vector_length}.input")
+        tangent_vector_length_scaled = cmds.createNode("multDoubleLinear", name=f"{segment_name}_tangentVectorLengthScaled")
+        cmds.connectAttr(f"{tangent_vector_length}.output", f"{tangent_vector_length_scaled}.input1")
+        tangent_sample = cmds.getAttr(f"{tangent_vector}.output")[0]
+        tangent_length = Vector3(tangent_sample[0], tangent_sample[1], tangent_sample[2]).length()
+        if tangent_length == 0:
+            raise RuntimeError(f"{pinned_transform} had a tangent magnitude of 0 and wasn't able to be pinned with stretching enabled.")
+        cmds.setAttr(
+            f"{tangent_vector_length_scaled}.input2",
+            1 / tangent_length,
+        )
 
     # Create Nodes to re-apply scale
     x_scaled = cmds.createNode("multiplyDivide", name=f"{segment_name}_xScale")
@@ -681,7 +700,11 @@ def pin_to_matrix_spline(matrix_spline: MatrixSpline, pinned_transform: str, par
 
     y_scaled = cmds.createNode("multiplyDivide", name=f"{segment_name}_yScale")
     y_vector_attribute = f"{aim_matrix_row2}"
-    y_scale_attribute = f"{tangent_vector_length_scaled}.output"
+    if stretch:
+        y_scale_attribute = f"{tangent_vector_length_scaled}.output"
+    else:
+        y_scale_attribute = f"{blended_matrix_row2}.outputW"
+
     cmds.connectAttr(f"{y_vector_attribute}.outputX", f"{y_scaled}.input1X")
     cmds.connectAttr(f"{y_vector_attribute}.outputY", f"{y_scaled}.input1Y")
     cmds.connectAttr(f"{y_vector_attribute}.outputZ", f"{y_scaled}.input1Z")
@@ -732,6 +755,7 @@ def matrix_spline_from_curve(
     tweak_control_shape: ControlShape = ControlShape.CUBE,
     tweak_control_height: float = 1,
     parent: str | None = None,
+    stretch: bool = True,
 ) -> MatrixSpline:
     """
     Takes a curve shape and creates a matrix spline with controls and deformation joints.
@@ -745,6 +769,8 @@ def matrix_spline_from_curve(
         tweak_control_shape: Shape of tweak controls.
         tweak_control_size: Height multiplier for generated tweak controls.
         parent: Parent for the newly created matrix spline group.
+        stretch: Whether to apply automatic scaling along the spline tangent.
+
     Returns:
         matrix_spline: The resulting matrix spline.
     """
@@ -806,7 +832,6 @@ def matrix_spline_from_curve(
         cv_transforms.append(cv_transform)
         cmds.parent(cv_transform, mch_group)
         cmds.parent(control.offset_transform, ctl_group)
-
     matrix_spline: MatrixSpline = MatrixSpline(
         cv_transforms=cv_transforms, degree=degree, knots=knots, periodic=periodic
     )
@@ -831,25 +856,31 @@ def matrix_spline_from_curve(
         connect_control(control=segment_ctl, driven_name=segment_transform)
         cmds.parent(segment_transform, def_group, absolute=False)
         pin_to_matrix_spline(
-            matrix_spline=matrix_spline, pinned_transform=segment_ctl.offset_transform, parameter=parameter
+            matrix_spline=matrix_spline,
+            pinned_transform=segment_ctl.offset_transform,
+            parameter=parameter,
+            stretch=stretch,
         )
     return matrix_spline
 
-def matrix_spline_from_guides(
-    guides: list[str],
+
+def matrix_spline_from_transforms(
+    transforms: list[str],
     segments: int,
     periodic: bool = False,
     degree: int = 3,
     name: str | None = None,
     control_size: float = 0.1,
-    control_shape: ControlShape = ControlShape.SPHERE,
-    tweak_control_size: float = 1,
-    tweak_control_shape: ControlShape = ControlShape.CUBE,
-    tweak_control_height: float = 1,
+    control_shape: ControlShape = ControlShape.CUBE,
+    control_height: float = 1,
     parent: str | None = None,
+    stretch: bool = True,
+    spline_group: str | None = None,
+    ctl_group: str | None = None,
+    def_group: str | None = None, 
 ) -> MatrixSpline:
     """
-    Takes a set of guides (cvs) and creates a matrix spline with controls and deformation joints.
+    Takes a set of transforms (cvs) and creates a matrix spline with controls and deformation joints.
     Args:
         curve: The curve transform.
         segments: Number of matrices to pin to the curve.
@@ -860,62 +891,52 @@ def matrix_spline_from_guides(
         tweak_control_shape: Shape of tweak controls.
         tweak_control_size: Height multiplier for generated tweak controls.
         parent: Parent for the newly created matrix spline group.
+        stretch: Whether to apply automatic scaling along the spline tangent.
+        spline_group: The container group for all the generated subcontrols and joints.
+        ctl_group: The container for the generated sub-controls.
+        def_group: The container for the generated deformation joints.
     Returns:
         matrix_spline: The resulting matrix spline.
     """
 
     cv_positions: list[str] = []
 
-    for guide in guides:
-        position = cmds.xform(guide, query=True, worldSpace=True, translation=True)
+    for transform in transforms:
+        position = cmds.xform(transform, query=True, worldSpace=True, translation=True)
         cv_positions.append(Vector3(*position))
-
-    if not parent:
-        if cmds.listRelatives(guides[0], parent=True):
-            curve_parent: str = cmds.listRelatives(guides[0], parent=True)[0]
+    if not spline_group:
+        if not parent:
+            if cmds.listRelatives(transforms[0], parent=True):
+                curve_parent: str = cmds.listRelatives(transforms[0], parent=True)[0]
+            else:
+                curve_parent: str = None
+            if curve_parent:
+                container_group: str = cmds.group(empty=True, parent=curve_parent, name=f"{name}_MatrixSpline_GRP")
+            else:
+                container_group: str = cmds.group(empty=True, name=f"{name}_MatrixSpline_GRP")
         else:
-            curve_parent: str = None
-        if curve_parent:
-            container_group: str = cmds.group(empty=True, parent=curve_parent, name=f"{name}_MatrixSpline_GRP")
-        else:
-            container_group: str = cmds.group(empty=True, name=f"{name}_MatrixSpline_GRP")
+            container_group: str = cmds.group(empty=True, parent=parent, name=f"{name}_MatrixSpline_GRP")
     else:
-        container_group: str = cmds.group(empty=True, parent=parent, name=f"{name}_MatrixSpline_GRP")
-    
-    ctl_group: str = cmds.group(empty=True, parent=container_group, name=f"{name}_CTLS")
-    mch_group: str = cmds.group(empty=True, parent=container_group, name=f"{name}_MCH")
-    def_group: str = cmds.group(empty=True, parent=container_group, name=f"{name}_DEF")
+        container_group = spline_group
 
-    filtered_guides: list[Vector3] = list(guides)
-    # If the curve is periodic there are duplicate CVs that move together. Remove them.
-    if periodic:
-        for i in range(degree):
-            guides.pop(-1)
+    if not ctl_group:
+        ctl_group:str = cmds.group(empty=True, parent=container_group, name=f"{name}_CTLS")
+    mch_group: str = cmds.group(empty=True, parent=container_group, name=f"{name}_MCH")
+    if not def_group:
+        def_group: str = cmds.group(empty=True, parent=container_group, name=f"{name}_DEF")
 
     # Create CV Transforms
     cv_transforms: list[str] = []
-    for i, guide in enumerate(guides):
-        # Create Transform for CV and move it to the position of the CV on the curve
-        control: Control = make_control(
-            name=f"{name}_CV{i}",
-            target_transform=guide,
-            control_shape=control_shape,
-            size=control_size,
-        )
+    for i, transform in enumerate(transforms):
         cv_transform: str = cmds.group(name=f"{name}_CV{i}", empty=True)
-        connect_control(control=control, driven_name=cv_transform)
+        matrix_constraint(transform, cv_transform, keep_offset=False)
         cv_transforms.append(cv_transform)
         cmds.parent(cv_transform, mch_group)
-        cmds.parent(control.offset_transform, ctl_group)
 
-    matrix_spline: MatrixSpline = MatrixSpline(
-        cv_transforms=cv_transforms, degree=degree, periodic=periodic
-    )
+    matrix_spline: MatrixSpline = MatrixSpline(cv_transforms=cv_transforms, degree=degree, periodic=periodic)
     matrix_spline.name = name
 
-    segment_parameters: list[float] = resample(
-        cv_positions=cv_positions, number_of_points=segments, degree=degree
-    )
+    segment_parameters: list[float] = resample(cv_positions=cv_positions, number_of_points=segments, degree=degree)
 
     for i in range(segments):
         segment_name = f"{matrix_spline.name}_matrixSpline_Segment{i + 1}"
@@ -923,15 +944,18 @@ def matrix_spline_from_guides(
 
         segment_ctl: Control = make_control(
             name=segment_name,
-            control_shape=tweak_control_shape,
-            size=control_size * tweak_control_size,
-            dimensions=(1, 1 * tweak_control_height, 1),
+            control_shape=control_shape,
+            size=control_size,
+            dimensions=(1, 1 * control_height, 1),
             parent=ctl_group,
         )
         segment_transform: str = cmds.joint(name=segment_name)
         connect_control(control=segment_ctl, driven_name=segment_transform)
         cmds.parent(segment_transform, def_group, absolute=False)
         pin_to_matrix_spline(
-            matrix_spline=matrix_spline, pinned_transform=segment_ctl.offset_transform, parameter=parameter
+            matrix_spline=matrix_spline,
+            pinned_transform=segment_ctl.offset_transform,
+            parameter=parameter,
+            stretch=stretch,
         )
     return matrix_spline

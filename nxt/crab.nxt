@@ -87,6 +87,10 @@
                 -1607.5243713135055,
                 -1054.765096806026
             ],
+            "/ik": [
+                -163.99694492591232,
+                402.286026870311
+            ],
             "/itemSelector": [
                 -1607.5243713135055,
                 -754.7650968060259
@@ -251,7 +255,7 @@
             "attrs": {
                 "release": {
                     "type": "bool",
-                    "value": "True"
+                    "value": "False"
                 }
             },
             "code": [
@@ -317,6 +321,9 @@
                 "reverse_segments": {
                     "type": "int",
                     "value": "2"
+                },
+                "socket": {
+                    "value": "\"Spine_M_matrixSpline_Segment3_CTL\""
                 }
             }
         },
@@ -343,6 +350,9 @@
                 "reverse_segments": {
                     "type": "int",
                     "value": "3"
+                },
+                "socket": {
+                    "value": "\"Spine_M_matrixSpline_Segment1_CTL\""
                 }
             }
         },
@@ -356,6 +366,10 @@
                 "reverse_segments": {
                     "type": "int",
                     "value": "3"
+                },
+                "socket": {
+                    "type": "str",
+                    "value": "\"Spine_M_matrixSpline_Segment2_CTL\""
                 }
             },
             "code": [
@@ -398,72 +412,6 @@
                 ""
             ]
         },
-        "/left/legs/front/controls/ik": {
-            "code": [
-                "controls = []",
-                "ik_group = cmds.group(empty=True, name=\"${part_name}_IK_CTLS\", parent=\"${part_ctls}\")",
-                "ik_joints = self.ik_joints",
-                "ik_switch_reverse = cmds.createNode(\"subtract\")",
-                "cmds.setAttr(f\"{ik_switch_reverse}.input1\", 1)",
-                "cmds.connectAttr(\"${ik_switch}\", f\"{ik_switch_reverse}.input2\")",
-                "cmds.connectAttr(f\"{ik_switch_reverse}.output\", f\"{ik_group}.visibility\")",
-                "",
-                "reversed_joints = ik_joints[::-1]",
-                "control_joints = [ik_joints[0]]+reversed_joints[:${reverse_segments}]",
-                "print(control_joints)",
-                "pole_vector_parent: str",
-                "for index, joint in enumerate(control_joints):",
-                "    if index == 1:",
-                "        control_shape=impulse.utils.control.ControlShape.CUBE",
-                "    else:",
-                "        control_shape=impulse.utils.control.ControlShape.CIRCLE",
-                "        ",
-                "    control = impulse.utils.control.make_control(",
-                "        name=joint, ",
-                "        target_transform=joint, ",
-                "        size=${control_size}, ",
-                "        control_shape=control_shape,",
-                "        offset=0,",
-                "        )",
-                "    controls.append(control)",
-                "        ",
-                "    # Parent to the control group, or the parent control.",
-                "    if index > 1:",
-                "        cmds.parent(control.offset_transform, controls[index - 1].control_transform)",
-                "    else:",
-                "        cmds.parent(control.offset_transform, ik_group)",
-                "    if index == ${reverse_segments}:",
-                "        pole_vector_parent = control.control_transform",
-                "    control_transform = control.control_transform",
-                "    impulse.utils.control.connect_control(control, joint)",
-                "",
-                "pv_control = impulse.utils.control.make_control(",
-                "    name=\"${pole_vector}\", ",
-                "    target_transform=\"${pole_vector}\", ",
-                "    size=${pole_vector_size}, ",
-                "    control_shape=impulse.utils.control.ControlShape.SPHERE,",
-                "    offset=0,",
-                "    )    ",
-                "cmds.parent(pv_control.offset_transform, pole_vector_parent)",
-                "impulse.utils.control.connect_control(pv_control, \"${pole_vector}_IN\")            ",
-                "for control in controls: ",
-                "    control_transform = control.control_transform       ",
-                "    # Set up control colors    ",
-                "    cmds.connectAttr(",
-                "        \"${control_layer}.controlColor\", ",
-                "        f\"{control_transform}.drawOverride.overrideColorRGB\"",
-                "    )",
-                "    cmds.setAttr(f\"{control_transform}.overrideEnabled\", 1)",
-                "    cmds.setAttr(f\"{control_transform}.overrideRGBColors\", 1)",
-                "    ",
-                "    ",
-                "    cmds.addAttr(",
-                "        control_transform,",
-                "        longName=\"${part_name}_IkFkSwitch\", ",
-                "        niceName=f\"{self.part_name.replace('_', ' ')} IK FK Switch\", ",
-                "        proxy=\"${ik_switch}\")"
-            ]
-        },
         "/limb": {
             "child_order": [
                 "controls"
@@ -494,6 +442,10 @@
                 "side": {
                     "type": "raw",
                     "value": "L"
+                },
+                "socket": {
+                    "type": "NoneType",
+                    "value": "None"
                 }
             },
             "code": [
@@ -554,7 +506,14 @@
             "code": [
                 "ctls = cmds.group(empty=True, name=\"${part_name}_CTLS\", parent=\"${controls_parent}\")",
                 "cmds.scale(${side_mult}, 1, 1, ctls, absolute=True)",
-                "self.part_ctls = ctls"
+                "self.part_ctls = ctls",
+                "",
+                "cmds.connectAttr(",
+                "    \"${control_layer}.controlColor\", ",
+                "    f\"{ctls}.drawOverride.overrideColorRGB\"",
+                ")",
+                "cmds.setAttr(f\"{ctls}.overrideEnabled\", 1)",
+                "cmds.setAttr(f\"{ctls}.overrideRGBColors\", 1)"
             ]
         },
         "/limb/controls/fk": {
@@ -583,18 +542,12 @@
                 "            cmds.parent(control.offset_transform, controls[index - 1].control_transform)",
                 "        else:",
                 "            cmds.parent(control.offset_transform, fk_group)",
+                "",
+                "            socket = ${socket} or fk_group",
+                "            cmds.pointConstraint(socket, control.offset_transform, maintainOffset=True)",
+                "            ",
                 "        ",
-                "         # Set up control colors    ",
                 "        control_transform = control.control_transform",
-                "        impulse.utils.control.connect_control(control, joint)",
-                "        cmds.connectAttr(",
-                "            \"${control_layer}.controlColor\", ",
-                "            f\"{control_transform}.drawOverride.overrideColorRGB\"",
-                "        )",
-                "        cmds.setAttr(f\"{control_transform}.overrideEnabled\", 1)",
-                "        cmds.setAttr(f\"{control_transform}.overrideRGBColors\", 1)",
-                "        ",
-                "        ",
                 "        cmds.addAttr(",
                 "            control_transform,",
                 "            longName=\"${part_name}_IkFkSwitch\", ",
@@ -620,7 +573,6 @@
                 "",
                 "reversed_joints = ik_joints[::-1]",
                 "control_joints = [ik_joints[0]]+reversed_joints[:${reverse_segments}]",
-                "print(control_joints)",
                 "pole_vector_parent: str",
                 "for index, joint in enumerate(control_joints):",
                 "    if index == 1:",
@@ -642,6 +594,11 @@
                 "        cmds.parent(control.offset_transform, controls[index - 1].control_transform)",
                 "    else:",
                 "        cmds.parent(control.offset_transform, ik_group)",
+                "        ",
+                "    if index == 0:",
+                "        socket = ${socket} or ik_group",
+                "        cmds.pointConstraint(socket, control.offset_transform, maintainOffset=True)",
+                "",
                 "    if index == ${reverse_segments}:",
                 "        pole_vector_parent = control.control_transform",
                 "    control_transform = control.control_transform",
@@ -657,15 +614,8 @@
                 "cmds.parent(pv_control.offset_transform, pole_vector_parent)",
                 "impulse.utils.control.connect_control(pv_control, \"${pole_vector}_IN\")            ",
                 "for control in controls: ",
+                "",
                 "    control_transform = control.control_transform       ",
-                "    # Set up control colors    ",
-                "    cmds.connectAttr(",
-                "        \"${control_layer}.controlColor\", ",
-                "        f\"{control_transform}.drawOverride.overrideColorRGB\"",
-                "    )",
-                "    cmds.setAttr(f\"{control_transform}.overrideEnabled\", 1)",
-                "    cmds.setAttr(f\"{control_transform}.overrideRGBColors\", 1)",
-                "    ",
                 "    ",
                 "    cmds.addAttr(",
                 "        control_transform,",
@@ -706,6 +656,7 @@
             "execute_in": "/base",
             "child_order": [
                 "cog",
+                "spine",
                 "shell"
             ],
             "attrs": {
@@ -757,7 +708,12 @@
             ]
         },
         "/middle/shell": {
+            "enabled": true,
             "attrs": {
+                "control_size": {
+                    "type": "float",
+                    "value": "0.1"
+                },
                 "guide_prefix": {
                     "type": "raw",
                     "value": "${part_name}_Squash"
@@ -785,10 +741,17 @@
                 "segments": {
                     "type": "int",
                     "value": "3"
+                },
+                "spline_name": {
+                    "type": "raw",
+                    "value": "${part_name}_Squash"
+                },
+                "tweak_size": {
+                    "type": "float",
+                    "value": "0.8"
                 }
             },
             "code": [
-                "controls = []",
                 "shell_main = impulse.utils.control.make_control(",
                 "            name=\"${main_control}\", ",
                 "            target_transform=\"${main_control}\",",
@@ -797,26 +760,109 @@
                 "            parent=\"${cog_guide}_CTL\",",
                 "            offset=2,",
                 ")",
-                "controls.append(shell_main)",
-                "impulse.utils.spline.matrix_spline_from_guides(",
-                "    name=\"${guide_prefix}\",",
-                "    guides=${guides}, ",
+                "",
+                "part_group = cmds.group(empty=True, name=\"${spline_name}\", parent=shell_main.control_transform)",
+                "def_group = cmds.group(empty=True, name=\"${part_name}_DEF\", parent=\"${def_group}\")",
+                "guides = ${guides} ",
+                "controls = []",
+                "for i, guide in enumerate(guides):",
+                "    control = impulse.utils.control.make_control(",
+                "            name=guide, ",
+                "            size=${control_size}, ",
+                "            target_transform=guide,",
+                "            control_shape=impulse.utils.control.ControlShape.SPHERE,",
+                "            parent=part_group,  ",
+                "    )",
+                "    controls.append(control.control_transform)",
+                "",
+                "impulse.utils.spline.matrix_spline_from_transforms(",
+                "    name=\"${spline_name}\",",
+                "    transforms=controls, ",
                 "    degree=2,",
                 "    segments=${segments}, ",
-                "    control_size=${main_size}*0.5,",
-                "    control_shape=impulse.utils.control.ControlShape.CIRCLE,",
-                "    tweak_control_height=0.2, ",
-                "    parent=\"${main_control}_CTL\"",
+                "    control_size=${tweak_size},",
+                "    control_shape=impulse.utils.control.ControlShape.CUBE,",
+                "    control_height=0.1,",
+                "    parent=part_group,",
+                "    spline_group=part_group,",
+                "    def_group=def_group,",
                 ")",
+                ""
+            ]
+        },
+        "/middle/spine": {
+            "enabled": true,
+            "attrs": {
+                "control_size": {
+                    "type": "float",
+                    "value": "0.5"
+                },
+                "guides": {
+                    "type": "list",
+                    "value": "['Body_M_Section1', 'Body_M_Section2' , 'Head_M_END']"
+                },
+                "part_name": {
+                    "type": "raw",
+                    "value": "${prefix}${side}"
+                },
+                "prefix": {
+                    "type": "raw",
+                    "value": "Spine_"
+                },
+                "segments": {
+                    "type": "int",
+                    "value": "4"
+                },
+                "tangent_offset": {
+                    "type": "float",
+                    "value": "0.3"
+                }
+            },
+            "code": [
+                "part_group = cmds.group(empty=True, name=\"${part_name}\", parent=\"${cog_guide}_CTL\")",
+                "def_group = cmds.group(empty=True, name=\"${part_name}_DEF\", parent=\"${def_group}\")",
+                "controls = []",
+                "guides = ${guides} ",
+                "for i, guide in enumerate(guides):",
+                "    guide_len = len(guides)",
+                "    if i== 0:",
+                "        offset = ${tangent_offset}",
+                "    if i == guide_len-1:",
+                "        offset = -${tangent_offset}",
+                "        ",
+                "    control = impulse.utils.control.make_control(",
+                "            name=guide, ",
+                "            size=${control_size}, ",
+                "            target_transform=guide,",
+                "            control_shape=impulse.utils.control.ControlShape.CIRCLE,",
+                "            parent=part_group,  ",
+                "    )",
+                "    ",
+                "    if i == 0:",
+                "        tangent = cmds.group(empty=True, parent=control.control_transform, name=f\"{guide}_Tangent\")",
+                "        cmds.move(0, offset, 0, tangent, localSpace=True)",
+                "        controls.append(control.control_transform)",
+                "        controls.append(tangent)",
+                "    elif i == guide_len-1:   ",
+                "        tangent = cmds.group(empty=True, parent=control.control_transform, name=f\"{guide}_Tangent\")",
+                "        cmds.move(0, offset, 0, tangent, localSpace=True)",
+                "        controls.append(tangent)",
+                "        controls.append(control.control_transform)",
+                "    else:",
+                "        controls.append(control.control_transform)",
                 "",
-                "for control in controls:",
-                "    control_transform = control.control_transform",
-                "    cmds.connectAttr(",
-                "                \"${control_layer}.controlColor\", ",
-                "                f\"{control_transform}.drawOverride.overrideColorRGB\"",
-                "            )",
-                "    cmds.setAttr(f\"{control_transform}.overrideEnabled\", 1)",
-                "    cmds.setAttr(f\"{control_transform}.overrideRGBColors\", 1)"
+                "impulse.utils.spline.matrix_spline_from_transforms(",
+                "    name=\"${part_name}\",",
+                "    transforms=controls, ",
+                "    degree=3,",
+                "    segments=${segments}, ",
+                "    control_size=${control_size},",
+                "    control_shape=impulse.utils.control.ControlShape.CUBE,",
+                "    control_height=0.1,",
+                "    parent=part_group,",
+                "    spline_group=part_group,",
+                "    def_group=def_group,",
+                ")"
             ]
         },
         "/right": {

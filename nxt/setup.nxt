@@ -110,7 +110,12 @@
         "/setup_file/load_guides": {
             "code": [
                 "cmds.file(\"${guides_path}\", i=True, defaultNamespace=True)",
-                "cmds.parent(\"${guides_group}\", \"${rig_group}\")"
+                "cmds.parent(\"${guides_group}\", \"${rig_group}\")",
+                "",
+                "joints = cmds.listRelatives(\"${guides_group}\", allDescendents=True, type=\"joint\") or []",
+                "",
+                "for joint in joints:",
+                "    cmds.setAttr(f\"{joint}.segmentScaleCompensate\", 0)"
             ]
         }
     }
