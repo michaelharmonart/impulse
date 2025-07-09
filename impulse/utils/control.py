@@ -1,4 +1,5 @@
 import json
+from typing import Literal
 import maya.cmds as cmds
 
 from impulse.utils import transform
@@ -264,6 +265,11 @@ class Control:
         self.control_transform = control_transform
         self.offset_transform = offset_transform
 
+def draw_on_top(control: Control, enable: bool = True) -> None:
+    shapes: list[str] = get_shapes(control.control_transform)
+    value: Literal[1, 0] = 1 if enable else 0
+    for shape in shapes:
+        cmds.setAttr(f"{shape}.alwaysDrawOnTop", value)
 
 def make_control(
     name: str,

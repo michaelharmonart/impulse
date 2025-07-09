@@ -3,7 +3,6 @@ Functions for working with splines.
 
 """
 
-from turtle import position
 from typing import Any
 import maya.cmds as cmds
 from impulse.structs.transform import Vector3 as Vector3
