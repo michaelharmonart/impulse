@@ -120,7 +120,7 @@
                 -814.7650968060259
             ],
             "/middle": [
-                -35.277208503850495,
+                -40.28211879860541,
                 -415.8295250669091
             ],
             "/node": [
@@ -140,8 +140,8 @@
                 -1114.765096806026
             ],
             "/right": [
-                784.1801029278697,
-                -419.61047075752293
+                793.6205796271569,
+                -417.2503515827012
             ],
             "/setup_file": [
                 -975.6257851978987,
@@ -172,6 +172,9 @@
             "/base": false,
             "/left": false,
             "/left/arms": false,
+            "/left/eye/eye": true,
+            "/left/eye/stalk": true,
+            "/left/legs": false,
             "/left/legs/back": false,
             "/left/legs/front": false,
             "/limb": false,
@@ -277,7 +280,8 @@
             "execute_in": "/middle",
             "child_order": [
                 "arms",
-                "legs"
+                "legs",
+                "eye"
             ],
             "attrs": {
                 "control_color": {
@@ -328,6 +332,243 @@
                     "value": "\"Spine_M_matrixSpline_Segment3_CTL\""
                 }
             }
+        },
+        "/left/eye": {
+            "child_order": [
+                "stalk",
+                "eye"
+            ],
+            "attrs": {
+                "ctl_group": {
+                    "type": "raw",
+                    "value": "${part_name}_CTLS"
+                },
+                "parent": {
+                    "type": "raw",
+                    "value": "Head_M_END_CTL"
+                },
+                "part_def": {
+                    "type": "raw",
+                    "value": "${part_name}_DEF"
+                },
+                "part_group": {
+                    "type": "raw",
+                    "value": "${part_name}_MCH"
+                },
+                "part_name": {
+                    "type": "raw",
+                    "value": "${prefix}${side}"
+                },
+                "prefix": {
+                    "type": "raw",
+                    "value": "Eye_"
+                },
+                "stalk": {
+                    "type": "list",
+                    "value": "['Stalk_BASE','Stalk_MID', 'Eye']"
+                },
+                "tweak_attr": {
+                    "type": "raw",
+                    "value": "${part_name}_ControlPanel.${tweak_attr_long}"
+                },
+                "tweak_attr_long": {
+                    "type": "raw",
+                    "value": "tweakVisibility"
+                },
+                "tweak_attr_nice": {
+                    "type": "raw",
+                    "value": "Tweak Control Visibility"
+                },
+                "tweak_group": {
+                    "type": "raw",
+                    "value": "${part_name}_Tweak_CTLS"
+                }
+            },
+            "code": [
+                "part_group = cmds.group(empty=True, name=\"${part_group}\", parent=\"${parent}\")",
+                "def_group = cmds.group(empty=True, name=\"${part_def}\", parent=\"${def_group}\")",
+                "ctl_group = cmds.group(empty=True, name=\"${part_name}_CTLS\", parent=part_group)",
+                "tweak_group = cmds.group(empty=True, name=\"${tweak_group}\", parent=part_group)",
+                "",
+                "",
+                "cmds.connectAttr(",
+                "    \"${control_layer}.controlColor\", ",
+                "    f\"{ctl_group}.drawOverride.overrideColorRGB\"",
+                ")",
+                "cmds.setAttr(f\"{ctl_group}.overrideEnabled\", 1)",
+                "cmds.setAttr(f\"{ctl_group}.overrideRGBColors\", 1)",
+                "",
+                "control_panel: str = cmds.createNode(\"network\", name=\"${part_name}_ControlPanel\")",
+                "cmds.addAttr(",
+                "            control_panel,",
+                "            longName=\"${tweak_attr_long}\", ",
+                "            niceName=\"${tweak_attr_nice}\", ",
+                "            attributeType=\"bool\",",
+                "            )",
+                "tweak_attr = f\"{control_panel}.${tweak_attr_long}\"",
+                "cmds.setAttr(tweak_attr, channelBox=True)   ",
+                "",
+                "cmds.connectAttr(\"${tweak_attr}\", \"${tweak_group}.visibility\")"
+            ]
+        },
+        "/left/eye/eye": {
+            "attrs": {
+                "control_size": {
+                    "type": "float",
+                    "value": "0.1"
+                },
+                "joints": {},
+                "main_size": {
+                    "type": "float",
+                    "value": "0.15"
+                },
+                "parent": {
+                    "type": "raw",
+                    "value": "${part_name}_Eye_BASE_CTL"
+                },
+                "segments": {
+                    "type": "int",
+                    "value": "3"
+                },
+                "socket": {
+                    "type": "raw",
+                    "value": "Spine_M_matrixSpline_Segment4_CTL"
+                },
+                "stalk": {
+                    "type": "list",
+                    "value": "['Eye_BASE','Eye_MID', 'END']"
+                },
+                "tweak_size": {
+                    "type": "float",
+                    "value": "0.05"
+                }
+            },
+            "code": [
+                "joints = [f\"${prefix}${side}_{joint}\" for joint in self.stalk]",
+                "",
+                "self.joints = joints  ",
+                "part_group = \"${part_group}\"",
+                "def_group = \"${part_def}\"",
+                "ctl_group = \"${ctl_group}\"",
+                "tweak_group = \"${tweak_group}\"",
+                "",
+                "controls = []",
+                "for i, guide in enumerate(joints):",
+                "",
+                "    if i == 0:",
+                "        controls.append(\"${parent}\")",
+                "    else:",
+                "        control = impulse.utils.control.make_control(",
+                "            name=guide, ",
+                "            size=${control_size}, ",
+                "            target_transform=guide,",
+                "            control_shape=impulse.utils.control.ControlShape.CIRCLE,",
+                "            parent=ctl_group,  ",
+                "        )",
+                "        controls.append(control.control_transform)",
+                "        cmds.parent(control.offset_transform, controls[i-1])",
+                "    ",
+                "",
+                "impulse.utils.spline.matrix_spline_from_transforms(",
+                "    name=\"${part_name}_Eye\",",
+                "    transforms=controls, ",
+                "    degree=2,",
+                "    segments=${segments}, ",
+                "    skip_first=True,",
+                "    control_size=${tweak_size},",
+                "    control_shape=impulse.utils.control.ControlShape.CUBE,",
+                "    control_height=1,",
+                "    parent=part_group,",
+                "    spline_group=part_group,",
+                "    def_group=def_group,",
+                "    ctl_group=tweak_group,",
+                ")",
+                "",
+                "for i, control in enumerate(controls):",
+                "    if i == 0:",
+                "        continue",
+                "    cmds.addAttr(",
+                "        control,",
+                "        longName=f\"${part_name}_${tweak_attr_long}\", ",
+                "        niceName=f\"{self.part_name.replace('_', ' ')} ${tweak_attr_nice}\", ",
+                "        proxy=\"${tweak_attr}\")"
+            ]
+        },
+        "/left/eye/stalk": {
+            "attrs": {
+                "attr": {},
+                "control_size": {
+                    "type": "float",
+                    "value": "0.1"
+                },
+                "joints": {},
+                "main_size": {
+                    "type": "float",
+                    "value": "0.15"
+                },
+                "segments": {
+                    "type": "int",
+                    "value": "3"
+                },
+                "socket": {
+                    "type": "raw",
+                    "value": "Spine_M_matrixSpline_Segment4_CTL"
+                },
+                "stalk": {
+                    "type": "list",
+                    "value": "['Stalk_BASE','Stalk_MID', 'Eye_BASE']"
+                },
+                "tweak_size": {
+                    "type": "float",
+                    "value": "0.05"
+                }
+            },
+            "code": [
+                "joints = [f\"${prefix}${side}_{joint}\" for joint in self.stalk]",
+                "",
+                "self.joints = joints  ",
+                "part_group = \"${part_group}\"",
+                "def_group = \"${part_def}\"",
+                "ctl_group = \"${ctl_group}\"",
+                "tweak_group = \"${tweak_group}\"",
+                "",
+                "",
+                "controls = []",
+                "for i, guide in enumerate(joints):",
+                "    control = impulse.utils.control.make_control(",
+                "            name=guide, ",
+                "            size=${control_size}, ",
+                "            target_transform=guide,",
+                "            control_shape=impulse.utils.control.ControlShape.CIRCLE,",
+                "            parent=ctl_group,  ",
+                "    )",
+                "    controls.append(control.control_transform)",
+                "    if i == 0:",
+                "        impulse.utils.transform.matrix_constraint(\"${socket}\", control.offset_transform, keep_offset=True)",
+                "    else:",
+                "        cmds.parent(control.offset_transform, controls[i-1])",
+                "",
+                "impulse.utils.spline.matrix_spline_from_transforms(",
+                "    name=\"${part_name}_Stalk\",",
+                "    transforms=controls, ",
+                "    degree=2,",
+                "    segments=${segments}, ",
+                "    control_size=${tweak_size},",
+                "    control_shape=impulse.utils.control.ControlShape.CUBE,",
+                "    control_height=1,",
+                "    parent=part_group,",
+                "    spline_group=part_group,",
+                "    def_group=def_group,",
+                "    ctl_group=tweak_group,",
+                ")",
+                "",
+                "for control in controls:",
+                "    cmds.addAttr(",
+                "        control,",
+                "        longName=f\"${part_name}_${tweak_attr_long}\", ",
+                "        niceName=f\"{self.part_name.replace('_', ' ')} ${tweak_attr_nice}\", ",
+                "        proxy=\"${tweak_attr}\")"
+            ]
         },
         "/left/legs": {
             "child_order": [
@@ -978,6 +1219,9 @@
         "/right": {
             "instance": "/left",
             "execute_in": "/left",
+            "child_order": [
+                "eye"
+            ],
             "attrs": {
                 "control_color": {
                     "type": "list",
@@ -990,6 +1234,12 @@
                     "value": "-1"
                 }
             }
+        },
+        "/right/eye": {
+            "child_order": [
+                "stalk",
+                "eye"
+            ]
         },
         "/setup_file": {
             "start_point": true,
@@ -1029,7 +1279,6 @@
                 "",
                 "cmds.refresh()"
             ]
-        },
-        "/spine": {}
+        }
     }
 }

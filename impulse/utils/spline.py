@@ -874,6 +874,7 @@ def matrix_spline_from_transforms(
     control_height: float = 1,
     parent: str | None = None,
     stretch: bool = True,
+    skip_first: bool = False,
     spline_group: str | None = None,
     ctl_group: str | None = None,
     def_group: str | None = None, 
@@ -891,6 +892,7 @@ def matrix_spline_from_transforms(
         tweak_control_size: Height multiplier for generated tweak controls.
         parent: Parent for the newly created matrix spline group.
         stretch: Whether to apply automatic scaling along the spline tangent.
+        skip_first: When True, the first generated segment will be skipped. Useful for when connecting chains of splines.
         spline_group: The container group for all the generated subcontrols and joints.
         ctl_group: The container for the generated sub-controls.
         def_group: The container for the generated deformation joints.
@@ -938,6 +940,8 @@ def matrix_spline_from_transforms(
     segment_parameters: list[float] = resample(cv_positions=cv_positions, number_of_points=segments, degree=degree)
 
     for i in range(segments):
+        if i == 0 and skip_first:
+            continue
         segment_name = f"{matrix_spline.name}_matrixSpline_Segment{i + 1}"
         parameter = segment_parameters[i]
 

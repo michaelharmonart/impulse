@@ -1,0 +1,10 @@
+{
+    "version": "1.17",
+    "alias": "king",
+    "color": "#0052aa",
+    "mute": false,
+    "solo": false,
+    "references": [
+        "/users/guest/g/graphite/maya-python/impulse/nxt/crab.nxt"
+    ]
+}
