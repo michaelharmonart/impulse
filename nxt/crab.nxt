@@ -170,6 +170,7 @@
             "/SetupFile": false,
             "/SetupFile/node": true,
             "/base": false,
+            "/cleanup": true,
             "/left": false,
             "/left/arms": false,
             "/left/eye/eye": true,
@@ -258,6 +259,10 @@
         "/cleanup": {
             "execute_in": "/right",
             "attrs": {
+                "hide_playback": {
+                    "type": "bool",
+                    "value": "True"
+                },
                 "release": {
                     "type": "bool",
                     "value": "False"
@@ -271,9 +276,14 @@
                 "cmds.hide(\"${mch_group}\")",
                 "cmds.hide(\"${def_group}\")",
                 "",
+                "# Hide Controls on Playback",
+                "if ${hide_playback}:",
+                "    cmds.setAttr(\"${controls_group}.hideOnPlayback\", 1)",
+                "",
                 "# Make Geo unselectable",
                 "cmds.setAttr(\"${geo_group}.overrideEnabled\", 1)",
-                "cmds.setAttr(\"${geo_group}.overrideDisplayType\", 2)"
+                "cmds.setAttr(\"${geo_group}.overrideDisplayType\", 2)",
+                ""
             ]
         },
         "/left": {
@@ -1099,7 +1109,7 @@
                 "ctl_group = cmds.group(empty=True, name=\"${part_name}_CTLS\", parent=part_group)",
                 "tweak_group = cmds.group(empty=True, name=\"${part_name}_Tweak_CTLS\", parent=ctl_group)",
                 "sub_cvs_group = cmds.group(empty=True, name=\"${part_name}_SubCVS\", parent=part_group)",
-                "name = \"${part_name}\"",
+                "",
                 "",
                 "control_panel: str = cmds.createNode(\"network\", name=\"${part_name}_ControlPanel\")",
                 "tweak_attr_long = \"tweakVisibility\"",
@@ -1199,13 +1209,13 @@
                 "# Create CV Transforms",
                 "cv_transforms: list[str] = []",
                 "for i, transform in enumerate(transforms):",
-                "    cv_transform: str = cmds.group(name=f\"{name}_SubCV{i}\", empty=True)",
+                "    cv_transform: str = cmds.group(name=f\"${part_name}_SubCV{i}\", empty=True)",
                 "    impulse.utils.transform.matrix_constraint(transform, cv_transform, keep_offset=False)",
                 "    cv_transforms.append(cv_transform)",
                 "    cmds.parent(cv_transform, sub_cvs_group)",
                 "",
                 "matrix_spline: MatrixSpline = MatrixSpline(cv_transforms=cv_transforms, degree=2)",
-                "matrix_spline.name = name",
+                "matrix_spline.name = \"${part_name}\"",
                 "",
                 "pinned_transform: str = cmds.group(empty=True, name=f\"{guides[1]}_Pin\", parent=sub_cvs_group)",
                 "pin_to_matrix_spline(",

@@ -58,7 +58,7 @@ def get_cv_positions(curve_shape: str) -> list[tuple[float, float, float]]:
         list: A list of CV positions as tuples
     """
     curve_info = cmds.createNode("curveInfo", name="temp_curveInfo")
-    cmds.connectAttr(f"{curve_shape}.worldSpace", f"{curve_info}.inputCurve")
+    cmds.connectAttr(f"{curve_shape}.local", f"{curve_info}.inputCurve")
     cv_list: list[tuple[float, float, float]] = cmds.getAttr(f"{curve_info}.controlPoints[*]")
     cmds.delete(curve_info)
     position_list = [(position[0], position[1], position[2]) for position in cv_list]
@@ -74,7 +74,7 @@ def get_cv_weights(curve_shape: str) -> list[float]:
         list: A list of CV weight values.
     """
     curve_info = cmds.createNode("curveInfo", name="temp_curveInfo")
-    cmds.connectAttr(f"{curve_shape}.worldSpace", f"{curve_info}.inputCurve")
+    cmds.connectAttr(f"{curve_shape}.local", f"{curve_info}.inputCurve")
     weights: list[float] = cmds.getAttr(f"{curve_info}.weights[*]")
     cmds.delete(curve_info)
     return weights
@@ -89,7 +89,7 @@ def get_knots(curve_shape: str) -> list[float]:
         list: A list of knot values. (aka knot vector)
     """
     curve_info = cmds.createNode("curveInfo", name="temp_curveInfo")
-    cmds.connectAttr(f"{curve_shape}.worldSpace", f"{curve_info}.inputCurve")
+    cmds.connectAttr(f"{curve_shape}.local", f"{curve_info}.inputCurve")
     knots: list[float] = cmds.getAttr(f"{curve_info}.knots[*]")
     cmds.delete(curve_info)
     return knots
@@ -155,7 +155,9 @@ def write_curve(control: str | None = None, name: str | None = None, force: bool
             + "existing file, or use the force flag to overwrite."
         )
 
+
 _loaded_control_shapes = {}
+
 
 def get_curve_data(curve_shape: ControlShape | str) -> dict:
     """
@@ -172,10 +174,11 @@ def get_curve_data(curve_shape: ControlShape | str) -> dict:
         if not os.path.isfile(file_path):
             cmds.error("Shape does not exist in library. You must write out " + "shape before reading.")
 
-        json_file = open(file_path, "r")
-        json_data = json_file.read()
-        _loaded_control_shapes[curve_shape] = json.loads(json_data)
+        with open(file_path, "r") as json_file:
+            json_data = json_file.read()
+            _loaded_control_shapes[curve_shape] = json.loads(json_data)
     return _loaded_control_shapes[curve_shape]
+
 
 def create_curve(curve_shape: ControlShape | str = ControlShape.CIRCLE) -> str:
     """
@@ -259,8 +262,91 @@ def combine_curves(main_curve: str | None = None, other_curves: list[str] | None
             cmds.delete(transform)
 
 
-class Control:
+def get_tagged_controls() -> list[str]:
+    """
+    Returns all transform nodes tagged as controllers via a connected controller node.
 
+    Returns:
+        list: A list of transform node names that are tagged as controllers.
+    """
+    controller_nodes: list[str] = cmds.ls(type="controller")
+
+    tagged_controls: list[str] = []
+    for control_node in controller_nodes:
+        connected: list[str] = cmds.listConnections(f"{control_node}.controllerObject", source=True, destination=False)
+        if connected:
+            tagged_controls.append(connected[0])
+
+    return tagged_controls
+
+
+def write_control_shapes(filepath: str, force: bool = False) -> None:
+    """
+    Writes a JSON file representing the control curves of all controls in the scene at the filepath specified.
+
+    Args:
+        filepath: The path and filename and extension to save under.
+        force: If True, will automatically overwrite any existing file at the filepath specified.
+
+    """
+    control_dict = {}
+
+    controls: list[str] = get_tagged_controls()
+    for control in controls:
+        curve_info = get_curve_info(curve=control)
+        control_dict[control] = curve_info
+
+    json_path: str = filepath
+    json_dump: str = json.dumps(obj=control_dict, indent=4)
+
+    # write shape if forced or file does not exist
+    if force or os.path.isfile(path=json_path) is False:
+        with open(file=json_path, mode="w") as json_file:
+            json_file.write(json_dump)
+            json_file.close()
+    else:
+        cmds.error(f"A control file already exists at {filepath} try removing it first or setting force to True.")
+    pass
+
+
+def apply_control_file(filepath: str) -> None:
+    if not os.path.isfile(path=filepath):
+        raise RuntimeError(f"{filepath} is not a valid file. Unable to load controls")
+    current_control_dict = {}
+    controls = get_tagged_controls()
+    for control in controls:
+        current_control_dict[control] = True
+
+    control_dict = {}
+    with open(filepath, "r") as json_file:
+        json_data = json_file.read()
+        control_dict = json.loads(json_data)
+    for control in control_dict:
+        if control in current_control_dict:
+            shapes: list[str] = get_shapes(transform=control)
+            for shape in shapes:
+                cmds.delete(shape)
+            curve_data = control_dict[control]
+            for index, shape in enumerate(curve_data):
+                info = curve_data[shape]
+                positions: list[tuple[float, float, float]] = info["cv_positions"]
+                degree: int = info["degree"]
+                periodic: bool = True if info["form"] == 2 else False
+                knots: list[float] = info["knots"]
+                weights: list[float] = info["cv_weights"]
+                position_weights: list[tuple[float, float, float, float]] = [
+                    (position[0], position[1], position[2], weights[index]) for index, position in enumerate(positions)
+                ]
+
+                child_curve_transform: str = cmds.curve(pointWeight=position_weights, knot=knots, periodic=periodic, degree=degree
+                )
+                curve_shape_node: str = get_shapes(child_curve_transform)[0]
+                curve_shape_node = cmds.rename(curve_shape_node, shape)
+                cmds.parent(curve_shape_node, control, shape=True, relative=True)
+                cmds.delete(child_curve_transform)
+
+
+class Control:
     def __init__(self, control_transform: str, offset_transform: str, name: str | None):
         self.control_transform = control_transform
         self.offset_transform = offset_transform
@@ -269,11 +355,38 @@ class Control:
         else:
             self.name = control_transform
 
+
 def draw_on_top(control: Control, enable: bool = True) -> None:
     shapes: list[str] = get_shapes(control.control_transform)
     value: Literal[1, 0] = 1 if enable else 0
     for shape in shapes:
         cmds.setAttr(f"{shape}.alwaysDrawOnTop", value)
+
+
+def get_controller_tag(control: Control) -> str | None:
+    tags = cmds.listConnections(f"{control.control_transform}.message", type="controller")
+    return tags[0] if tags else None
+
+
+def tag_as_controller(control: Control, parent: str | None = None):
+    """
+    Tag a Control as a controller (both for Maya's Evaluation Graph and for Impulse).
+    Optionally connect the control tag to a parent controller.
+    """
+    # Check if already tagged
+    tag: str | None = get_controller_tag(control)
+    if tag:
+        return tag
+
+    tag: str = cmds.createNode("controller", name=f"{control.name}_CTL_TAG")
+    cmds.connectAttr(f"{control.control_transform}.message", f"{tag}.controllerObject")
+
+    if parent:
+        parent_tag: str | None = get_controller_tag(parent)
+        if parent_tag:
+            cmds.connectAttr(f"{parent_tag}.message", f"{tag}.parent")
+    return tag
+
 
 def make_control(
     name: str,
@@ -283,7 +396,7 @@ def make_control(
     direction: Direction = Direction.Y,
     opposite_direction: bool = False,
     size: float = 1,
-    dimensions: tuple[float, float, float] = (1,1,1),
+    dimensions: tuple[float, float, float] = (1, 1, 1),
     control_shape: ControlShape | str = ControlShape.CIRCLE,
     offset: float = 0,
 ) -> Control:
@@ -352,8 +465,9 @@ def make_control(
         transform.match_transform(transform=offset_transform, target_transform=target_transform)
     elif position:
         cmds.move(position[0], position[1], position[2], relative=True, worldSpace=True)
-        
-    return Control(control_transform=control_transform, offset_transform=offset_transform, name=name)
+    control = Control(control_transform=control_transform, offset_transform=offset_transform, name=name)
+    tag_as_controller(control)
+    return control
 
 
 def make_surface_control(
@@ -534,8 +648,9 @@ def make_surface_control(
 
     if parent:
         cmds.parent(offset_transform, parent, relative=False)
-
-    return Control(control_transform=control_transform, offset_transform=offset_transform, name=name)
+    control = Control(control_transform=control_transform, offset_transform=offset_transform, name=name)
+    tag_as_controller(control)
+    return control
 
 
 def connect_control(

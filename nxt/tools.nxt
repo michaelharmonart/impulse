@@ -101,6 +101,7 @@
         "/main_window/manual_tab/curve": {
             "instance": "/panel",
             "child_order": [
+                "write_controls_file",
                 "grid",
                 "create_control"
             ],
@@ -205,6 +206,21 @@
             "code": [
                 "impulse.utils.control.write_curve(force=True)",
                 ""
+            ]
+        },
+        "/main_window/manual_tab/curve/write_controls_file": {
+            "instance": "/button",
+            "attrs": {
+                "filepath": {
+                    "type": "raw",
+                    "value": "${asset_root}/controls.json"
+                },
+                "text": {
+                    "value": "Write Controls File"
+                }
+            },
+            "code": [
+                "impulse.utils.control.write_control_shapes(filepath=\"${filepath}\", force=True)"
             ]
         },
         "/main_window/manual_tab/main_panel": {

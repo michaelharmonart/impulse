@@ -889,7 +889,6 @@ def matrix_spline_from_transforms(
     control_height: float = 1,
     parent: str | None = None,
     stretch: bool = True,
-    skip_first: bool = False,
     spline_group: str | None = None,
     ctl_group: str | None = None,
     def_group: str | None = None,
