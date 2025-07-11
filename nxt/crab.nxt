@@ -53,6 +53,10 @@
                 66.2052106852218,
                 -438.6958204441296
             ],
+            "/apply_weights": [
+                1450.0116307929213,
+                -213.81406421755742
+            ],
             "/base": [
                 -484.92970825922265,
                 -416.6663346502985
@@ -843,8 +847,8 @@
                 "",
                 "impulse.utils.ik.ik_fk_blend_list(self.ik_chain_joints, self.fk_joints, self.pose_joints, self.ik_switch)",
                 "",
-                "def_joints = impulse.utils.ik.fk_from_guides(guides=self.joints[:-1], name=\"${part_def}\", parent=\"${def_group}\", suffix=\"_DEF\", side_mult=${side_mult})",
-                "impulse.utils.transform.constrain_transforms(self.pose_joints[:-1], def_joints)",
+                "def_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_def}\", parent=\"${def_group}\", suffix=\"_DEF\", side_mult=${side_mult})",
+                "impulse.utils.transform.constrain_transforms(self.pose_joints, def_joints)",
                 "",
                 "STAGE.body_joints.extend(def_joints)"
             ]
@@ -970,10 +974,11 @@
                 "impulse.utils.control.connect_control(end_control, joint)",
                 "",
                 "control_joints = reversed_joints[1:${reverse_segments}]",
+                "offset_control_joints = reversed_joints[2:${reverse_segments}+1]",
                 "prev_control = end_control",
                 "for index, joint in enumerate(control_joints):",
                 "    control = impulse.utils.control.make_control(",
-                "        name=joint, ",
+                "        name=offset_control_joints[index], ",
                 "        target_transform=joint, ",
                 "        size=${control_size}, ",
                 "        control_shape=impulse.utils.control.ControlShape.CIRCLE,",
@@ -987,7 +992,7 @@
                 "    if index == len(control_joints)-1:",
                 "        pole_vector_parent = control.control_transform",
                 "    control_transform = control.control_transform",
-                "    impulse.utils.control.connect_control(control, joint, keep_offset=True)",
+                "    impulse.utils.control.connect_control(control, offset_control_joints[index], keep_offset=True)",
                 "    prev_control=control",
                 "",
                 "pv_control = impulse.utils.control.make_control(",
@@ -1434,7 +1439,8 @@
         "/skinning": {
             "execute_in": "/right",
             "child_order": [
-                "bind_skin"
+                "bind_skin",
+                "apply_weights"
             ],
             "attrs": {
                 "body_geo": {
@@ -1450,6 +1456,27 @@
                     "value": "Shell_GEO"
                 }
             }
+        },
+        "/skinning/apply_weights": {
+            "attrs": {
+                "body_weights": {
+                    "type": "raw",
+                    "value": "${asset_root}/body_weights.json"
+                },
+                "eye_weights": {
+                    "type": "raw",
+                    "value": "${asset_root}/eye_weights.json"
+                },
+                "shell_weights": {
+                    "type": "raw",
+                    "value": "${asset_root}/shell_weights.json"
+                }
+            },
+            "code": [
+                "impulse.utils.skin.apply_ng_skin_weights(\"${body_weights}\", \"${body_geo}\")",
+                "impulse.utils.skin.apply_ng_skin_weights(\"${shell_weights}\", \"${shell_geo}\")",
+                "impulse.utils.skin.apply_ng_skin_weights(\"${eye_weights}\", \"${eye_geo}\")"
+            ]
         },
         "/skinning/bind_skin": {
             "attrs": {
