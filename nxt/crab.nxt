@@ -302,9 +302,9 @@
                 "    cmds.setAttr(\"${controls_group}.hideOnPlayback\", 1)",
                 "",
                 "# Make Geo unselectable",
-                "cmds.setAttr(\"${geo_group}.overrideEnabled\", 1)",
-                "cmds.setAttr(\"${geo_group}.overrideDisplayType\", 2)",
-                ""
+                "if ${release}:",
+                "    cmds.setAttr(\"${geo_group}.overrideEnabled\", 1)",
+                "    cmds.setAttr(\"${geo_group}.overrideDisplayType\", 2)"
             ]
         },
         "/left": {
@@ -1328,7 +1328,11 @@
                 "asset_root": {
                     "value": "/groups/crabby/Assets/Rigging/Scuttle/Build"
                 }
-            }
+            },
+            "code": [
+                "cmds.file(force=True, newFile=True)",
+                "cmds.group(empty=True, name=\"${rig_group}\")"
+            ]
         },
         "/setup_file/def_lists": {
             "code": [
@@ -1392,7 +1396,7 @@
             "attrs": {
                 "dual_quaternion": {
                     "type": "bool",
-                    "value": "True"
+                    "value": "False"
                 }
             },
             "code": [
