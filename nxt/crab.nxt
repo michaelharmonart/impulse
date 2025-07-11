@@ -815,6 +815,7 @@
             },
             "code": [
                 "part_group = cmds.group(empty=True, name=\"${part_name}_MCH\", parent=\"${mch_group}\")",
+                "impulse.utils.transform.matrix_constraint(\"${controls_parent}\", part_group, keep_offset=True)",
                 "cmds.scale(${side_mult}, 1, 1, part_group, absolute=True)",
                 "control_panel: str = cmds.createNode(\"network\", name=\"${part_name}_ControlPanel\")",
                 "cmds.addAttr(",
@@ -1385,7 +1386,6 @@
             "child_order": [
                 "load_geo",
                 "load_guides",
-                "create_groups",
                 "def_lists"
             ],
             "attrs": {

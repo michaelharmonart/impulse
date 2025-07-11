@@ -44,7 +44,7 @@ def get_vertex_positions(shape: str) -> list[Vector3]:
     if surface_type != "mesh":
         raise RuntimeError(f"Unsupported surface type: {surface_type}")
     vertex_count: int = cmds.polyEvaluate(shape, vertex=True)
-    vertex_list: tuple[float, float, float] = cmds.xform(f"{shape}.vtx[*]", query = True, translation = True, worldSpace = True)
+    vertex_list = cmds.xform(f"{shape}.vtx[*]", query = True, translation = True, worldSpace = True)
     vertex_positions = [Vector3(vertex_list[i], vertex_list[i+1], vertex_list[i+2]) for i in range(0, len(vertex_list), 3)]
 
     return vertex_positions
