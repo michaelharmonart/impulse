@@ -101,7 +101,7 @@ def fk_from_guides(
     """
     if not name:
         name: str = f"{guides[0].rsplit('_', 1)[0]}{suffix}"
-    # Create group for IK chain
+    # Create group for FK chain
     fk_group: str = cmds.group(empty=True, world=True, name=name)
     cmds.scale(side_mult, 1, 1, fk_group, absolute=True)
     if parent:

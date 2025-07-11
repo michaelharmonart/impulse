@@ -103,12 +103,14 @@ def get_curve_info(curve: str):
         cv_positions: list[tuple[float, float, float]] = get_cv_positions(curve_shape=curve)
         cv_weights: list[float] = get_cv_weights(curve_shape=curve)
         knots: list[float] = get_knots(curve_shape=curve)
+        draw_on_top: bool = cmds.getAttr(f"{curve}.alwaysDrawOnTop")
         curve_info = {
             "degree": degree,
             "form": form,
             "cv_positions": cv_positions,
             "cv_weights": cv_weights,
             "knots": knots,
+            "draw_on_top": draw_on_top,
         }
         curve_dict[curve] = curve_info
     return curve_dict
@@ -334,14 +336,17 @@ def apply_control_file(filepath: str) -> None:
                 periodic: bool = True if info["form"] == 2 else False
                 knots: list[float] = info["knots"]
                 weights: list[float] = info["cv_weights"]
+                draw_on_top: bool = info["draw_on_top"]
                 position_weights: list[tuple[float, float, float, float]] = [
                     (position[0], position[1], position[2], weights[index]) for index, position in enumerate(positions)
                 ]
 
-                child_curve_transform: str = cmds.curve(pointWeight=position_weights, knot=knots, periodic=periodic, degree=degree
+                child_curve_transform: str = cmds.curve(
+                    pointWeight=position_weights, knot=knots, periodic=periodic, degree=degree
                 )
                 curve_shape_node: str = get_shapes(child_curve_transform)[0]
                 curve_shape_node = cmds.rename(curve_shape_node, shape)
+                cmds.setAttr(f"{curve_shape_node}.alwaysDrawOnTop", 1 if draw_on_top else 0)
                 cmds.parent(curve_shape_node, control, shape=True, relative=True)
                 cmds.delete(child_curve_transform)
 

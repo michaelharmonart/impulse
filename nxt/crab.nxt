@@ -64,8 +64,8 @@
                 -934.7650968060259
             ],
             "/cleanup": [
-                1213.6927572037612,
-                -416.6944389724407
+                1502.7745575017568,
+                -417.79650096831415
             ],
             "/constrain": [
                 -1121.160508405177,
@@ -123,10 +123,6 @@
                 -40.28211879860541,
                 -415.8295250669091
             ],
-            "/node": [
-                -41.00262026750312,
-                -234.05662402699681
-            ],
             "/node/node2": [
                 0.0,
                 0.0
@@ -139,9 +135,13 @@
                 -1607.5243713135055,
                 -1114.765096806026
             ],
+            "/pincers": [
+                656.90906614546,
+                -332.8669674493572
+            ],
             "/right": [
-                793.6205796271569,
-                -417.2503515827012
+                841.9143803151776,
+                -418.196815140162
             ],
             "/setup_file": [
                 -975.6257851978987,
@@ -259,6 +259,10 @@
         "/cleanup": {
             "execute_in": "/right",
             "attrs": {
+                "control_filepath": {
+                    "type": "raw",
+                    "value": "${asset_root}/controls.json"
+                },
                 "hide_playback": {
                     "type": "bool",
                     "value": "True"
@@ -275,6 +279,9 @@
                 "    cmds.delete(\"${guides_group}\")",
                 "cmds.hide(\"${mch_group}\")",
                 "cmds.hide(\"${def_group}\")",
+                "",
+                "# Read and apply control shapes",
+                "impulse.utils.control.apply_control_file(filepath=\"${control_filepath}\")",
                 "",
                 "# Hide Controls on Playback",
                 "if ${hide_playback}:",
@@ -326,6 +333,10 @@
         },
         "/left/arms": {
             "instance": "/limb",
+            "child_order": [
+                "controls",
+                "pincers"
+            ],
             "attrs": {
                 "chain": {
                     "type": "list",
@@ -343,6 +354,65 @@
                     "value": "\"Spine_M_matrixSpline_Segment3_CTL\""
                 }
             }
+        },
+        "/left/arms/pincers": {
+            "enabled": true,
+            "attrs": {
+                "control_size": {
+                    "type": "float",
+                    "value": "0.3"
+                },
+                "parent": {
+                    "type": "raw",
+                    "value": "${part_name}_Pincers_POSE"
+                },
+                "pincer_control_size": {
+                    "type": "float",
+                    "value": "0.2"
+                },
+                "pincer_guides": {
+                    "type": "list",
+                    "value": "['${part_name}_Pincers', '${part_name}_Pincer1', '${part_name}_Pincer2']"
+                },
+                "pincer_offset": {}
+            },
+            "code": [
+                "guides = ${pincer_guides}",
+                "",
+                "ctls = \"${part_ctls}\"",
+                "pincer_group = cmds.group(empty=True, name=\"${part_name}_Pincer_CTLS\", parent=\"${part_ctls}\")",
+                "",
+                "base_joint: str",
+                "base_ctl: str",
+                "for index, guide in enumerate(guides):",
+                "    joint = cmds.duplicate(guide, name=f\"{guide}_DEF\", parentOnly=True)[0]",
+                "    if index == 0:",
+                "        cmds.parent(joint, \"${part_def}\")",
+                "        base_joint = joint",
+                "        control = impulse.utils.control.make_control(",
+                "            name=guide, ",
+                "            target_transform=guide, ",
+                "            size=${control_size}, ",
+                "            control_shape=impulse.utils.control.ControlShape.CIRCLE,",
+                "            offset=0,",
+                "            )",
+                "        base_ctl = control.offset_transform",
+                "        cmds.parent(control.offset_transform, pincer_group)",
+                "        impulse.utils.control.connect_control(control, joint)",
+                "    else:",
+                "        cmds.parent(joint, base_joint)",
+                "        control = impulse.utils.control.make_control(",
+                "            name=guide, ",
+                "            target_transform=guide, ",
+                "            size=${pincer_control_size}, ",
+                "            control_shape=impulse.utils.control.ControlShape.CIRCLE,",
+                "            offset=0.2,",
+                "            )",
+                "        cmds.parent(control.offset_transform, base_ctl)",
+                "        impulse.utils.control.connect_control(control, joint)",
+                "    ",
+                ""
+            ]
         },
         "/left/eye": {
             "child_order": [
@@ -675,6 +745,14 @@
                 "ik_joints": {},
                 "ik_switch": {},
                 "joints": {},
+                "part_ctls": {
+                    "type": "raw",
+                    "value": "${part_name}_CTLS"
+                },
+                "part_def": {
+                    "type": "raw",
+                    "value": "${part_name}_DEF"
+                },
                 "part_name": {
                     "type": "raw",
                     "value": "${prefix}${side}"
@@ -735,7 +813,7 @@
                 "",
                 "impulse.utils.ik.ik_fk_blend_list(self.ik_chain_joints, self.fk_joints, self.pose_joints, self.ik_switch)",
                 "",
-                "def_joints = impulse.utils.ik.fk_from_guides(guides=self.joints[:-1], name=\"${part_name}_DEF\", parent=\"${def_group}\", suffix=\"_DEF\", side_mult=${side_mult})",
+                "def_joints = impulse.utils.ik.fk_from_guides(guides=self.joints[:-1], name=\"${part_def}\", parent=\"${def_group}\", suffix=\"_DEF\", side_mult=${side_mult})",
                 "impulse.utils.transform.constrain_transforms(self.pose_joints[:-1], def_joints)",
                 "",
                 "cmds.refresh()"
@@ -757,7 +835,7 @@
                 }
             },
             "code": [
-                "ctls = cmds.group(empty=True, name=\"${part_name}_CTLS\", parent=\"${controls_parent}\")",
+                "ctls = cmds.group(empty=True, name=\"${part_ctls}\", parent=\"${controls_parent}\")",
                 "cmds.scale(${side_mult}, 1, 1, ctls, absolute=True)",
                 "self.part_ctls = ctls",
                 "",
@@ -1232,9 +1310,6 @@
         "/right": {
             "instance": "/left",
             "execute_in": "/left",
-            "child_order": [
-                "eye"
-            ],
             "attrs": {
                 "control_color": {
                     "type": "list",
@@ -1247,12 +1322,6 @@
                     "value": "-1"
                 }
             }
-        },
-        "/right/eye": {
-            "child_order": [
-                "stalk",
-                "eye"
-            ]
         },
         "/setup_file": {
             "start_point": true,
