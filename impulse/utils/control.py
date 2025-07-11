@@ -8,6 +8,8 @@ from impulse.utils import math as math
 from enum import Enum
 import os
 
+from impulse.utils.naming import flip_side, get_side
+
 CONTROL_DIR: str = os.path.dirname(os.path.realpath(__file__)) + "/control_shapes"
 
 
@@ -264,7 +266,7 @@ def combine_curves(main_curve: str | None = None, other_curves: list[str] | None
             cmds.delete(transform)
 
 
-def get_tagged_controls() -> list[str]:
+def get_tagged_controls(side: str | None = None) -> list[str]:
     """
     Returns all transform nodes tagged as controllers via a connected controller node.
 
@@ -272,11 +274,13 @@ def get_tagged_controls() -> list[str]:
         list: A list of transform node names that are tagged as controllers.
     """
     controller_nodes: list[str] = cmds.ls(type="controller")
-
     tagged_controls: list[str] = []
     for control_node in controller_nodes:
         connected: list[str] = cmds.listConnections(f"{control_node}.controllerObject", source=True, destination=False)
-        if connected:
+        if side:
+            if get_side(control_node) == side:
+                tagged_controls.append(connected[0])
+        elif connected:
             tagged_controls.append(connected[0])
 
     return tagged_controls
@@ -350,6 +354,20 @@ def apply_control_file(filepath: str) -> None:
                 cmds.parent(curve_shape_node, control, shape=True, relative=True)
                 cmds.delete(child_curve_transform)
 
+def mirror_control_shapes()  -> None:
+    controls: list[str] = get_tagged_controls(side="L")
+    for control in controls:
+        shapes: list[str] = get_shapes(transform=control)
+        duplicated: str = cmds.duplicate(control)[0]
+        duplicated_shapes: list[str] = get_shapes(transform=duplicated)
+        flipped_control: str = flip_side(control)
+        for shape, duplicated_shape in zip(shapes, duplicated_shapes):
+            flipped_shape: str = flip_side(name=shape)
+            cmds.delete(flipped_shape)
+            duplicated_shape: str = cmds.rename(duplicated_shape, flipped_shape)
+            cmds.parent(duplicated_shape, flipped_control, shape=True, relative=True)
+        cmds.delete(duplicated)
+        
 
 class Control:
     def __init__(self, control_transform: str, offset_transform: str, name: str | None):

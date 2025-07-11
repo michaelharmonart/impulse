@@ -20,3 +20,19 @@ def flip_side(name: str, from_side: str = "L", to_side: str = "R") -> str:
 
     pattern = rf'(?<=_)({from_side})(?=_|$)'
     return re.sub(pattern, f'{to_side}', name)
+
+def get_side(name: str, sides: list[str] = ["L", "R", "M"]) -> str | None:
+    """
+    Extracts the side token from a control name. eg. Front_Leg_L_CTL will return "L"
+
+    Args:
+        name: The control name.
+        sides: A list of valid side tokens to check for (default: ["L", "R", "M"]).
+
+    Returns:
+        The side token found in the name, or None if not found.
+    """
+    # Create a pattern that matches any of the sides preceded by "_" and followed by "_" or end of string
+    side_pattern = rf'(?<=_)({"|".join(sides)})(?=_|$)'
+    match = re.search(side_pattern, name)
+    return match.group(0) if match else None

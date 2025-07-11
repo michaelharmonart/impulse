@@ -162,6 +162,10 @@
             "/window": [
                 -1607.5243713135055,
                 -1234.765096806026
+            ],
+            "/write_controls_file": [
+                -859.1504854609635,
+                -907.114355287704
             ]
         },
         "collapse": {
@@ -179,6 +183,7 @@
             "/left/legs/back": false,
             "/left/legs/front": false,
             "/limb": false,
+            "/main_window/manual_tab/curve/grid/node": true,
             "/main_window/manual_tab/main_panel/grid": false,
             "/main_window/manual_tab/main_panel/node": true,
             "/middle/shell": false,

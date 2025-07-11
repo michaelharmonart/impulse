@@ -64,6 +64,10 @@
             "/window": [
                 -1160.1899959037398,
                 -973.186860840478
+            ],
+            "/write_controls_file": [
+                -702.3084207374891,
+                -1741.544218151311
             ]
         },
         "colors": {
@@ -101,7 +105,6 @@
         "/main_window/manual_tab/curve": {
             "instance": "/panel",
             "child_order": [
-                "write_controls_file",
                 "grid",
                 "create_control"
             ],
@@ -143,10 +146,12 @@
         "/main_window/manual_tab/curve/grid": {
             "instance": "/gridLayout",
             "child_order": [
+                "mirror_controls",
+                "write_controls_file",
                 "combine_curve",
                 "write_curve",
-                "control_selector",
-                "size_selector"
+                "size_selector",
+                "control_selector"
             ]
         },
         "/main_window/manual_tab/curve/grid/combine_curve": {
@@ -179,6 +184,17 @@
                 }
             }
         },
+        "/main_window/manual_tab/curve/grid/mirror_controls": {
+            "instance": "/button",
+            "attrs": {
+                "text": {
+                    "value": "Mirror Controls"
+                }
+            },
+            "code": [
+                "impulse.utils.control.mirror_control_shapes()"
+            ]
+        },
         "/main_window/manual_tab/curve/grid/size_selector": {
             "instance": "/dropDownMenu",
             "attrs": {
@@ -196,19 +212,7 @@
                 }
             }
         },
-        "/main_window/manual_tab/curve/grid/write_curve": {
-            "instance": "/button",
-            "attrs": {
-                "text": {
-                    "value": "Write Curve"
-                }
-            },
-            "code": [
-                "impulse.utils.control.write_curve(force=True)",
-                ""
-            ]
-        },
-        "/main_window/manual_tab/curve/write_controls_file": {
+        "/main_window/manual_tab/curve/grid/write_controls_file": {
             "instance": "/button",
             "attrs": {
                 "filepath": {
@@ -221,6 +225,18 @@
             },
             "code": [
                 "impulse.utils.control.write_control_shapes(filepath=\"${filepath}\", force=True)"
+            ]
+        },
+        "/main_window/manual_tab/curve/grid/write_curve": {
+            "instance": "/button",
+            "attrs": {
+                "text": {
+                    "value": "Write Curve"
+                }
+            },
+            "code": [
+                "impulse.utils.control.write_curve(force=True)",
+                ""
             ]
         },
         "/main_window/manual_tab/main_panel": {
