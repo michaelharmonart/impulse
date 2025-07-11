@@ -16,7 +16,8 @@
             "solo": false
         },
         "/users/guest/g/graphite/maya-python/impulse/nxt/setup.nxt": {
-            "solo": false
+            "solo": false,
+            "mute": false
         }
     },
     "meta_data": {
@@ -52,8 +53,8 @@
                 -438.6958204441296
             ],
             "/base": [
-                -496.62329257252367,
-                -414.0677603584538
+                -484.92970825922265,
+                -416.6663346502985
             ],
             "/button": [
                 -1607.5243713135055,
@@ -64,8 +65,8 @@
                 -934.7650968060259
             ],
             "/cleanup": [
-                1502.7745575017568,
-                -417.79650096831415
+                1651.5969033128472,
+                -423.5425374861169
             ],
             "/constrain": [
                 -1121.160508405177,
@@ -96,8 +97,8 @@
                 -754.7650968060259
             ],
             "/left": [
-                370.87855469256624,
-                -415.18225246259254
+                387.3259231136189,
+                -413.6870371515878
             ],
             "/left/legs/front": [
                 0.0,
@@ -120,8 +121,8 @@
                 -814.7650968060259
             ],
             "/middle": [
-                -40.28211879860541,
-                -415.8295250669091
+                -37.68354450676074,
+                -418.42809935875385
             ],
             "/node/node2": [
                 0.0,
@@ -144,12 +145,16 @@
                 -418.196815140162
             ],
             "/setup_file": [
-                -975.6257851978987,
-                -414.22890002889284
+                -934.048596528384,
+                -412.92961288297056
             ],
             "/side": [
                 -845.5425987520201,
                 -117.51608999604343
+            ],
+            "/skinning": [
+                1268.7248631308412,
+                -420.6098731031592
             ],
             "/spine": [
                 -825.3660779866253,
@@ -199,7 +204,10 @@
                 "asset_root": {
                     "type": "raw",
                     "value": "${path::/groups/crabby/Assets/Rigging/Scuttle/Build}"
-                }
+                },
+                "body_joints": {},
+                "eye_joints": {},
+                "shell_joints": {}
             }
         },
         "/base": {
@@ -262,7 +270,7 @@
             ]
         },
         "/cleanup": {
-            "execute_in": "/right",
+            "execute_in": "/skinning",
             "attrs": {
                 "control_filepath": {
                     "type": "raw",
@@ -583,7 +591,10 @@
                 "        control,",
                 "        longName=f\"${part_name}_${tweak_attr_long}\", ",
                 "        niceName=f\"{self.part_name.replace('_', ' ')} ${tweak_attr_nice}\", ",
-                "        proxy=\"${tweak_attr}\")"
+                "        proxy=\"${tweak_attr}\")",
+                "        ",
+                "STAGE.body_joints.extend(cmds.listRelatives(def_group, type=\"joint\", allDescendents=True))",
+                "STAGE.eye_joints.extend(cmds.listRelatives(def_group, type=\"joint\", allDescendents=True))"
             ]
         },
         "/left/eye/stalk": {
@@ -659,7 +670,10 @@
                 "        control,",
                 "        longName=f\"${part_name}_${tweak_attr_long}\", ",
                 "        niceName=f\"{self.part_name.replace('_', ' ')} ${tweak_attr_nice}\", ",
-                "        proxy=\"${tweak_attr}\")"
+                "        proxy=\"${tweak_attr}\")",
+                "        ",
+                "STAGE.body_joints.extend(cmds.listRelatives(def_group, type=\"joint\", allDescendents=True))",
+                "STAGE.eye_joints.extend(cmds.listRelatives(def_group, type=\"joint\", allDescendents=True))"
             ]
         },
         "/left/legs": {
@@ -706,46 +720,7 @@
                     "type": "str",
                     "value": "\"Spine_M_matrixSpline_Segment2_CTL\""
                 }
-            },
-            "code": [
-                "part_group = cmds.group(empty=True, name=\"${part_name}_MCH\", parent=\"${mch_group}\")",
-                "cmds.scale(${side_mult}, 1, 1, part_group, absolute=True)",
-                "control_panel: str = cmds.createNode(\"network\", name=\"${part_name}_ControlPanel\")",
-                "cmds.addAttr(",
-                "            control_panel,",
-                "            longName=f\"IkFkSwitch\", ",
-                "            niceName=f\"IK FK Switch\", ",
-                "            minValue=0,",
-                "            maxValue=1,",
-                "            attributeType=\"float\",",
-                "            )",
-                "cmds.setAttr(f\"{control_panel}.IkFkSwitch\", keyable=True)            ",
-                "self.ik_switch = f\"{control_panel}.IkFkSwitch\"",
-                "self.joints = [f\"${prefix}${side}_{joint}\" for joint in self.chain]",
-                "",
-                "solve_joints = impulse.utils.ik.ik_from_guides(",
-                "    guides=self.joints, pole_vector_guide=\"${pole_vector}\", ",
-                "    name=\"${part_name}_IK\", parent=part_group, reverse_segments=${reverse_segments}",
-                ")",
-                "",
-                "if ${reverse_segments}:",
-                "    ik_chain_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_name}_IkChain\", parent=part_group, suffix=\"_IkChain\")",
-                "    impulse.utils.transform.constrain_transforms(solve_joints, ik_chain_joints)",
-                "    self.ik_chain_joints = ik_chain_joints",
-                "else:",
-                "    self.ik_chain_joints = solve_joints",
-                "",
-                "self.ik_joints = solve_joints    ",
-                "self.fk_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_name}_FK\", parent=part_group)",
-                "self.pose_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_name}_POSE\", parent=part_group, suffix=\"_POSE\")",
-                "",
-                "impulse.utils.ik.ik_fk_blend_list(self.ik_chain_joints, self.fk_joints, self.pose_joints, self.ik_switch)",
-                "",
-                "def_joints = impulse.utils.ik.fk_from_guides(guides=self.joints[:-1], name=\"${part_name}_DEF\", parent=\"${def_group}\", suffix=\"_DEF\")",
-                "impulse.utils.transform.constrain_transforms(self.pose_joints[:-1], def_joints)",
-                "",
-                ""
-            ]
+            }
         },
         "/limb": {
             "child_order": [
@@ -828,7 +803,7 @@
                 "def_joints = impulse.utils.ik.fk_from_guides(guides=self.joints[:-1], name=\"${part_def}\", parent=\"${def_group}\", suffix=\"_DEF\", side_mult=${side_mult})",
                 "impulse.utils.transform.constrain_transforms(self.pose_joints[:-1], def_joints)",
                 "",
-                "cmds.refresh()"
+                "STAGE.body_joints.extend(def_joints)"
             ]
         },
         "/limb/controls": {
@@ -1161,7 +1136,9 @@
                 "        control,",
                 "        longName=f\"${part_name}_{tweak_attr_long}\", ",
                 "        niceName=f\"{self.part_name.replace('_', ' ')} {tweak_attr_nice}\", ",
-                "        proxy=f\"{control_panel}.{tweak_attr_long}\")"
+                "        proxy=f\"{control_panel}.{tweak_attr_long}\")",
+                "        ",
+                "STAGE.shell_joints.extend(cmds.listRelatives(def_group, type=\"joint\", allDescendents=True))"
             ]
         },
         "/middle/spine": {
@@ -1316,7 +1293,8 @@
                 ")",
                 "",
                 "impulse.utils.transform.matrix_constraint(pinned_transform, mid_control.offset_transform, keep_offset=True)",
-                ""
+                "",
+                "STAGE.body_joints.extend(cmds.listRelatives(def_group, type=\"joint\", allDescendents=True))"
             ]
         },
         "/right": {
@@ -1337,11 +1315,24 @@
         },
         "/setup_file": {
             "start_point": true,
+            "child_order": [
+                "load_geo",
+                "load_guides",
+                "create_groups",
+                "def_lists"
+            ],
             "attrs": {
                 "asset_root": {
                     "value": "/groups/crabby/Assets/Rigging/Scuttle/Build"
                 }
             }
+        },
+        "/setup_file/def_lists": {
+            "code": [
+                "STAGE.body_joints = []",
+                "STAGE.shell_joints = []",
+                "STAGE.eye_joints = []"
+            ]
         },
         "/side": {
             "attrs": {
@@ -1372,6 +1363,39 @@
                 "cmds.setAttr(f\"{settings}.controlColor\", type=\"float3\", *${control_color})",
                 "",
                 "cmds.refresh()"
+            ]
+        },
+        "/skinning": {
+            "execute_in": "/right",
+            "child_order": [
+                "bind_skin"
+            ],
+            "attrs": {
+                "body_geo": {
+                    "type": "raw",
+                    "value": "Body_GEO"
+                },
+                "eye_geo": {
+                    "type": "raw",
+                    "value": "Eyes_GEO"
+                },
+                "shell_geo": {
+                    "type": "raw",
+                    "value": "Shell_GEO"
+                }
+            }
+        },
+        "/skinning/bind_skin": {
+            "attrs": {
+                "dual_quaternion": {
+                    "type": "bool",
+                    "value": "True"
+                }
+            },
+            "code": [
+                "impulse.utils.skin.skin_mesh(STAGE.body_joints, \"${body_geo}\", dual_quaternion=${dual_quaternion})",
+                "impulse.utils.skin.skin_mesh(STAGE.shell_joints, \"${shell_geo}\", dual_quaternion=${dual_quaternion})",
+                "impulse.utils.skin.skin_mesh(STAGE.eye_joints, \"${eye_geo}\", dual_quaternion=${dual_quaternion})"
             ]
         }
     }

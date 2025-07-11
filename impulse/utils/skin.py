@@ -38,3 +38,8 @@ def map_vertices_to_curve(vertex_positions: list[Vector3], curve_shape: str) -> 
     cmds.delete(temp_info_node)
     return vertex_parameters
 
+def skin_mesh(bind_joints: list[str], geometry: str, name: str | None = None, dual_quaternion: bool = False) -> None:
+    if not name:
+        name: str = f"{geometry}_SC"
+    cmds.skinCluster(bind_joints, geometry, skinMethod = 1 if dual_quaternion else 0, name=name)
+    pass
