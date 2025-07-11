@@ -105,8 +105,8 @@
                 0.0
             ],
             "/limb": [
-                -854.4977016497701,
-                5.8370603441208
+                -805.4488388844991,
+                28.726529634580526
             ],
             "/main_window": [
                 -982.3084207374891,
@@ -397,8 +397,10 @@
                 "",
                 "base_joint: str",
                 "base_ctl: str",
+                "joints = []",
                 "for index, guide in enumerate(guides):",
                 "    joint = cmds.duplicate(guide, name=f\"{guide}_DEF\", parentOnly=True)[0]",
+                "    joints.append(joint)",
                 "    if index == 0:",
                 "        cmds.parent(joint, \"${part_def}\")",
                 "        base_joint = joint",
@@ -431,7 +433,7 @@
                 "        cmds.parent(control.offset_transform, base_ctl)",
                 "        impulse.utils.control.connect_control(control, joint)",
                 "    ",
-                ""
+                "STAGE.body_joints.extend(joints)"
             ]
         },
         "/left/eye": {

@@ -1,12 +1,13 @@
 import maya.cmds as cmds
 
-from impulse.utils.transform import match_transform
+from impulse.utils.transform import match_transform, matrix_constraint
 
 
 def ik_from_guides(
     guides: list[str],
     pole_vector_guide: str,
     reverse_segments: int = 0,
+    stretch: bool = False,
     name: str | None = None,
     parent: str | None = None,
     suffix: str = "_IK",
@@ -17,6 +18,7 @@ def ik_from_guides(
         guides: The guides that will become the IK joints.
         pole_vector: The guide for placing the pole vector.
         reverse_segments: How many of the segments on the chain should be reverse IK.
+        stretch: If True, will make limb stretch when going past full extension.
         name: Name for the newly created IK Chain group.
         parent: Parent for the newly created IK Chain group.
         suffix: Suffix to be added to joint names and IK chain group.
@@ -53,7 +55,7 @@ def ik_from_guides(
             if index == len(ik_guides) - 1:
                 ik_joint = cmds.rename(ik_joint, f"{name}_Effector")
         ik_joints.append(ik_joint)
-
+    
     # Duplicating and rename the reverse guides
     reversed_reverse_guides: list[str] = reverse_guides[::-1]
     reverse_joints: list[str] = []
@@ -81,6 +83,39 @@ def ik_from_guides(
     pole_vector: str = cmds.group(empty=True, name=f"{pole_vector_guide}_IN", parent=ik_group)
     match_transform(transform=pole_vector, target_transform=pole_vector_guide)
     cmds.poleVectorConstraint(pole_vector, ik_handle)
+
+    # If set to have stretch, create the relevant nodes and attach them.
+    if stretch:
+        
+        # Create nodes to measure distance
+        start_joint_local: str = cmds.group(empty=True, name=f"{ik_joints[0]}_LOCAL", parent=ik_group)
+        matrix_constraint(ik_joints[0], start_joint_local)
+
+        distance_node: str = cmds.createNode("distanceBetween", name=f"{name}_dist")
+        cmds.connectAttr(f"{ik_joints[0]}.worldMatrix", f"{distance_node}.inMatrix1")
+        cmds.connectAttr(f"{ik_joints[-1]}.worldMatrix", f"{distance_node}.inMatrix2")
+
+        # Get rest length and a normalized distance multiplier that tells us how much longer or shorter the limb is.
+        rest_distance = cmds.getAttr(f"{distance_node}.distance")
+        normalize_node: str = cmds.createNode("divide", name=f"{name}_dist_norm")
+        cmds.connectAttr(f"{distance_node}.distance", f"{normalize_node}.input1")
+        cmds.setAttr(f"{normalize_node}.input2", rest_distance)
+
+        # Only stretch, dont shrink the limb.
+        condition_node: str = cmds.createNode("condition", name=f"{name}_dist_cond")
+        cmds.setAttr(f"{condition_node}.operation", 2) # Greater than
+        cmds.setAttr(f"{condition_node}.secondTerm", 1)
+        cmds.connectAttr(f"{normalize_node}.output", f"{condition_node}.firstTerm")
+        cmds.connectAttr(f"{normalize_node}.output", f"{condition_node}.colorIfTrueR")
+        scale_factor_attr = f"{condition_node}.outColorR"
+
+        for joint in ik_joints[1:-1]:
+            # Get the rest Y position, multiply by the scale factor, and pump it into the Y position.
+            joint_y_adjust = cmds.createNode("multDoubleLinear", name=f"{joint}_yAdjust")
+            cmds.connectAttr(scale_factor_attr, f"{joint_y_adjust}.input1")
+            rest_y = cmds.getAttr(f"{joint}.translate.translateY")
+            cmds.setAttr(f"{joint_y_adjust}.input2", rest_y)
+            cmds.connectAttr(f"{joint_y_adjust}.output", f"{joint}.translate.translateY")
 
     return ik_chain
 
