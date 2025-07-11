@@ -5,8 +5,8 @@
     "mute": false,
     "solo": false,
     "references": [
-        "/users/guest/g/graphite/maya-python/impulse/nxt/tools.nxt",
-        "/users/guest/g/graphite/maya-python/impulse/nxt/base.nxt"
+        "./tools.nxt",
+        "./base.nxt"
     ],
     "meta_data": {
         "positions": {

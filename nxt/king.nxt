@@ -5,6 +5,6 @@
     "mute": false,
     "solo": false,
     "references": [
-        "/users/guest/g/graphite/maya-python/impulse/nxt/crab.nxt"
+        "./crab.nxt"
     ]
 }
