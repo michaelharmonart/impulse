@@ -66,8 +66,8 @@
                 -934.7650968060259
             ],
             "/cleanup": [
-                1651.5969033128472,
-                -423.5425374861169
+                1651.5969033128474,
+                -422.1620050380221
             ],
             "/constrain": [
                 -1121.160508405177,
@@ -106,8 +106,8 @@
                 0.0
             ],
             "/limb": [
-                -805.4488388844991,
-                28.726529634580526
+                -806.4488388844991,
+                45.72652963458053
             ],
             "/main_window": [
                 -982.3084207374891,
@@ -150,8 +150,8 @@
                 -412.92961288297056
             ],
             "/side": [
-                -845.5425987520201,
-                -117.51608999604343
+                -810.5425987520202,
+                -113.51608999604343
             ],
             "/skinning": [
                 1268.7248631308412,
@@ -183,6 +183,7 @@
             "/cleanup": true,
             "/left": false,
             "/left/arms": false,
+            "/left/arms/controls": false,
             "/left/eye/eye": true,
             "/left/eye/stalk": true,
             "/left/legs": false,
@@ -283,7 +284,7 @@
                 },
                 "release": {
                     "type": "bool",
-                    "value": "False"
+                    "value": "True"
                 }
             },
             "code": [
@@ -367,7 +368,46 @@
                 "socket": {
                     "value": "\"Spine_M_matrixSpline_Segment3_CTL\""
                 }
-            }
+            },
+            "code": [
+                "part_group = cmds.group(empty=True, name=\"${part_name}_MCH\", parent=\"${mch_group}\")",
+                "cmds.scale(${side_mult}, 1, 1, part_group, absolute=True)",
+                "control_panel: str = cmds.createNode(\"network\", name=\"${part_name}_ControlPanel\")",
+                "cmds.addAttr(",
+                "            control_panel,",
+                "            longName=f\"IkFkSwitch\", ",
+                "            niceName=f\"IK FK Switch\", ",
+                "            minValue=0,",
+                "            maxValue=1,",
+                "            attributeType=\"float\",",
+                "            )",
+                "cmds.setAttr(f\"{control_panel}.IkFkSwitch\", keyable=True)            ",
+                "self.ik_switch = f\"{control_panel}.IkFkSwitch\"",
+                "self.joints = [f\"${prefix}${side}_{joint}\" for joint in self.chain]",
+                "",
+                "solve_joints = impulse.utils.ik.ik_from_guides(",
+                "    guides=self.joints, pole_vector_guide=\"${pole_vector}\", ",
+                "    name=\"${part_name}_IK\", parent=part_group, reverse_segments=${reverse_segments}",
+                ")",
+                "",
+                "if ${reverse_segments}:",
+                "    ik_chain_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_name}_IkChain\", parent=part_group, suffix=\"_IkChain\",)",
+                "    impulse.utils.transform.constrain_transforms(solve_joints, ik_chain_joints)",
+                "    self.ik_chain_joints = ik_chain_joints",
+                "else:",
+                "    self.ik_chain_joints = solve_joints",
+                "",
+                "self.ik_joints = solve_joints    ",
+                "self.fk_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_name}_FK\", parent=part_group)",
+                "self.pose_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_name}_POSE\", parent=part_group, suffix=\"_POSE\")",
+                "",
+                "impulse.utils.ik.ik_fk_blend_list(self.ik_chain_joints, self.fk_joints, self.pose_joints, self.ik_switch)",
+                "",
+                "def_joints = impulse.utils.ik.fk_from_guides(guides=self.joints[:-1], name=\"${part_def}\", parent=\"${def_group}\", suffix=\"_DEF\", side_mult=${side_mult})",
+                "impulse.utils.transform.constrain_transforms(self.pose_joints[:-1], def_joints)",
+                "",
+                "STAGE.body_joints.extend(def_joints)"
+            ]
         },
         "/left/arms/pincers": {
             "enabled": true,
@@ -701,7 +741,7 @@
                 },
                 "reverse_segments": {
                     "type": "int",
-                    "value": "3"
+                    "value": "2"
                 },
                 "socket": {
                     "value": "\"Spine_M_matrixSpline_Segment1_CTL\""
@@ -717,7 +757,7 @@
                 },
                 "reverse_segments": {
                     "type": "int",
-                    "value": "3"
+                    "value": "2"
                 },
                 "socket": {
                     "type": "str",
@@ -880,6 +920,7 @@
             ]
         },
         "/limb/controls/ik": {
+            "enabled": true,
             "attrs": {
                 "pole_vector_size": {
                     "type": "float",
@@ -896,39 +937,58 @@
                 "cmds.connectAttr(f\"{ik_switch_reverse}.output\", f\"{ik_group}.visibility\")",
                 "",
                 "reversed_joints = ik_joints[::-1]",
-                "control_joints = [ik_joints[0]]+reversed_joints[:${reverse_segments}]",
                 "pole_vector_parent: str",
+                "",
+                "# Make Socket control and parent it",
+                "joint = ik_joints[0]",
+                "socket_control = impulse.utils.control.make_control(",
+                "        name=joint, ",
+                "        target_transform=joint, ",
+                "        size=${control_size}, ",
+                "        control_shape=impulse.utils.control.ControlShape.CIRCLE,",
+                "        offset=0,",
+                "        )",
+                "controls.append(socket_control)",
+                "cmds.parent(socket_control.offset_transform, ik_group)    ",
+                "impulse.utils.control.connect_control(socket_control, joint)",
+                "socket = ${socket} or ik_group",
+                "socket_group = cmds.group(empty=True, name=f\"{socket_control.name}_Socket\", parent=socket)",
+                "impulse.utils.transform.match_transform(socket_group, socket_control.control_transform)",
+                "cmds.pointConstraint(socket_group, socket_control.offset_transform, maintainOffset=True)",
+                "",
+                "# Make end control and set it up",
+                "joint = reversed_joints[0]",
+                "end_control = impulse.utils.control.make_control(",
+                "        name=joint, ",
+                "        target_transform=joint, ",
+                "        size=${control_size}, ",
+                "        control_shape=impulse.utils.control.ControlShape.CUBE,",
+                "        offset=0,",
+                "        )",
+                "controls.append(end_control)",
+                "cmds.parent(end_control.offset_transform, ik_group)",
+                "impulse.utils.control.connect_control(end_control, joint)",
+                "",
+                "control_joints = reversed_joints[1:${reverse_segments}]",
+                "prev_control = end_control",
                 "for index, joint in enumerate(control_joints):",
-                "    if index == 1:",
-                "        control_shape=impulse.utils.control.ControlShape.CUBE",
-                "    else:",
-                "        control_shape=impulse.utils.control.ControlShape.CIRCLE",
-                "        ",
                 "    control = impulse.utils.control.make_control(",
                 "        name=joint, ",
                 "        target_transform=joint, ",
                 "        size=${control_size}, ",
-                "        control_shape=control_shape,",
+                "        control_shape=impulse.utils.control.ControlShape.CIRCLE,",
                 "        offset=0,",
                 "        )",
                 "    controls.append(control)",
-                "        ",
+                "    ",
                 "    # Parent to the control group, or the parent control.",
-                "    if index > 1:",
-                "        cmds.parent(control.offset_transform, controls[index - 1].control_transform)",
-                "    else:",
-                "        cmds.parent(control.offset_transform, ik_group)",
-                "        ",
-                "    if index == 0:",
-                "        socket = ${socket} or ik_group",
-                "        socket_group = cmds.group(empty=True, name=f\"{control.name}_Socket\", parent=socket)",
-                "        impulse.utils.transform.match_transform(socket_group, control.control_transform)",
-                "        cmds.pointConstraint(socket_group, control.offset_transform, maintainOffset=True)",
-                "",
-                "    if index == ${reverse_segments}:",
+                "    cmds.parent(control.offset_transform, prev_control.control_transform)",
+                "    ",
+                "    if index == len(control_joints)-1:",
                 "        pole_vector_parent = control.control_transform",
                 "    control_transform = control.control_transform",
-                "    impulse.utils.control.connect_control(control, joint)",
+                "    impulse.utils.control.connect_control(control, joint, keep_offset=True)",
+                "    prev_control=control",
                 "",
                 "pv_control = impulse.utils.control.make_control(",
                 "    name=\"${pole_vector}\", ",
@@ -938,11 +998,10 @@
                 "    offset=0,",
                 "    )    ",
                 "cmds.parent(pv_control.offset_transform, pole_vector_parent)",
-                "impulse.utils.control.connect_control(pv_control, \"${pole_vector}_IN\")            ",
+                "impulse.utils.control.connect_control(pv_control, \"${pole_vector}_IN\")",
+                "            ",
                 "for control in controls: ",
-                "",
                 "    control_transform = control.control_transform       ",
-                "    ",
                 "    cmds.addAttr(",
                 "        control_transform,",
                 "        longName=\"${part_name}_IkFkSwitch\", ",

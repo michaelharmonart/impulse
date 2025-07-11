@@ -18,6 +18,7 @@ def ik_from_guides(
         guides: The guides that will become the IK joints.
         pole_vector: The guide for placing the pole vector.
         reverse_segments: How many of the segments on the chain should be reverse IK.
+        include_end_joint: When True, the last Guide given (the end joint) will also be included as a joint in the deformation chain
         stretch: If True, will make limb stretch when going past full extension.
         name: Name for the newly created IK Chain group.
         parent: Parent for the newly created IK Chain group.
@@ -37,9 +38,9 @@ def ik_from_guides(
     ik_guides: list[str] = guides
     reverse_guides: list[str] = []
     if reverse:
-        reverse_guides: list[str] = guides[-(reverse_segments):]
+        reverse_guides: list[str] = guides[-(reverse_segments+1):]
         if reverse_segments > 0:
-            ik_guides: list[str] = guides[:-(reverse_segments-1)]
+            ik_guides: list[str] = guides[:-(reverse_segments)]
 
 
     # Duplicating and rename the IK guides
