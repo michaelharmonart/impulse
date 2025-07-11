@@ -23,6 +23,7 @@
     "meta_data": {
         "colors": {
             "$NXT_BUILTINS/WidgetNodes.nxt": "#28549b",
+            "./tools.nxt": "#b9a221",
             "/users/guest/g/graphite/maya-python/impulse/nxt/cleanup.nxt": "#2371d0",
             "/users/guest/g/graphite/maya-python/impulse/nxt/setup.nxt": "#49936d",
             "/users/guest/g/graphite/maya-python/impulse/nxt/tools.nxt": "#d0a31a"
