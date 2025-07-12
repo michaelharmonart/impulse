@@ -265,7 +265,7 @@ def point_on_curve_weights(
 
     # Run a modified version of de Boors algorithm
     cvWeights = deBoor_weights(cvs=cvs, t=t, span=segment, degree=degree, knots=knots, cv_weights=cv_weights)
-    return [(_cvs[index], weight) for index, weight in cvWeights.items()]
+    return [(_cvs[index], weight) for index, weight in cvWeights.items() if weight != 0.0]
 
 
 def tangent_on_curve_weights(
