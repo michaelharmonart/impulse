@@ -1465,7 +1465,7 @@
                 },
                 "eye_weights": {
                     "type": "raw",
-                    "value": "${asset_root}/eye_weights.json"
+                    "value": "${asset_root}/eyes_weights.json"
                 },
                 "shell_weights": {
                     "type": "raw",

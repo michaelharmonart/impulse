@@ -94,13 +94,65 @@
             "child_order": [
                 "selection_panel",
                 "main_panel",
-                "curve"
+                "curve",
+                "Skinning"
             ],
             "attrs": {
                 "text": {
                     "value": "Manual Tools"
                 }
             }
+        },
+        "/main_window/manual_tab/Skinning": {
+            "instance": "/panel",
+            "child_order": [
+                "grid"
+            ],
+            "attrs": {
+                "text": {
+                    "value": "Skinning"
+                }
+            }
+        },
+        "/main_window/manual_tab/Skinning/grid": {
+            "instance": "/gridLayout",
+            "child_order": [
+                "save_selected_weights",
+                "save_all_weights"
+            ]
+        },
+        "/main_window/manual_tab/Skinning/grid/save_all_weights": {
+            "instance": "/button",
+            "attrs": {
+                "text": {
+                    "type": "raw",
+                    "value": "Write All Weights"
+                }
+            },
+            "code": [
+                "selection = cmds.listRelatives(\"${geo_group}\", allDescendents=True)",
+                "",
+                "for object in selection:",
+                "    if object.endswith(\"_GEO\"):",
+                "        name = f\"{object.rsplit('_', 1)[0]}\".lower()",
+                "        impulse.utils.skin.write_ng_skin_weights(filepath=f\"${asset_root}/{name}_weights.json\", geometry=object)"
+            ]
+        },
+        "/main_window/manual_tab/Skinning/grid/save_selected_weights": {
+            "instance": "/button",
+            "attrs": {
+                "text": {
+                    "type": "raw",
+                    "value": "Wrrite Weights of Selected"
+                }
+            },
+            "code": [
+                "selection = cmds.ls(selection=True)",
+                "",
+                "for object in selection:",
+                "    name = f\"{object.rsplit('_', 1)[0]}\".lower()",
+                "    impulse.utils.skin.write_ng_skin_weights(filepath=f\"${asset_root}/{name}_weights.json\", geometry=object)"
+            ]
         },
         "/main_window/manual_tab/curve": {
             "instance": "/panel",
@@ -224,7 +276,7 @@
                 }
             },
             "code": [
-                "impulse.utils.control.write_control_shapes(filepath=\"${filepath}\", force=True)"
+                "impulse.utils.control.write_control_shapes(filepath=\"${filepath}\")"
             ]
         },
         "/main_window/manual_tab/curve/grid/write_curve": {
@@ -235,7 +287,7 @@
                 }
             },
             "code": [
-                "impulse.utils.control.write_curve(force=True)",
+                "impulse.utils.control.write_curve()",
                 ""
             ]
         },

@@ -141,23 +141,36 @@ def write_curve(control: str | None = None, name: str | None = None, force: bool
     if not name:
         name: str = control
 
+    json_path = f"{CONTROL_DIR}/{name}.json"
+
+    # If the file exists, only write it if force = True, or after asking for confirmation.
+    if os.path.isfile(path=json_path):
+        if force:
+            pass
+        else:
+            confirm: str = cmds.confirmDialog(
+                title="File Overwrite",
+                message=f"{json_path} already exists and will be overwritten, are you sure you want to write the file?",
+                button=["Yes", "No"],
+                defaultButton="Yes",
+                cancelButton="No",
+                dismissString="No",
+            )
+            if confirm == "Yes":
+                pass
+            else:
+                return
+
     # get curve data
     curve_data = get_curve_info(curve=control)
-
-    json_path = f"{CONTROL_DIR}/{name}.json"
     json_dump = json.dumps(obj=curve_data, indent=4)
 
-    # write shape if forced or file does not exist
-    if force or os.path.isfile(path=json_path) is False:
-        with open(file=json_path, mode="w") as json_file:
-            json_file.write(json_dump)
-            json_file.close()
-    else:
-        cmds.error(
-            "The shape you are trying to save already exists in "
-            + "library, please use a different name, delete the "
-            + "existing file, or use the force flag to overwrite."
-        )
+    # write shape
+    with open(file=json_path, mode="w") as json_file:
+        json_file.write(json_dump)
+        json_file.close()
+
+    return
 
 
 _loaded_control_shapes = {}
@@ -295,6 +308,25 @@ def write_control_shapes(filepath: str, force: bool = False) -> None:
         force: If True, will automatically overwrite any existing file at the filepath specified.
 
     """
+
+    # If the file exists, only write it if force = True, or after asking for confirmation.
+    if os.path.isfile(path=filepath):
+        if force:
+            pass
+        else:
+            confirm: str = cmds.confirmDialog(
+                title="File Overwrite",
+                message=f"{filepath} already exists and will be overwritten, are you sure you want to write the file?",
+                button=["Yes", "No"],
+                defaultButton="Yes",
+                cancelButton="No",
+                dismissString="No",
+            )
+            if confirm == "Yes":
+                pass
+            else:
+                return
+
     control_dict = {}
 
     controls: list[str] = get_tagged_controls()
@@ -305,14 +337,10 @@ def write_control_shapes(filepath: str, force: bool = False) -> None:
     json_path: str = filepath
     json_dump: str = json.dumps(obj=control_dict, indent=4)
 
-    # write shape if forced or file does not exist
-    if force or os.path.isfile(path=json_path) is False:
-        with open(file=json_path, mode="w") as json_file:
-            json_file.write(json_dump)
-            json_file.close()
-    else:
-        cmds.error(f"A control file already exists at {filepath} try removing it first or setting force to True.")
-    pass
+    with open(file=json_path, mode="w") as json_file:
+        json_file.write(json_dump)
+        json_file.close()
+    return
 
 
 def apply_control_file(filepath: str) -> None:
@@ -354,7 +382,8 @@ def apply_control_file(filepath: str) -> None:
                 cmds.parent(curve_shape_node, control, shape=True, relative=True)
                 cmds.delete(child_curve_transform)
 
-def mirror_control_shapes()  -> None:
+
+def mirror_control_shapes() -> None:
     controls: list[str] = get_tagged_controls(side="L")
     for control in controls:
         shapes: list[str] = get_shapes(transform=control)
@@ -367,7 +396,7 @@ def mirror_control_shapes()  -> None:
             duplicated_shape: str = cmds.rename(duplicated_shape, flipped_shape)
             cmds.parent(duplicated_shape, flipped_control, shape=True, relative=True)
         cmds.delete(duplicated)
-        
+
 
 class Control:
     def __init__(self, control_transform: str, offset_transform: str, name: str | None):
