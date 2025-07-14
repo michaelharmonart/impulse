@@ -308,7 +308,9 @@
                 "constrain",
                 "multi_constrain",
                 "orient_world",
-                "mirror"
+                "mirror",
+                "rotation_order",
+                "set_rotation_order"
             ]
         },
         "/main_window/manual_tab/main_panel/grid/constrain": {
@@ -361,6 +363,49 @@
                 "selected = cmds.ls(selection=True)",
                 "for object in selected:",
                 "    impulse.utils.transform.orient_to_world(transform=object)"
+            ]
+        },
+        "/main_window/manual_tab/main_panel/grid/rotation_order": {
+            "instance": "/dropDownMenu",
+            "attrs": {
+                "menu_items": {
+                    "type": "raw",
+                    "value": "XYZ  YZX ZXY XZY YXZ ZYX"
+                },
+                "menu_value": {
+                    "type": "raw",
+                    "value": "YXZ"
+                },
+                "text": {
+                    "value": "Rotation Order"
+                }
+            }
+        },
+        "/main_window/manual_tab/main_panel/grid/set_rotation_order": {
+            "instance": "/button",
+            "attrs": {
+                "rotation_order": {
+                    "type": "raw",
+                    "value": "${../rotation_order.menu_value}"
+                },
+                "text": {
+                    "value": "Apply Rotation Order"
+                }
+            },
+            "code": [
+                "rotation_order_dict =  {",
+                "    \"XYZ\": 0,",
+                "    \"YZX\": 1,",
+                "    \"ZXY\": 2,",
+                "    \"XZY\": 3,",
+                "    \"YXZ\": 4,",
+                "    \"ZYX\": 5,",
+                "}",
+                "",
+                "selection = cmds.ls(selection=True)",
+                "",
+                "for object in selection:",
+                "    cmds.setAttr(f\"{object}.rotateOrder\", rotation_order_dict[\"${rotation_order}\"])"
             ]
         },
         "/main_window/manual_tab/selection_panel": {

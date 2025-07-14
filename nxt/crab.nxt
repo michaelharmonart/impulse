@@ -196,6 +196,7 @@
             "/limb": false,
             "/main_window/manual_tab/curve/grid/node": true,
             "/main_window/manual_tab/main_panel/grid": false,
+            "/main_window/manual_tab/main_panel/grid/set_rotation_order": true,
             "/main_window/manual_tab/main_panel/node": true,
             "/middle/shell": false,
             "/middle/spine": true,
@@ -1044,6 +1045,7 @@
             ]
         },
         "/main_window/manual_tab/curve/grid/control_selector": {},
+        "/main_window/manual_tab/main_panel/grid/set_rotation_order": {},
         "/middle": {
             "instance": "/side",
             "execute_in": "/base",
