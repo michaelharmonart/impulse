@@ -2,7 +2,7 @@ import json
 from typing import Literal
 import maya.cmds as cmds
 
-from impulse.utils import transform
+from impulse.utils.transform import RotationOrder, match_transform, matrix_constraint
 from impulse.utils import pin as pin
 from impulse.utils import math as math
 from enum import Enum
@@ -451,6 +451,7 @@ def make_control(
     dimensions: tuple[float, float, float] = (1, 1, 1),
     control_shape: ControlShape | str = ControlShape.CIRCLE,
     offset: float = 0,
+    rotation_order: RotationOrder | None = None
 ) -> Control:
     """
     Create a control curve in Maya at a given position, scale it, offset it,
@@ -465,16 +466,22 @@ def make_control(
         dimensions: Dimensions of the resulting control curve.
         control_shape: The type of control shape to create.
         offset: Vertical offset applied immediately after creation.
-        use_opm: Use offset parent matrix instead of offset transform group (cleaner hierarchy)
 
     Returns:
         The name of the created control transform.
     """
+    if not rotation_order:
+        if target_transform:
+            target_rotation_order = cmds.getAttr(f"{target_transform}.rotateOrder")
+            rotation_order: RotationOrder = RotationOrder(value=target_rotation_order if target_rotation_order is not None else RotationOrder.YXZ)
+        else:
+            rotation_order = RotationOrder.YXZ
     if isinstance(control_shape, str):
         control_shape: ControlShape = ControlShape[control_shape.strip().upper()]
-    # Generate a curve
+    # Generate a curve and apply rotation order.
     control_transform: str = create_curve(curve_shape=control_shape)
-    # Adjust the control's scale, apply an offset, reset transforms, and reposition.
+    cmds.setAttr(f"{control_transform}.rotateOrder", rotation_order.value)
+    # Adjust the control's scale, apply an offset, reset transforms, reposition.
     control_transform: str = cmds.rename(control_transform, f"{name}_CTL")
     scaled_dimensions = [size * dimension for dimension in dimensions]
     cmds.scale(*scaled_dimensions, control_transform, relative=False)
@@ -507,14 +514,15 @@ def make_control(
     cmds.makeIdentity(control_transform, apply=True)
     cmds.xform(control_transform, pivots=(0, 0, 0))
 
-    offset_transform: str = cmds.group(control_transform, name=f"{name}_OFFSET")
+    offset_transform: str = cmds.group(control_transform, name=f"{name}_OFFSET")    
     cmds.xform(offset_transform, pivots=(0, 0, 0))
+    cmds.setAttr(f"{offset_transform}.rotateOrder", rotation_order.value)
 
     if parent:
         cmds.parent(offset_transform, parent, relative=True)
 
     if target_transform:
-        transform.match_transform(transform=offset_transform, target_transform=target_transform)
+        match_transform(transform=offset_transform, target_transform=target_transform)
     elif position:
         cmds.move(position[0], position[1], position[2], relative=True, worldSpace=True)
     control = Control(control_transform=control_transform, offset_transform=offset_transform, name=name)
@@ -710,6 +718,6 @@ def connect_control(
     driven_name: str,
     keep_offset: bool = False,
 ) -> None:
-    transform.matrix_constraint(
+    matrix_constraint(
         source_transform=control.control_transform, constrain_transform=driven_name, keep_offset=keep_offset
     )

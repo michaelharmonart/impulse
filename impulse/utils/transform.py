@@ -1,7 +1,17 @@
 import maya.cmds as cmds
+from enum import Enum
 
 from impulse.utils.naming import flip_side
 
+class RotationOrder(Enum):
+    """Enum for Maya rotation orders."""
+
+    XYZ = 0
+    YZX = 1
+    ZXY = 2
+    XZY = 3
+    YXZ = 4
+    ZYX = 5
 
 def is_identity_matrix(matrix: list[float], epsilon: float = 0.001) -> bool:
     return all(
@@ -75,9 +85,10 @@ def matrix_constraint(
     else:
         cmds.setAttr(f"{constrain_transform}.inheritsTransform", 0)
 
-    # Create the decomposed matrix and connect it's input
+    # Create the decomposed matrix and connect it's inputs
     decompose_matrix: str = cmds.createNode("decomposeMatrix", name=f"{constraint_name}_ConstrainMatrixDecompose")
     cmds.connectAttr(f"{mult_matrix}.matrixSum", f"{decompose_matrix}.inputMatrix")
+    cmds.connectAttr(f"{constrain_transform}.rotateOrder", f"{decompose_matrix}.inputRotateOrder")
 
     rotate_attr: str = f"{decompose_matrix}.outputRotate"
     # If it's a joint we have to do a whole bunch of other nonsense to account for joint orient (I was up till 2am because of this)
