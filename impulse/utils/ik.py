@@ -18,7 +18,6 @@ def ik_from_guides(
         guides: The guides that will become the IK joints.
         pole_vector: The guide for placing the pole vector.
         reverse_segments: How many of the segments on the chain should be reverse IK.
-        include_end_joint: When True, the last Guide given (the end joint) will also be included as a joint in the deformation chain
         stretch: If True, will make limb stretch when going past full extension.
         name: Name for the newly created IK Chain group.
         parent: Parent for the newly created IK Chain group.
@@ -47,6 +46,8 @@ def ik_from_guides(
     ik_joints: list[str] = []
     for index, guide in enumerate(ik_guides):
         ik_joint: str = cmds.duplicate(guide, name=f"{guide}{suffix}", parentOnly=True)[0]
+        if stretch:
+            cmds.setAttr(f"{ik_joint}.segmentScaleCompensate", 1)
         if index > 0:
             cmds.parent(ik_joint, ik_joints[index - 1])
         else:
@@ -90,17 +91,24 @@ def ik_from_guides(
         
         # Create nodes to measure distance
         start_joint_local: str = cmds.group(empty=True, name=f"{ik_joints[0]}_LOCAL", parent=ik_group)
-        matrix_constraint(ik_joints[0], start_joint_local)
+        matrix_constraint(ik_joints[0], start_joint_local, keep_offset=False)
+        handle_local: str = cmds.group(empty=True, name=f"{ik_handle}_LOCAL", parent=ik_group)
+        matrix_constraint(ik_handle, handle_local, keep_offset=False)
 
         distance_node: str = cmds.createNode("distanceBetween", name=f"{name}_dist")
-        cmds.connectAttr(f"{ik_joints[0]}.worldMatrix", f"{distance_node}.inMatrix1")
-        cmds.connectAttr(f"{ik_joints[-1]}.worldMatrix", f"{distance_node}.inMatrix2")
+        cmds.connectAttr(f"{start_joint_local}.matrix", f"{distance_node}.inMatrix1")
+        cmds.connectAttr(f"{handle_local}.matrix", f"{distance_node}.inMatrix2")
 
         # Get rest length and a normalized distance multiplier that tells us how much longer or shorter the limb is.
-        rest_distance = cmds.getAttr(f"{distance_node}.distance")
+        rest_length: float = 0
+        for index, joint in enumerate(ik_joints):
+            if index == 0:
+                continue
+            rest_length += cmds.getAttr(f"{joint}.translate.translateY") # To-Do, make the distance calculation so it doesn't assume a scale of 1
+        #rest_distance = cmds.getAttr(f"{distance_node}.distance")
         normalize_node: str = cmds.createNode("divide", name=f"{name}_dist_norm")
         cmds.connectAttr(f"{distance_node}.distance", f"{normalize_node}.input1")
-        cmds.setAttr(f"{normalize_node}.input2", rest_distance)
+        cmds.setAttr(f"{normalize_node}.input2", rest_length)
 
         # Only stretch, dont shrink the limb.
         condition_node: str = cmds.createNode("condition", name=f"{name}_dist_cond")
@@ -112,11 +120,12 @@ def ik_from_guides(
 
         for joint in ik_joints[1:-1]:
             # Get the rest Y position, multiply by the scale factor, and pump it into the Y position.
-            joint_y_adjust = cmds.createNode("multDoubleLinear", name=f"{joint}_yAdjust")
-            cmds.connectAttr(scale_factor_attr, f"{joint_y_adjust}.input1")
-            rest_y = cmds.getAttr(f"{joint}.translate.translateY")
-            cmds.setAttr(f"{joint_y_adjust}.input2", rest_y)
-            cmds.connectAttr(f"{joint_y_adjust}.output", f"{joint}.translate.translateY")
+            #joint_y_adjust = cmds.createNode("multDoubleLinear", name=f"{joint}_yAdjust")
+            #cmds.connectAttr(scale_factor_attr, f"{joint_y_adjust}.input1")
+            #rest_y = cmds.getAttr(f"{joint}.translate.translateY")
+            #cmds.setAttr(f"{joint_y_adjust}.input2", rest_y)
+            #cmds.connectAttr(f"{joint_y_adjust}.output", f"{joint}.translate.translateY")
+            cmds.connectAttr(scale_factor_attr, f"{joint}.scale.scaleY")
 
     return ik_chain
 
