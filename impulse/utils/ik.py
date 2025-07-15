@@ -183,6 +183,7 @@ def ik_fk_blend(ik_joint: str, fk_joint: str, blended_joint: str, blend_attr: st
     # Create the Decomposed Matrix and connect its input
     decompose_matrix: str = cmds.createNode("decomposeMatrix", name=f"{blended_joint}_BlendMatrixDecompose")
     cmds.connectAttr(f"{blend_matrix}.outputMatrix", f"{decompose_matrix}.inputMatrix")
+    cmds.connectAttr(f"{blended_joint}.rotateOrder", f"{decompose_matrix}.inputRotateOrder")
 
     # Reset blended joint orient and connect the joint to the decomposeMatrix values
     cmds.setAttr(f"{blended_joint}.jointOrient", 0, 0, 0, type="float3")

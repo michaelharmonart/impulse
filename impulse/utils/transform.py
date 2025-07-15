@@ -160,6 +160,7 @@ def matrix_constraint(
                     "decomposeMatrix", name=f"{constraint_name}_ConstrainOrientDecompose"
                 )
                 cmds.connectAttr(f"{orient_mult_matrix}.matrixSum", f"{orient_decompose_matrix}.inputMatrix")
+                cmds.connectAttr(f"{constrain_transform}.rotateOrder", f"{orient_decompose_matrix}.inputRotateOrder")
                 rotate_attr = f"{orient_decompose_matrix}.outputRotate"
         else:
             cmds.setAttr(f"{constrain_transform}.jointOrient", 0, 0, 0, type="float3")
