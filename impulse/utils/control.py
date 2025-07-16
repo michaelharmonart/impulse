@@ -439,6 +439,16 @@ def tag_as_controller(control: Control, parent: str | None = None):
             cmds.connectAttr(f"{parent_tag}.message", f"{tag}.parent")
     return tag
 
+def lock_pivots(transform: str) -> None:
+    """
+    Lock the rotate and scale pivot attributes of the given transform.
+    """
+    cmds.setAttr( f"{transform}.rotateAxis", lock=True)
+    cmds.setAttr( f"{transform}.rotatePivot", lock=True)
+    cmds.setAttr( f"{transform}.rotatePivotTranslate", lock=True)
+
+    cmds.setAttr( f"{transform}.scalePivot", lock=True)
+    cmds.setAttr( f"{transform}.scalePivotTranslate", lock=True)
 
 def make_control(
     name: str,
@@ -481,6 +491,7 @@ def make_control(
     # Generate a curve and apply rotation order.
     control_transform: str = create_curve(curve_shape=control_shape)
     cmds.setAttr(f"{control_transform}.rotateOrder", rotation_order.value)
+
     # Adjust the control's scale, apply an offset, reset transforms, reposition.
     control_transform: str = cmds.rename(control_transform, f"{name}_CTL")
     scaled_dimensions = [size * dimension for dimension in dimensions]
@@ -513,6 +524,7 @@ def make_control(
             cmds.rotate(90, 0, 0)
     cmds.makeIdentity(control_transform, apply=True)
     cmds.xform(control_transform, pivots=(0, 0, 0))
+    lock_pivots(transform=control_transform)
 
     offset_transform: str = cmds.group(control_transform, name=f"{name}_OFFSET")    
     cmds.xform(offset_transform, pivots=(0, 0, 0))
@@ -590,6 +602,7 @@ def make_surface_control(
             cmds.rotate(90, 0, 0)
     cmds.makeIdentity(apply=True)
     cmds.xform(control_transform, pivots=(0, 0, 0))
+    lock_pivots(transform=control_transform)
 
     control_static_group = cmds.group(control_transform, name=f"{name}_STATIC")
     offset_matrix_compose = cmds.createNode("composeMatrix", name=f"{control_transform}_offsetMatrixCompose")
