@@ -193,6 +193,7 @@
             "/left/legs": false,
             "/left/legs/back": false,
             "/left/legs/front": false,
+            "/left/mouth_pincer": true,
             "/limb": false,
             "/main_window/manual_tab/curve/grid/node": true,
             "/main_window/manual_tab/main_panel/grid": false,
@@ -319,7 +320,8 @@
             "child_order": [
                 "arms",
                 "legs",
-                "eye"
+                "eye",
+                "mouth_pincer"
             ],
             "attrs": {
                 "control_color": {
@@ -730,6 +732,136 @@
                     "value": "\"Spine_M_matrixSpline_Segment2_CTL\""
                 }
             }
+        },
+        "/left/mouth_pincer": {
+            "attrs": {
+                "control_size": {
+                    "type": "float",
+                    "value": "0.05"
+                },
+                "ctl_group": {
+                    "type": "raw",
+                    "value": "${part_name}_CTLS"
+                },
+                "guides": {
+                    "type": "list",
+                    "value": "[\"BASE\", \"MID\", \"END\"]"
+                },
+                "parent": {
+                    "type": "raw",
+                    "value": "Head_M_END_CTL"
+                },
+                "part_def": {
+                    "type": "raw",
+                    "value": "${part_name}_DEF"
+                },
+                "part_group": {
+                    "type": "raw",
+                    "value": "${part_name}_MCH"
+                },
+                "part_name": {
+                    "type": "raw",
+                    "value": "${prefix}${side}"
+                },
+                "prefix": {
+                    "type": "raw",
+                    "value": "Maxilla_"
+                },
+                "segments": {
+                    "type": "int",
+                    "value": "3"
+                },
+                "socket": {
+                    "type": "raw",
+                    "value": "Spine_M_matrixSpline_Segment4_CTL"
+                },
+                "tweak_attr": {
+                    "type": "raw",
+                    "value": "${part_name}_ControlPanel.${tweak_attr_long}"
+                },
+                "tweak_attr_long": {
+                    "type": "raw",
+                    "value": "tweakVisibility"
+                },
+                "tweak_attr_nice": {
+                    "type": "raw",
+                    "value": "Tweak Control Visibility"
+                },
+                "tweak_group": {
+                    "type": "raw",
+                    "value": "${part_name}_Tweak_CTLS"
+                },
+                "tweak_size": {
+                    "type": "float",
+                    "value": "0.03"
+                }
+            },
+            "code": [
+                "part_group = cmds.group(empty=True, name=\"${part_group}\", parent=\"${parent}\")",
+                "def_group = cmds.group(empty=True, name=\"${part_def}\", parent=\"${def_group}\")",
+                "ctl_group = cmds.group(empty=True, name=\"${part_name}_CTLS\", parent=part_group)",
+                "tweak_group = cmds.group(empty=True, name=\"${tweak_group}\", parent=ctl_group)",
+                "cmds.hide(tweak_group)",
+                "",
+                "cmds.connectAttr(",
+                "    \"${control_layer}.controlColor\", ",
+                "    f\"{ctl_group}.drawOverride.overrideColorRGB\"",
+                ")",
+                "cmds.setAttr(f\"{ctl_group}.overrideEnabled\", 1)",
+                "cmds.setAttr(f\"{ctl_group}.overrideRGBColors\", 1)",
+                "",
+                "control_panel: str = cmds.createNode(\"network\", name=\"${part_name}_ControlPanel\")",
+                "cmds.addAttr(",
+                "            control_panel,",
+                "            longName=\"${tweak_attr_long}\", ",
+                "            niceName=\"${tweak_attr_nice}\", ",
+                "            attributeType=\"bool\",",
+                "            )",
+                "tweak_attr = f\"{control_panel}.${tweak_attr_long}\"",
+                "cmds.setAttr(tweak_attr, channelBox=True)   ",
+                "",
+                "joints = [f\"${prefix}${side}_{joint}\" for joint in self.guides]",
+                "self.joints = joints  ",
+                "",
+                "controls = []",
+                "for i, guide in enumerate(joints):",
+                "    control = impulse.utils.control.make_control(",
+                "            name=guide, ",
+                "            size=${control_size}, ",
+                "            target_transform=guide,",
+                "            control_shape=impulse.utils.control.ControlShape.CIRCLE,",
+                "            parent=ctl_group,  ",
+                "    )",
+                "    controls.append(control.control_transform)",
+                "    if i == 0:",
+                "        impulse.utils.transform.matrix_constraint(\"${socket}\", control.offset_transform, keep_offset=True)",
+                "    else:",
+                "        cmds.connectAttr(\"${tweak_attr}\", f\"{control.offset_transform}.visibility\")",
+                "        cmds.parent(control.offset_transform, controls[0])",
+                "",
+                "impulse.utils.spline.matrix_spline_from_transforms(",
+                "    name=\"${part_name}\",",
+                "    transforms=controls, ",
+                "    degree=2,",
+                "    segments=${segments}, ",
+                "    control_size=${tweak_size},",
+                "    control_shape=impulse.utils.control.ControlShape.CUBE,",
+                "    control_height=1,",
+                "    parent=part_group,",
+                "    spline_group=part_group,",
+                "    def_group=def_group,",
+                "    ctl_group=tweak_group,",
+                ")",
+                "",
+                "for control in controls:",
+                "    cmds.addAttr(",
+                "        control,",
+                "        longName=f\"${part_name}_${tweak_attr_long}\", ",
+                "        niceName=f\"{self.part_name.replace('_', ' ')} ${tweak_attr_nice}\", ",
+                "        proxy=\"${tweak_attr}\")",
+                "        ",
+                "STAGE.body_joints.extend(cmds.listRelatives(def_group, type=\"joint\", allDescendents=True))"
+            ]
         },
         "/limb": {
             "child_order": [
