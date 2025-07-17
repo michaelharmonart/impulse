@@ -1307,7 +1307,8 @@
                 "        niceName=f\"{self.part_name.replace('_', ' ')} {tweak_attr_nice}\", ",
                 "        proxy=f\"{control_panel}.{tweak_attr_long}\")",
                 "        ",
-                "STAGE.shell_joints.extend(cmds.listRelatives(def_group, type=\"joint\", allDescendents=True))"
+                "STAGE.shell_joints.extend(cmds.listRelatives(def_group, type=\"joint\", allDescendents=True))",
+                "STAGE.body_joints.extend(cmds.listRelatives(def_group, type=\"joint\", allDescendents=True))"
             ]
         },
         "/middle/spine": {
