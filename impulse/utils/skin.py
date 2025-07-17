@@ -4,9 +4,14 @@ import json
 from impulse.structs.transform import Vector3 as Vector3
 from impulse.utils import spline as spline
 from ngSkinTools2 import api as ng
+from ngSkinTools2.api import plugin
 from ngSkinTools2.api.influenceMapping import InfluenceMappingConfig
 from ngSkinTools2.api.transfer import VertexTransferMode
 
+def ensure_ng_initialized():
+    if not plugin.is_plugin_loaded():
+        plugin.load_plugin()
+    
 def init_layers(shape: str) -> ng.Layers:
     skin_cluster = ng.target_info.get_related_skin_cluster(shape)
     layers = ng.layers.init_layers(skin_cluster)
@@ -26,7 +31,7 @@ def apply_ng_skin_weights(weights_file: str, geometry: str) -> None:
     #if not shapes:
     #    raise RuntimeError(f"No shape nodes found on surface: {geometry}")
     #shape: str = shapes[0]
-
+    ensure_ng_initialized()
     config: InfluenceMappingConfig = InfluenceMappingConfig()
     config.use_distance_matching = False
     config.use_name_matching = True
