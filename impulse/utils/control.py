@@ -439,16 +439,18 @@ def tag_as_controller(control: Control, parent: str | None = None):
             cmds.connectAttr(f"{parent_tag}.message", f"{tag}.parent")
     return tag
 
+
 def lock_pivots(transform: str) -> None:
     """
     Lock the rotate and scale pivot attributes of the given transform.
     """
-    cmds.setAttr( f"{transform}.rotateAxis", lock=True)
-    cmds.setAttr( f"{transform}.rotatePivot", lock=True)
-    cmds.setAttr( f"{transform}.rotatePivotTranslate", lock=True)
+    cmds.setAttr(f"{transform}.rotateAxis", lock=True)
+    cmds.setAttr(f"{transform}.rotatePivot", lock=True)
+    cmds.setAttr(f"{transform}.rotatePivotTranslate", lock=True)
 
-    cmds.setAttr( f"{transform}.scalePivot", lock=True)
-    cmds.setAttr( f"{transform}.scalePivotTranslate", lock=True)
+    cmds.setAttr(f"{transform}.scalePivot", lock=True)
+    cmds.setAttr(f"{transform}.scalePivotTranslate", lock=True)
+
 
 def make_control(
     name: str,
@@ -461,7 +463,7 @@ def make_control(
     dimensions: tuple[float, float, float] = (1, 1, 1),
     control_shape: ControlShape | str = ControlShape.CIRCLE,
     offset: float = 0,
-    rotation_order: RotationOrder | None = None
+    rotation_order: RotationOrder | None = None,
 ) -> Control:
     """
     Create a control curve in Maya at a given position, scale it, offset it,
@@ -483,7 +485,9 @@ def make_control(
     if not rotation_order:
         if target_transform:
             target_rotation_order = cmds.getAttr(f"{target_transform}.rotateOrder")
-            rotation_order: RotationOrder = RotationOrder(value=target_rotation_order if target_rotation_order is not None else RotationOrder.YXZ)
+            rotation_order: RotationOrder = RotationOrder(
+                value=target_rotation_order if target_rotation_order is not None else RotationOrder.YXZ
+            )
         else:
             rotation_order = RotationOrder.YXZ
     if isinstance(control_shape, str):
@@ -526,7 +530,7 @@ def make_control(
     cmds.xform(control_transform, pivots=(0, 0, 0))
     lock_pivots(transform=control_transform)
 
-    offset_transform: str = cmds.group(control_transform, name=f"{name}_OFFSET")    
+    offset_transform: str = cmds.group(control_transform, name=f"{name}_OFFSET")
     cmds.xform(offset_transform, pivots=(0, 0, 0))
     cmds.setAttr(f"{offset_transform}.rotateOrder", rotation_order.value)
 

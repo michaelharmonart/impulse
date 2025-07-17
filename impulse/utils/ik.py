@@ -2,16 +2,29 @@ import maya.cmds as cmds
 
 from impulse.utils.transform import match_transform, matrix_constraint
 
+class IkChain:
+    """
+    A container class representing a constructed IK chain setup.
+
+    Attributes:
+        ik_chain_joints (list[str]): The list of joint names that make up the IK chain, including any reverse segments.
+        socket (str): Name of the transform that is the socket or attachment point for the chain.
+        pole_vector (str): The name of the transform used as the pole vector controller.
+    """
+    def __init__(self, ik_chain_joints: list[str], socket: str, pole_vector: str):
+        self.ik_chain_joints = ik_chain_joints
+        self.socket = socket
+        self.pole_vector = pole_vector
 
 def ik_from_guides(
     guides: list[str],
     pole_vector_guide: str,
     reverse_segments: int = 0,
-    stretch: bool = False,
+    stretch: bool = True,
     name: str | None = None,
     parent: str | None = None,
     suffix: str = "_IK",
-) -> str:
+) -> IkChain:
     """
     Takes a hierarchy of guides and creates an IK chain.
     Args:
@@ -23,7 +36,7 @@ def ik_from_guides(
         parent: Parent for the newly created IK Chain group.
         suffix: Suffix to be added to joint names and IK chain group.
     Returns:
-        list[str]: Name of the created IK joints.
+        IkChain: Object containing relevant data about the generated Ik Chain.
     """
     reverse: bool = reverse_segments != 0
 
@@ -74,6 +87,11 @@ def ik_from_guides(
     if reverse:
         ik_chain: list[str] = ik_joints[:-1] + reverse_joints
 
+    # Create and connect Socket
+    socket: str = cmds.group(empty=True, name=f"{name}_Socket", parent=ik_group)
+    match_transform(transform=socket, target_transform=guides[0])
+    cmds.pointConstraint(socket, ik_chain[0])
+
     # Create IK Handle
     ik_handle: str = cmds.ikHandle(startJoint=ik_joints[0], endEffector=ik_joints[-1], name=f"{name}_ikHandle")[0]
     if reverse:
@@ -90,21 +108,24 @@ def ik_from_guides(
     if stretch:
         
         # Create nodes to measure distance
-        start_joint_local: str = cmds.group(empty=True, name=f"{ik_joints[0]}_LOCAL", parent=ik_group)
-        matrix_constraint(ik_joints[0], start_joint_local, keep_offset=False)
+        socket_local: str = cmds.group(empty=True, name=f"{socket}_LOCAL", parent=ik_group)
+        matrix_constraint(source_transform=socket, constrain_transform=socket_local, keep_offset=False)
         handle_local: str = cmds.group(empty=True, name=f"{ik_handle}_LOCAL", parent=ik_group)
         matrix_constraint(ik_handle, handle_local, keep_offset=False)
 
         distance_node: str = cmds.createNode("distanceBetween", name=f"{name}_dist")
-        cmds.connectAttr(f"{start_joint_local}.matrix", f"{distance_node}.inMatrix1")
+        cmds.connectAttr(f"{socket_local}.matrix", f"{distance_node}.inMatrix1")
         cmds.connectAttr(f"{handle_local}.matrix", f"{distance_node}.inMatrix2")
 
         # Get rest length and a normalized distance multiplier that tells us how much longer or shorter the limb is.
         rest_length: float = 0
+        temp_distance_node: str = cmds.createNode("distanceBetween", name=f"{name}_temp_dist")
         for index, joint in enumerate(ik_joints):
             if index == 0:
                 continue
-            rest_length += cmds.getAttr(f"{joint}.translate.translateY") # To-Do, make the distance calculation so it doesn't assume a scale of 1
+            cmds.connectAttr(f"{joint}.matrix", f"{temp_distance_node}.inMatrix2")
+            rest_length += cmds.getAttr(f"{temp_distance_node}.distance")
+            cmds.disconnectAttr(f"{joint}.matrix", f"{temp_distance_node}.inMatrix2")
         #rest_distance = cmds.getAttr(f"{distance_node}.distance")
         normalize_node: str = cmds.createNode("divide", name=f"{name}_dist_norm")
         cmds.connectAttr(f"{distance_node}.distance", f"{normalize_node}.input1")
@@ -118,7 +139,7 @@ def ik_from_guides(
         cmds.connectAttr(f"{normalize_node}.output", f"{condition_node}.colorIfTrueR")
         scale_factor_attr = f"{condition_node}.outColorR"
 
-        for joint in ik_joints[1:-1]:
+        for joint in ik_joints[0:-1]:
             # Get the rest Y position, multiply by the scale factor, and pump it into the Y position.
             #joint_y_adjust = cmds.createNode("multDoubleLinear", name=f"{joint}_yAdjust")
             #cmds.connectAttr(scale_factor_attr, f"{joint_y_adjust}.input1")
@@ -127,7 +148,7 @@ def ik_from_guides(
             #cmds.connectAttr(f"{joint_y_adjust}.output", f"{joint}.translate.translateY")
             cmds.connectAttr(scale_factor_attr, f"{joint}.scale.scaleY")
 
-    return ik_chain
+    return IkChain(ik_chain_joints=ik_chain, socket=socket ,pole_vector=pole_vector)
 
 
 def fk_from_guides(

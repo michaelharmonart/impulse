@@ -8,10 +8,12 @@ from ngSkinTools2.api import plugin
 from ngSkinTools2.api.influenceMapping import InfluenceMappingConfig
 from ngSkinTools2.api.transfer import VertexTransferMode
 
-def ensure_ng_initialized():
+
+def ensure_ng_initialized() -> None:
     if not plugin.is_plugin_loaded():
         plugin.load_plugin()
-    
+
+
 def init_layers(shape: str) -> ng.Layers:
     skin_cluster = ng.target_info.get_related_skin_cluster(shape)
     layers = ng.layers.init_layers(skin_cluster)
@@ -23,14 +25,14 @@ def init_layers(shape: str) -> ng.Layers:
 def apply_ng_skin_weights(weights_file: str, geometry: str) -> None:
     """
     Applies an ngSkinTools JSON weights file to the specified geometry.
-    Args: 
+    Args:
         weights_file: The JSON weights file to read.
-        geometry: The transform, shape, or skinCluster Node to apply to. 
+        geometry: The transform, shape, or skinCluster Node to apply to.
     """
-    #shapes: list[str] = cmds.listRelatives(geometry, children=True, shapes=True) or []
-    #if not shapes:
+    # shapes: list[str] = cmds.listRelatives(geometry, children=True, shapes=True) or []
+    # if not shapes:
     #    raise RuntimeError(f"No shape nodes found on surface: {geometry}")
-    #shape: str = shapes[0]
+    # shape: str = shapes[0]
     ensure_ng_initialized()
     config: InfluenceMappingConfig = InfluenceMappingConfig()
     config.use_distance_matching = False
@@ -46,6 +48,7 @@ def apply_ng_skin_weights(weights_file: str, geometry: str) -> None:
         vertex_transfer_mode=VertexTransferMode.vertexId,
         influences_mapping_config=config,
     )
+
 
 def write_ng_skin_weights(filepath: str, geometry: str, force: bool = False) -> None:
     """
@@ -79,6 +82,7 @@ def write_ng_skin_weights(filepath: str, geometry: str, force: bool = False) -> 
     ng.export_json(target=geometry, file=filepath)
 
     return
+
 
 def get_vertex_positions(shape: str) -> list[Vector3]:
     """
