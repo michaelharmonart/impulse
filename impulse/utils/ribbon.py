@@ -10,7 +10,13 @@ It leverages custom control curves from the control_gen module.
 """
 
 import maya.cmds as cmds
-from impulse.utils.control import Control, connect_control, make_control, make_surface_control, Direction
+from impulse.utils.control import (
+    Control,
+    connect_control,
+    make_control,
+    make_surface_control,
+    Direction,
+)
 from impulse.utils import pin as pin
 
 
@@ -99,7 +105,9 @@ def generate_ribbon(
         temp_locator = cmds.joint(position=pos)
 
         cmds.select(ribbon_group, replace=True)
-        joint_name = cmds.joint(position=pos, radius=1, name=f"{ribbon_object}_ControlJoint{idx + 1}_JNT")
+        joint_name = cmds.joint(
+            position=pos, radius=1, name=f"{ribbon_object}_ControlJoint{idx + 1}_JNT"
+        )
         if attach_surface:
             pin.make_uv_pin(
                 object_to_pin=temp_locator,
@@ -163,12 +171,16 @@ def generate_ribbon(
             u_val, v_val = v_val, u_val
         pos = cmds.pointOnSurface(ribbon_object, position=True, parameterU=u_val, parameterV=v_val)
         cmds.select(ribbon_group, replace=True)
-        joint_name = cmds.joint(position=pos, radius=0.5, name=f"{ribbon_object}_point{idx + 1}_DEF")
+        joint_name = cmds.joint(
+            position=pos, radius=0.5, name=f"{ribbon_object}_point{idx + 1}_DEF"
+        )
         if hide_joints:
             cmds.hide(joint_name)
 
         if attach_surface:
-            pin_point = cmds.group(empty=True, parent=ctl_group, name=f"{ribbon_object}_pin{idx + 1}")
+            pin_point = cmds.group(
+                empty=True, parent=ctl_group, name=f"{ribbon_object}_pin{idx + 1}"
+            )
             pin.make_uv_pin(
                 object_to_pin=pin_point,
                 surface=ribbon_object,
@@ -246,7 +258,9 @@ def generate_ribbon(
             u_val, v_val = v_val, u_val
         pos = cmds.pointOnSurface(ribbon_object, position=True, parameterU=u_val, parameterV=v_val)
         cmds.select(ribbon_group, replace=True)
-        joint_name = cmds.joint(position=pos, radius=0.5, name=f"{ribbon_object}_point{idx + 1}_INT")
+        joint_name = cmds.joint(
+            position=pos, radius=0.5, name=f"{ribbon_object}_point{idx + 1}_INT"
+        )
         cmds.hide(joint_name)
         pin.make_uv_pin(
             object_to_pin=joint_name,
@@ -349,14 +363,18 @@ def ribbon_interpolate(
     if len(primary_joints) != len(secondary_joints):
         cmds.error("Both ribbons must have the same number of joints.")
 
-    interp_group = cmds.group(empty=True, name=primary_ribbon_group.replace("GRP", "_Interpolate_GRP"))
+    interp_group = cmds.group(
+        empty=True, name=primary_ribbon_group.replace("GRP", "_Interpolate_GRP")
+    )
     cmds.select(interp_group)
     total_joints = len(primary_joints)
     row_groups: list[str] = []
     for i in range(number_of_loops):
         blend_value = (1 / (number_of_loops + 1)) * (i + 1)
         row_group = cmds.group(
-            name=primary_ribbon_group.replace("GRP", f"Row{i + 1}_GRP"), empty=True, parent=interp_group
+            name=primary_ribbon_group.replace("GRP", f"Row{i + 1}_GRP"),
+            empty=True,
+            parent=interp_group,
         )
         row_groups.append(row_group)
         cmds.addAttr(row_group, longName="rowBlend", attributeType="float")
@@ -365,13 +383,17 @@ def ribbon_interpolate(
     for joint_idx in range(total_joints):
         # Create nodes to get world-space positions for primary joint.
         primary_pos_node = cmds.createNode(
-            "pointMatrixMult", name=primary_joints[joint_idx].replace(interpolation_joint_suffix, "Position")
+            "pointMatrixMult",
+            name=primary_joints[joint_idx].replace(interpolation_joint_suffix, "Position"),
         )
-        cmds.connectAttr(f"{primary_joints[joint_idx]}.parentMatrix", f"{primary_pos_node}.inMatrix")
+        cmds.connectAttr(
+            f"{primary_joints[joint_idx]}.parentMatrix", f"{primary_pos_node}.inMatrix"
+        )
         cmds.connectAttr(f"{primary_joints[joint_idx]}.translate", f"{primary_pos_node}.inPoint")
 
         primary_cp_node = cmds.createNode(
-            cp_node_type, name=primary_joints[joint_idx].replace(interpolation_joint_suffix, "ClosestPoint")
+            cp_node_type,
+            name=primary_joints[joint_idx].replace(interpolation_joint_suffix, "ClosestPoint"),
         )
         cmds.connectAttr(f"{shape}{attr_world}", f"{primary_cp_node}{cp_input}")
         cmds.connectAttr(f"{primary_pos_node}.output", f"{primary_cp_node}.inPosition")
@@ -380,13 +402,19 @@ def ribbon_interpolate(
 
         # Create nodes for the secondary joint.
         secondary_pos_node = cmds.createNode(
-            "pointMatrixMult", name=secondary_joints[joint_idx].replace(interpolation_joint_suffix, "Position")
+            "pointMatrixMult",
+            name=secondary_joints[joint_idx].replace(interpolation_joint_suffix, "Position"),
         )
-        cmds.connectAttr(f"{secondary_joints[joint_idx]}.parentMatrix", f"{secondary_pos_node}.inMatrix")
-        cmds.connectAttr(f"{secondary_joints[joint_idx]}.translate", f"{secondary_pos_node}.inPoint")
+        cmds.connectAttr(
+            f"{secondary_joints[joint_idx]}.parentMatrix", f"{secondary_pos_node}.inMatrix"
+        )
+        cmds.connectAttr(
+            f"{secondary_joints[joint_idx]}.translate", f"{secondary_pos_node}.inPoint"
+        )
 
         secondary_cp_node = cmds.createNode(
-            cp_node_type, name=secondary_joints[joint_idx].replace(interpolation_joint_suffix, "ClosestPoint")
+            cp_node_type,
+            name=secondary_joints[joint_idx].replace(interpolation_joint_suffix, "ClosestPoint"),
         )
         cmds.connectAttr(f"{shape}{attr_world}", f"{secondary_cp_node}{cp_input}")
         cmds.connectAttr(f"{secondary_pos_node}.output", f"{secondary_cp_node}.inPosition")
@@ -397,10 +425,15 @@ def ribbon_interpolate(
         for row_idx, row_group in enumerate(row_groups):
             cmds.select(row_group)
             blend_joint = cmds.joint(
-                radius=1, name=primary_joints[joint_idx].replace(interpolation_joint_suffix, f"_Row{row_idx + 1}_CTL")
+                radius=1,
+                name=primary_joints[joint_idx].replace(
+                    interpolation_joint_suffix, f"_Row{row_idx + 1}_CTL"
+                ),
             )
             cmds.setAttr(f"{blend_joint}.inheritsTransform", 0)
-            uv_pin_node = pin.make_uv_pin(object_to_pin=blend_joint, surface=interpolation_object, u=0.5, v=0.5)
+            uv_pin_node = pin.make_uv_pin(
+                object_to_pin=blend_joint, surface=interpolation_object, u=0.5, v=0.5
+            )
 
             blend_u_node = cmds.createNode("blendTwoAttr", name=f"{uv_pin_node}_Blend_U")
             cmds.connectAttr(f"{primary_cp_node}.result.parameterU", f"{blend_u_node}.input[0]")
@@ -438,7 +471,9 @@ def populate_surface(
         cmds.error(f"No shape nodes found on surface: {surface}")
 
     # Choose the primary shape (non-intermediate if available) and check for an existing intermediate shape.
-    primary_shape = next((s for s in shapes if not cmds.getAttr(f"{s}.intermediateObject")), shapes[0])
+    primary_shape = next(
+        (s for s in shapes if not cmds.getAttr(f"{s}.intermediateObject")), shapes[0]
+    )
 
     # Determine attribute names based on surface type.
     surface_type = cmds.objectType(primary_shape)

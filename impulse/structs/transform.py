@@ -10,7 +10,7 @@ class Vector3:
 
     def __str__(self):
         return f"({self.x},{self.y},{self.z})"
-    
+
     def __repr__(self):
         return f"({self.x},{self.y},{self.z})"
 

@@ -3,6 +3,7 @@ from enum import Enum
 
 from impulse.utils.naming import flip_side
 
+
 class RotationOrder(Enum):
     """Enum for Maya rotation orders."""
 
@@ -12,6 +13,7 @@ class RotationOrder(Enum):
     XZY = 3
     YXZ = 4
     ZYX = 5
+
 
 def is_identity_matrix(matrix: list[float], epsilon: float = 0.001) -> bool:
     return all(
@@ -55,16 +57,23 @@ def matrix_constraint(
     mult_index: int = 0
     mult_matrix: str = cmds.createNode("multMatrix", name=f"{constraint_name}_ConstraintMultMatrix")
 
-    # If we want to keep the offset, we put the position of the constrained transform into the source transform's space and record it.
+    # If we want to keep the offset, we put the position of the constrained transform into 
+    # the source transform's space and record it.
     if keep_offset:
         # Get the offset matrix
-        offset_matrix_node: str = cmds.createNode("multMatrix", name=f"{constraint_name}_OffsetMatrix")
-        cmds.connectAttr(f"{constrain_transform}.worldMatrix[0]", f"{offset_matrix_node}.matrixIn[0]")
-        cmds.connectAttr(f"{source_transform}.worldInverseMatrix[0]", f"{offset_matrix_node}.matrixIn[1]")
+        offset_matrix_node: str = cmds.createNode(
+            "multMatrix", name=f"{constraint_name}_OffsetMatrix"
+        )
+        cmds.connectAttr(
+            f"{constrain_transform}.worldMatrix[0]", f"{offset_matrix_node}.matrixIn[0]"
+        )
+        cmds.connectAttr(
+            f"{source_transform}.worldInverseMatrix[0]", f"{offset_matrix_node}.matrixIn[1]"
+        )
         offset_matrix = cmds.getAttr(f"{offset_matrix_node}.matrixSum")
 
-        # Check the matrix against an identity matrix. If it's the same within a margin of error the transforms aren't offset.
-        # Meaning we can skip that extra matrix multiplication.
+        # Check the matrix against an identity matrix. If it's the same within a margin of error, 
+        # the transforms aren't offset, meaning we can skip that extra matrix multiplication.
         if not is_identity_matrix(matrix=offset_matrix):
             # Put the offset into the matrix multiplier
             cmds.setAttr(f"{mult_matrix}.matrixIn[{mult_index}]", offset_matrix, type="matrix")
@@ -80,13 +89,17 @@ def matrix_constraint(
 
     # If we have a parent transform we then put it into that space by multiplying by it's worldInverseMatrix
     if local_space:
-        cmds.connectAttr(f"{constrain_transform}.parentInverseMatrix[0]", f"{mult_matrix}.matrixIn[{mult_index}]")
+        cmds.connectAttr(
+            f"{constrain_transform}.parentInverseMatrix[0]", f"{mult_matrix}.matrixIn[{mult_index}]"
+        )
         mult_index += 1
     else:
         cmds.setAttr(f"{constrain_transform}.inheritsTransform", 0)
 
     # Create the decomposed matrix and connect it's inputs
-    decompose_matrix: str = cmds.createNode("decomposeMatrix", name=f"{constraint_name}_ConstrainMatrixDecompose")
+    decompose_matrix: str = cmds.createNode(
+        "decomposeMatrix", name=f"{constraint_name}_ConstrainMatrixDecompose"
+    )
     cmds.connectAttr(f"{mult_matrix}.matrixSum", f"{decompose_matrix}.inputMatrix")
     cmds.connectAttr(f"{constrain_transform}.rotateOrder", f"{decompose_matrix}.inputRotateOrder")
 
@@ -95,15 +108,21 @@ def matrix_constraint(
     if cmds.nodeType(constrain_transform) == "joint":
         if use_joint_orient:
             # Check if the joint orient isn't about 0
-            joint_orient: tuple[float, float, float] = cmds.getAttr(f"{constrain_transform}.jointOrient")[0]
+            joint_orient: tuple[float, float, float] = cmds.getAttr(
+                f"{constrain_transform}.jointOrient"
+            )[0]
             if any(abs(i) > 0.01 for i in joint_orient):
                 # Get our joint orient and turn it into a matrix
-                orient_node: str = cmds.createNode("composeMatrix", name=f"{constraint_name}_OrientMatrix")
+                orient_node: str = cmds.createNode(
+                    "composeMatrix", name=f"{constraint_name}_OrientMatrix"
+                )
                 cmds.connectAttr(f"{constrain_transform}.jointOrient", f"{orient_node}.inputRotate")
                 orient_matrix = cmds.getAttr(f"{orient_node}.outputMatrix")
 
                 # We need to compose a different matrix to drive just the rotation due to the joint orient
-                orient_offset_node: str = cmds.createNode("inverseMatrix", name=f"{constraint_name}_OrientOffsetMatrix")
+                orient_offset_node: str = cmds.createNode(
+                    "inverseMatrix", name=f"{constraint_name}_OrientOffsetMatrix"
+                )
                 orient_mult_matrix: str = cmds.createNode(
                     "multMatrix", name=f"{constraint_name}_ConstraintOrientMatrix"
                 )
@@ -111,12 +130,17 @@ def matrix_constraint(
 
                 # If we have an offset it'll be our first matrix in the multiplier (same as above)
                 if keep_offset:
-                    cmds.setAttr(f"{orient_mult_matrix}.matrixIn[{orient_mult_index}]", offset_matrix, type="matrix")
+                    cmds.setAttr(
+                        f"{orient_mult_matrix}.matrixIn[{orient_mult_index}]",
+                        offset_matrix,
+                        type="matrix",
+                    )
                     orient_mult_index += 1
 
                 # Next we multiply by the world matrix of the source transform
                 cmds.connectAttr(
-                    f"{source_transform}.worldMatrix[0]", f"{orient_mult_matrix}.matrixIn[{orient_mult_index}]"
+                    f"{source_transform}.worldMatrix[0]",
+                    f"{orient_mult_matrix}.matrixIn[{orient_mult_index}]",
                 )
                 orient_mult_index += 1
 
@@ -129,27 +153,38 @@ def matrix_constraint(
                     orient_parent_mult_matrix: str = cmds.createNode(
                         "multMatrix", name=f"{constraint_name}_ConstraintOrientMultMatrix"
                     )
-                    cmds.setAttr(f"{orient_parent_mult_matrix}.matrixIn[0]", orient_matrix, type="matrix")
+                    cmds.setAttr(
+                        f"{orient_parent_mult_matrix}.matrixIn[0]", orient_matrix, type="matrix"
+                    )
                     cmds.connectAttr(
-                        f"{constrain_transform}.parentMatrix[0]", f"{orient_parent_mult_matrix}.matrixIn[1]"
+                        f"{constrain_transform}.parentMatrix[0]",
+                        f"{orient_parent_mult_matrix}.matrixIn[1]",
                     )
 
                     # Create an inverse node and connect it to the result of the last step
-                    cmds.connectAttr(f"{orient_parent_mult_matrix}.matrixSum", f"{orient_offset_node}.inputMatrix")
+                    cmds.connectAttr(
+                        f"{orient_parent_mult_matrix}.matrixSum",
+                        f"{orient_offset_node}.inputMatrix",
+                    )
 
                     # Finally add this to a slot on the matrix multiplier node
                     cmds.connectAttr(
-                        f"{orient_offset_node}.outputMatrix", f"{orient_mult_matrix}.matrixIn[{orient_mult_index}]"
+                        f"{orient_offset_node}.outputMatrix",
+                        f"{orient_mult_matrix}.matrixIn[{orient_mult_index}]",
                     )
                     orient_mult_index += 1
                 else:
                     # If we don't care about a parent, just make a temp inverse node and store the inverse of the joint orient
-                    cmds.connectAttr(f"{orient_node}.outputMatrix", f"{orient_offset_node}.inputMatrix")
+                    cmds.connectAttr(
+                        f"{orient_node}.outputMatrix", f"{orient_offset_node}.inputMatrix"
+                    )
                     inverse_orient_matrix = cmds.getAttr(f"{orient_offset_node}.outputMatrix")
 
                     # And then set it in a slot on the matrix multiplier
                     cmds.setAttr(
-                        f"{orient_mult_matrix}.matrixIn[{orient_mult_index}]", inverse_orient_matrix, type="matrix"
+                        f"{orient_mult_matrix}.matrixIn[{orient_mult_index}]",
+                        inverse_orient_matrix,
+                        type="matrix",
                     )
                     orient_mult_index += 1
                     # Cleanup temp node
@@ -159,8 +194,13 @@ def matrix_constraint(
                 orient_decompose_matrix: str = cmds.createNode(
                     "decomposeMatrix", name=f"{constraint_name}_ConstrainOrientDecompose"
                 )
-                cmds.connectAttr(f"{orient_mult_matrix}.matrixSum", f"{orient_decompose_matrix}.inputMatrix")
-                cmds.connectAttr(f"{constrain_transform}.rotateOrder", f"{orient_decompose_matrix}.inputRotateOrder")
+                cmds.connectAttr(
+                    f"{orient_mult_matrix}.matrixSum", f"{orient_decompose_matrix}.inputMatrix"
+                )
+                cmds.connectAttr(
+                    f"{constrain_transform}.rotateOrder",
+                    f"{orient_decompose_matrix}.inputRotateOrder",
+                )
                 rotate_attr = f"{orient_decompose_matrix}.outputRotate"
         else:
             cmds.setAttr(f"{constrain_transform}.jointOrient", 0, 0, 0, type="float3")
@@ -203,7 +243,9 @@ def orient_to_world(transform: str) -> None:
     # Zero out rotate and jointOrient by using identity rotation
     cmds.makeIdentity(transform, translate=False, rotate=True, scale=False, apply=True)
     if cmds.nodeType(transform) == "joint":
-        cmds.makeIdentity(transform, translate=False, rotate=True, jointOrient=True, scale=False, apply=True)
+        cmds.makeIdentity(
+            transform, translate=False, rotate=True, jointOrient=True, scale=False, apply=True
+        )
 
     # Now joint is aligned to world, reparent it back
     if parent:
@@ -223,9 +265,8 @@ def mirror_transform(transform: str, from_side: str = "L", to_side: str = "R") -
         str: name of the new mirrored transform.
     """
 
-    
     mirror_group = cmds.group(empty=True)
-    
+
     # Duplicate full hierarchy
     mirrored_roots: list[str] = cmds.duplicate(transform, renameChildren=True)
     mirrored_root: str = mirrored_roots[0]
@@ -234,7 +275,7 @@ def mirror_transform(transform: str, from_side: str = "L", to_side: str = "R") -
     parents: list[str] = cmds.listRelatives(mirrored_root, parent=True)
     parent: str | None = parents[0] if parents else None
 
-    # Reparent, apply negative scale in X,and restore original parent. 
+    # Reparent, apply negative scale in X,and restore original parent.
     cmds.parent(mirrored_root, mirror_group, absolute=True)
     cmds.scale(-1, 1, 1, mirror_group, absolute=True)
     if parent:

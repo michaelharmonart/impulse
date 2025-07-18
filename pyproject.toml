@@ -10,7 +10,7 @@ dependencies = [
     "ruff>=0.9.6",
 ]
 [tool.ruff]
-line-length = 120
+line-length = 100
 
 [tool.pyright]
 extraPaths = ["/usr/autodesk/ApplicationPlugins/ngskintools2/Contents/scripts"]

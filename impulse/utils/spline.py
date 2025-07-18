@@ -25,7 +25,9 @@ def generate_knots(count: int, degree: int = 3) -> list[float]:
     knots = [0 for i in range(degree)] + [
         i for i in range(count - degree + 1)
     ]  # put degree number of 0s at the beginning
-    knots += [count - degree for i in range(degree)]  # put degree number of the last knot value at the end
+    knots += [
+        count - degree for i in range(degree)
+    ]  # put degree number of the last knot value at the end
     return [float(knot) for knot in knots]
 
 
@@ -106,7 +108,11 @@ def is_periodic_knot_vector(knots: list[float], degree: int = 3) -> bool:
 
 
 def deBoor_setup(
-    cvs: list[Any], t: float, degree: int = 3, knots: list[float] | None = None, normalize: bool = True
+    cvs: list[Any],
+    t: float,
+    degree: int = 3,
+    knots: list[float] | None = None,
+    normalize: bool = True,
 ) -> tuple[list[float], int, float, bool]:
     # Algorithm and code originally from Cole O'Brien. Modified to support periodic splines.
     # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
@@ -132,7 +138,8 @@ def deBoor_setup(
         raise ValueError(
             "Not enough knots provided. Curves with %s cvs must have a knot vector of length %s. "
             "Received a knot vector of length %s: %s. "
-            "Total knot count must equal len(cvs) + degree + 1." % (len(cvs), len(cvs) + order, len(knots), knots)
+            "Total knot count must equal len(cvs) + degree + 1."
+            % (len(cvs), len(cvs) + order, len(knots), knots)
         )
 
     # Determine if curve is periodic
@@ -162,7 +169,12 @@ def deBoor_setup(
 
 
 def deBoor_weights(
-    cvs: list[Any], knots: list[float], t: float, span: int, degree: int = 3, cv_weights: dict[Any, float] | None = None
+    cvs: list[Any],
+    knots: list[float],
+    t: float,
+    span: int,
+    degree: int = 3,
+    cv_weights: dict[Any, float] | None = None,
 ) -> dict[Any, float]:
     # Algorithm and code originally from Cole O'Brien
     # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
@@ -264,12 +276,18 @@ def point_on_curve_weights(
     cvs = [cvs[j + segment - degree] for j in range(0, degree + 1)]
 
     # Run a modified version of de Boors algorithm
-    cvWeights = deBoor_weights(cvs=cvs, t=t, span=segment, degree=degree, knots=knots, cv_weights=cv_weights)
+    cvWeights = deBoor_weights(
+        cvs=cvs, t=t, span=segment, degree=degree, knots=knots, cv_weights=cv_weights
+    )
     return [(_cvs[index], weight) for index, weight in cvWeights.items() if weight != 0.0]
 
 
 def tangent_on_curve_weights(
-    cvs: list[Any], t: float, degree: int = 3, knots: list[float] | None = None, normalize: bool = True
+    cvs: list[Any],
+    t: float,
+    degree: int = 3,
+    knots: list[float] | None = None,
+    normalize: bool = True,
 ) -> list[tuple[Any, int]]:
     # Algorithm and code originally from Cole O'Brien
     # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
@@ -302,7 +320,9 @@ def tangent_on_curve_weights(
 
     # In order to find the tangent we need to find points on a lower degree curve
     degree: int = degree - 1
-    weights: dict[Any, float] = deBoor_weights(cvs=cvs, t=t, span=segment, degree=degree, knots=knots)
+    weights: dict[Any, float] = deBoor_weights(
+        cvs=cvs, t=t, span=segment, degree=degree, knots=knots
+    )
 
     # Take the lower order weights and match them to our actual cvs
     remapped_weights: list[Any] = []
@@ -310,7 +330,9 @@ def tangent_on_curve_weights(
         weight: float = weights[j]
         cv0: int = j + segment - degree
         cv1: int = j + segment - degree - 1
-        alpha: float = weight * (degree + 1) / (knots[j + segment + 1] - knots[j + segment - degree])
+        alpha: float = (
+            weight * (degree + 1) / (knots[j + segment + 1] - knots[j + segment - degree])
+        )
         remapped_weights.append([cvs[cv0], alpha])
         remapped_weights.append([cvs[cv1], -alpha])
 
@@ -340,7 +362,9 @@ def point_on_surface_weights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
         list: A list of control point, weight pairs.
     """
     matrixWeightRows = [point_on_curve_weights(row, u, degree, uKnots) for row in cvs]
-    matrixWeightColumns = point_on_curve_weights([i for i in range(len(matrixWeightRows))], v, degree, vKnots)
+    matrixWeightColumns = point_on_curve_weights(
+        [i for i in range(len(matrixWeightRows))], v, degree, vKnots
+    )
     surfaceMatrixWeights = []
     for index, weight in matrixWeightColumns:
         matrixWeights = matrixWeightRows[index]
@@ -367,7 +391,9 @@ def tangent_u_on_surface_weights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
     """
 
     matrixWeightRows = [point_on_curve_weights(row, u, degree, uKnots) for row in cvs]
-    matrixWeightColumns = tangent_on_curve_weights([i for i in range(len(matrixWeightRows))], v, degree, vKnots)
+    matrixWeightColumns = tangent_on_curve_weights(
+        [i for i in range(len(matrixWeightRows))], v, degree, vKnots
+    )
     surfaceMatrixWeights = []
     for index, weight in matrixWeightColumns:
         matrixWeights = matrixWeightRows[index]
@@ -396,7 +422,9 @@ def tangent_v_on_surface_weights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
     rowCount = len(cvs)
     columnCount = len(cvs[0])
     reorderedCvs = [[cvs[row][col] for row in range(rowCount)] for col in range(columnCount)]
-    return tangent_u_on_surface_weights(reorderedCvs, v, u, uKnots=vKnots, vKnots=uKnots, degree=degree)
+    return tangent_u_on_surface_weights(
+        reorderedCvs, v, u, uKnots=vKnots, vKnots=uKnots, degree=degree
+    )
 
 
 def get_point_on_spline(
@@ -418,7 +446,9 @@ def get_tangent_on_spline(
     cv_positions: list[Vector3], t: float, degree: int = 3, knots: list[float] | None = None
 ) -> Vector3:
     tangent: Vector3 = Vector3()
-    for control_point, weight in tangent_on_curve_weights(cvs=cv_positions, t=t, degree=degree, knots=knots):
+    for control_point, weight in tangent_on_curve_weights(
+        cvs=cv_positions, t=t, degree=degree, knots=knots
+    ):
         tangent += control_point * weight
     return tangent
 
@@ -617,7 +647,9 @@ def pin_to_matrix_spline(
         cmds.connectAttr(f"{point_weight[0]}", f"{blended_matrix}.wtMatrix[{index}].matrixIn")
 
     blended_tangent_matrix = cmds.createNode("wtAddMatrix", name=f"{segment_name}_TangentMatrix")
-    tangent_weights = tangent_on_curve_weights(cvs=cv_matrices, t=parameter, degree=degree, knots=knots)
+    tangent_weights = tangent_on_curve_weights(
+        cvs=cv_matrices, t=parameter, degree=degree, knots=knots
+    )
     for index, tangent_weight in enumerate(tangent_weights):
         cmds.setAttr(
             f"{blended_tangent_matrix}.wtMatrix[{index}].weightIn",
@@ -628,7 +660,9 @@ def pin_to_matrix_spline(
             f"{blended_tangent_matrix}.wtMatrix[{index}].matrixIn",
         )
 
-    tangent_vector = cmds.createNode("pointMatrixMult", name=f"{blended_tangent_matrix}_TangentVector")
+    tangent_vector = cmds.createNode(
+        "pointMatrixMult", name=f"{blended_tangent_matrix}_TangentVector"
+    )
     cmds.connectAttr(f"{blended_tangent_matrix}.matrixSum", f"{tangent_vector}.inMatrix")
 
     # Create nodes to access the values of the blended matrix node.
@@ -680,12 +714,16 @@ def pin_to_matrix_spline(
 
     if stretch:
         # Get tangent vector magnitude
-        tangent_vector_length = cmds.createNode("length", name=f"{segment_name}_tangentVectorLength")
+        tangent_vector_length = cmds.createNode(
+            "length", name=f"{segment_name}_tangentVectorLength"
+        )
         cmds.connectAttr(f"{tangent_vector}.output", f"{tangent_vector_length}.input")
         tangent_vector_length_scaled = cmds.createNode(
             "multDoubleLinear", name=f"{segment_name}_tangentVectorLengthScaled"
         )
-        cmds.connectAttr(f"{tangent_vector_length}.output", f"{tangent_vector_length_scaled}.input1")
+        cmds.connectAttr(
+            f"{tangent_vector_length}.output", f"{tangent_vector_length_scaled}.input1"
+        )
         tangent_sample = cmds.getAttr(f"{tangent_vector}.output")[0]
         tangent_length = Vector3(tangent_sample[0], tangent_sample[1], tangent_sample[2]).length()
         if tangent_length == 0:
@@ -811,11 +849,15 @@ def matrix_spline_from_curve(
         else:
             curve_parent: str = None
         if curve_parent:
-            container_group: str = cmds.group(empty=True, parent=curve_parent, name=f"{name}_MatrixSpline_GRP")
+            container_group: str = cmds.group(
+                empty=True, parent=curve_parent, name=f"{name}_MatrixSpline_GRP"
+            )
         else:
             container_group: str = cmds.group(empty=True, name=f"{name}_MatrixSpline_GRP")
     else:
-        container_group: str = cmds.group(empty=True, parent=parent, name=f"{name}_MatrixSpline_GRP")
+        container_group: str = cmds.group(
+            empty=True, parent=parent, name=f"{name}_MatrixSpline_GRP"
+        )
     ctl_group: str = cmds.group(empty=True, parent=container_group, name=f"{name}_CTLS")
     mch_group: str = cmds.group(empty=True, parent=container_group, name=f"{name}_MCH")
     def_group: str = cmds.group(empty=True, parent=container_group, name=f"{name}_DEF")
@@ -846,12 +888,15 @@ def matrix_spline_from_curve(
         cmds.parent(cv_transform, mch_group)
         cmds.parent(control.offset_transform, ctl_group)
     matrix_spline: MatrixSpline = MatrixSpline(
-        cv_transforms=cv_transforms, degree=degree, knots=knots, periodic=periodic
+        cv_transforms=cv_transforms, degree=degree, knots=knots, periodic=periodic, name=name
     )
-    matrix_spline.name = name
 
     segment_parameters: list[float] = resample(
-        cv_positions=cv_positions, number_of_points=segments, degree=degree, knots=knots, padded=padded
+        cv_positions=cv_positions,
+        number_of_points=segments,
+        degree=degree,
+        knots=knots,
+        padded=padded,
     )
 
     for i in range(segments):
@@ -928,11 +973,15 @@ def matrix_spline_from_transforms(
             else:
                 curve_parent: str = None
             if curve_parent:
-                container_group: str = cmds.group(empty=True, parent=curve_parent, name=f"{name}_MatrixSpline_GRP")
+                container_group: str = cmds.group(
+                    empty=True, parent=curve_parent, name=f"{name}_MatrixSpline_GRP"
+                )
             else:
                 container_group: str = cmds.group(empty=True, name=f"{name}_MatrixSpline_GRP")
         else:
-            container_group: str = cmds.group(empty=True, parent=parent, name=f"{name}_MatrixSpline_GRP")
+            container_group: str = cmds.group(
+                empty=True, parent=parent, name=f"{name}_MatrixSpline_GRP"
+            )
     else:
         container_group = spline_group
 
@@ -950,8 +999,9 @@ def matrix_spline_from_transforms(
         cv_transforms.append(cv_transform)
         cmds.parent(cv_transform, mch_group)
 
-    matrix_spline: MatrixSpline = MatrixSpline(cv_transforms=cv_transforms, degree=degree, periodic=periodic)
-    matrix_spline.name = name
+    matrix_spline: MatrixSpline = MatrixSpline(
+        cv_transforms=cv_transforms, degree=degree, periodic=periodic, name=name
+    )
 
     segment_parameters: list[float] = resample(
         cv_positions=cv_positions, number_of_points=segments, degree=degree, padded=padded

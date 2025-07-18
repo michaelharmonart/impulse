@@ -98,7 +98,8 @@ def get_vertex_positions(shape: str) -> list[Vector3]:
     vertex_count: int = cmds.polyEvaluate(shape, vertex=True)
     vertex_list = cmds.xform(f"{shape}.vtx[*]", query=True, translation=True, worldSpace=True)
     vertex_positions = [
-        Vector3(vertex_list[i], vertex_list[i + 1], vertex_list[i + 2]) for i in range(0, len(vertex_list), 3)
+        Vector3(vertex_list[i], vertex_list[i + 1], vertex_list[i + 2])
+        for i in range(0, len(vertex_list), 3)
     ]
 
     return vertex_positions
@@ -110,7 +111,11 @@ def map_vertices_to_curve(vertex_positions: list[Vector3], curve_shape: str) -> 
     vertex_parameters: list[float] = []
     for vertex_position in vertex_positions:
         cmds.setAttr(
-            f"{temp_info_node}.inPosition", vertex_position.x, vertex_position.y, vertex_position.z, type="float3"
+            f"{temp_info_node}.inPosition",
+            vertex_position.x,
+            vertex_position.y,
+            vertex_position.z,
+            type="float3",
         )
         parameter: float = cmds.getAttr(f"{temp_info_node}.result.parameter")
         vertex_parameters.append(parameter)
@@ -118,8 +123,12 @@ def map_vertices_to_curve(vertex_positions: list[Vector3], curve_shape: str) -> 
     return vertex_parameters
 
 
-def skin_mesh(bind_joints: list[str], geometry: str, name: str | None = None, dual_quaternion: bool = False) -> str:
+def skin_mesh(
+    bind_joints: list[str], geometry: str, name: str | None = None, dual_quaternion: bool = False
+) -> str:
     if not name:
         name: str = f"{geometry}_SC"
-    skin_cluster = cmds.skinCluster(bind_joints, geometry, skinMethod=1 if dual_quaternion else 0, name=name)
+    skin_cluster = cmds.skinCluster(
+        bind_joints, geometry, skinMethod=1 if dual_quaternion else 0, name=name
+    )
     return skin_cluster

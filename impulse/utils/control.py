@@ -43,7 +43,9 @@ CONTROL_FILES = {
 
 def get_shapes(transform: str) -> list[str]:
     # list the shapes of node
-    shape_list: list[str] = cmds.listRelatives(transform, shapes=True, noIntermediate=True, children=True)
+    shape_list: list[str] = cmds.listRelatives(
+        transform, shapes=True, noIntermediate=True, children=True
+    )
 
     if shape_list:
         return shape_list
@@ -189,7 +191,9 @@ def get_curve_data(curve_shape: ControlShape | str) -> dict:
         # check if curve dict is a file and convert it to dictionary if it is
         file_path = f"{CONTROL_DIR}/{CONTROL_FILES[curve_shape]}.json"
         if not os.path.isfile(file_path):
-            cmds.error("Shape does not exist in library. You must write out " + "shape before reading.")
+            cmds.error(
+                "Shape does not exist in library. You must write out " + "shape before reading."
+            )
 
         with open(file_path, "r") as json_file:
             json_data = json_file.read()
@@ -218,7 +222,8 @@ def create_curve(curve_shape: ControlShape | str = ControlShape.CIRCLE) -> str:
         knots: list[float] = info["knots"]
         weights: list[float] = info["cv_weights"]
         position_weights: list[tuple[float, float, float, float]] = [
-            (position[0], position[1], position[2], weights[index]) for index, position in enumerate(positions)
+            (position[0], position[1], position[2], weights[index])
+            for index, position in enumerate(positions)
         ]
         if index == 0:
             curve_transform: str = cmds.curve(
@@ -235,7 +240,9 @@ def create_curve(curve_shape: ControlShape | str = ControlShape.CIRCLE) -> str:
                 pointWeight=position_weights, knot=knots, periodic=periodic, degree=degree
             )
             curve_shape_node: str = get_shapes(child_curve_transform)[0]
-            curve_shape_node = cmds.rename(curve_shape_node, f"{CONTROL_FILES[curve_shape]}Shape{index}")
+            curve_shape_node = cmds.rename(
+                curve_shape_node, f"{CONTROL_FILES[curve_shape]}Shape{index}"
+            )
             cmds.parent(curve_shape_node, curve_transform, shape=True, relative=True)
             cmds.delete(child_curve_transform)
     cmds.select(curve_transform)
@@ -289,7 +296,9 @@ def get_tagged_controls(side: str | None = None) -> list[str]:
     controller_nodes: list[str] = cmds.ls(type="controller")
     tagged_controls: list[str] = []
     for control_node in controller_nodes:
-        connected: list[str] = cmds.listConnections(f"{control_node}.controllerObject", source=True, destination=False)
+        connected: list[str] = cmds.listConnections(
+            f"{control_node}.controllerObject", source=True, destination=False
+        )
         if side:
             if get_side(control_node) == side:
                 tagged_controls.append(connected[0])
@@ -370,7 +379,8 @@ def apply_control_file(filepath: str) -> None:
                 weights: list[float] = info["cv_weights"]
                 draw_on_top: bool = info["draw_on_top"]
                 position_weights: list[tuple[float, float, float, float]] = [
-                    (position[0], position[1], position[2], weights[index]) for index, position in enumerate(positions)
+                    (position[0], position[1], position[2], weights[index])
+                    for index, position in enumerate(positions)
                 ]
 
                 child_curve_transform: str = cmds.curve(
@@ -486,7 +496,9 @@ def make_control(
         if target_transform:
             target_rotation_order = cmds.getAttr(f"{target_transform}.rotateOrder")
             rotation_order: RotationOrder = RotationOrder(
-                value=target_rotation_order if target_rotation_order is not None else RotationOrder.YXZ
+                value=target_rotation_order
+                if target_rotation_order is not None
+                else RotationOrder.YXZ
             )
         else:
             rotation_order = RotationOrder.YXZ
@@ -541,7 +553,9 @@ def make_control(
         match_transform(transform=offset_transform, target_transform=target_transform)
     elif position:
         cmds.move(position[0], position[1], position[2], relative=True, worldSpace=True)
-    control = Control(control_transform=control_transform, offset_transform=offset_transform, name=name)
+    control = Control(
+        control_transform=control_transform, offset_transform=offset_transform, name=name
+    )
     tag_as_controller(control)
     return control
 
@@ -609,12 +623,16 @@ def make_surface_control(
     lock_pivots(transform=control_transform)
 
     control_static_group = cmds.group(control_transform, name=f"{name}_STATIC")
-    offset_matrix_compose = cmds.createNode("composeMatrix", name=f"{control_transform}_offsetMatrixCompose")
-    cmds.connectAttr(
-        f"{control_transform}.translate.translateX", f"{offset_matrix_compose}.inputTranslate.inputTranslateX"
+    offset_matrix_compose = cmds.createNode(
+        "composeMatrix", name=f"{control_transform}_offsetMatrixCompose"
     )
     cmds.connectAttr(
-        f"{control_transform}.translate.translateZ", f"{offset_matrix_compose}.inputTranslate.inputTranslateZ"
+        f"{control_transform}.translate.translateX",
+        f"{offset_matrix_compose}.inputTranslate.inputTranslateX",
+    )
+    cmds.connectAttr(
+        f"{control_transform}.translate.translateZ",
+        f"{offset_matrix_compose}.inputTranslate.inputTranslateZ",
     )
     matrix_inverse = cmds.createNode("inverseMatrix", name=f"{control_transform}_inverseMatrix")
     cmds.connectAttr(f"{offset_matrix_compose}.outputMatrix", f"{matrix_inverse}.inputMatrix")
@@ -650,13 +668,17 @@ def make_surface_control(
     if target_transform:
         position = cmds.xform(target_transform, worldSpace=True, query=True, translation=True)
         rotate_matrix = cmds.createNode("composeMatrix", name=f"{name}_rotationMatrixCompose")
-        cmds.connectAttr(f"{offset_transform}.rotate.rotateY", f"{rotate_matrix}.inputRotate.inputRotateY")
+        cmds.connectAttr(
+            f"{offset_transform}.rotate.rotateY", f"{rotate_matrix}.inputRotate.inputRotateY"
+        )
         translate_matrix = cmds.createNode("composeMatrix", name=f"{name}_translateMatrixCompose")
         cmds.connectAttr(
-            f"{control_transform}.translate.translateX", f"{translate_matrix}.inputTranslate.inputTranslateX"
+            f"{control_transform}.translate.translateX",
+            f"{translate_matrix}.inputTranslate.inputTranslateX",
         )
         cmds.connectAttr(
-            f"{control_transform}.translate.translateZ", f"{translate_matrix}.inputTranslate.inputTranslateZ"
+            f"{control_transform}.translate.translateZ",
+            f"{translate_matrix}.inputTranslate.inputTranslateZ",
         )
         multiplied_matrix = cmds.createNode("multMatrix", name=f"{name}_multMatrix")
         cmds.connectAttr(f"{translate_matrix}.outputMatrix", f"{multiplied_matrix}.matrixIn[0]")
@@ -725,7 +747,9 @@ def make_surface_control(
 
     if parent:
         cmds.parent(offset_transform, parent, relative=False)
-    control = Control(control_transform=control_transform, offset_transform=offset_transform, name=name)
+    control = Control(
+        control_transform=control_transform, offset_transform=offset_transform, name=name
+    )
     tag_as_controller(control)
     return control
 
@@ -736,5 +760,7 @@ def connect_control(
     keep_offset: bool = False,
 ) -> None:
     matrix_constraint(
-        source_transform=control.control_transform, constrain_transform=driven_name, keep_offset=keep_offset
+        source_transform=control.control_transform,
+        constrain_transform=driven_name,
+        keep_offset=keep_offset,
     )

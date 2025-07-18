@@ -60,7 +60,9 @@ def get_surface_point(surface: str, u: float, v: float, swap_uv: bool) -> list[f
     return cmds.pointOnSurface(surface, position=True, parameterU=u, parameterV=v)
 
 
-def create_joint_at_point(parent: str, position: list[float], radius: float, joint_name: str) -> str:
+def create_joint_at_point(
+    parent: str, position: list[float], radius: float, joint_name: str
+) -> str:
     """
     Create a joint at the specified position under a given parent.
 
@@ -155,17 +157,25 @@ def generate_ribbon(
     # Create deformation joints along the ribbon.
     for i in range(number_of_joints):
         cmds.select(ribbon_group, replace=True)
-        u = (i / number_of_joints) * ribbon_length if cyclic else (i / (number_of_joints - 1)) * ribbon_length
+        u = (
+            (i / number_of_joints) * ribbon_length
+            if cyclic
+            else (i / (number_of_joints - 1)) * ribbon_length
+        )
         v = ribbon_width / 2.0
         position = get_surface_point(ribbon_object, u, v, swap_uv)
         joint_name = f"{ribbon_object}_point{i + 1}_DEF"
-        created_joint = create_joint_at_point(ribbon_group, position, radius=0.5, joint_name=joint_name)
+        created_joint = create_joint_at_point(
+            ribbon_group, position, radius=0.5, joint_name=joint_name
+        )
 
         if cyclic:
             uv_value = (i / (number_of_joints - 2)) * 2 if number_of_joints > 2 else 0.5
             uv_coord = f"{ribbon_object}.uv[{uv_value}][0.5]"
         else:
-            uv_coord = f"{ribbon_object}.uv[{v}][{u}]" if swap_uv else f"{ribbon_object}.uv[{u}][{v}]"
+            uv_coord = (
+                f"{ribbon_object}.uv[{v}][{u}]" if swap_uv else f"{ribbon_object}.uv[{u}][{v}]"
+            )
 
         pin_joint_to_uv(ribbon_object, created_joint, uv_coord, local_space)
 

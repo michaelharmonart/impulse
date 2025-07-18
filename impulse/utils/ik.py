@@ -2,6 +2,7 @@ import maya.cmds as cmds
 
 from impulse.utils.transform import match_transform, matrix_constraint
 
+
 class IkChain:
     """
     A container class representing a constructed IK chain setup.
@@ -11,10 +12,12 @@ class IkChain:
         socket (str): Name of the transform that is the socket or attachment point for the chain.
         pole_vector (str): The name of the transform used as the pole vector controller.
     """
+
     def __init__(self, ik_chain_joints: list[str], socket: str, pole_vector: str):
         self.ik_chain_joints = ik_chain_joints
         self.socket = socket
         self.pole_vector = pole_vector
+
 
 def ik_from_guides(
     guides: list[str],
@@ -50,10 +53,9 @@ def ik_from_guides(
     ik_guides: list[str] = guides
     reverse_guides: list[str] = []
     if reverse:
-        reverse_guides: list[str] = guides[-(reverse_segments+1):]
+        reverse_guides: list[str] = guides[-(reverse_segments + 1) :]
         if reverse_segments > 0:
             ik_guides: list[str] = guides[:-(reverse_segments)]
-
 
     # Duplicating and rename the IK guides
     ik_joints: list[str] = []
@@ -65,12 +67,12 @@ def ik_from_guides(
             cmds.parent(ik_joint, ik_joints[index - 1])
         else:
             cmds.parent(ik_joint, ik_group)
-        
+
         if reverse:
             if index == len(ik_guides) - 1:
                 ik_joint = cmds.rename(ik_joint, f"{name}_Effector")
         ik_joints.append(ik_joint)
-    
+
     # Duplicating and rename the reverse guides
     reversed_reverse_guides: list[str] = reverse_guides[::-1]
     reverse_joints: list[str] = []
@@ -93,7 +95,9 @@ def ik_from_guides(
     cmds.pointConstraint(socket, ik_chain[0])
 
     # Create IK Handle
-    ik_handle: str = cmds.ikHandle(startJoint=ik_joints[0], endEffector=ik_joints[-1], name=f"{name}_ikHandle")[0]
+    ik_handle: str = cmds.ikHandle(
+        startJoint=ik_joints[0], endEffector=ik_joints[-1], name=f"{name}_ikHandle"
+    )[0]
     if reverse:
         cmds.parent(ik_handle, reverse_joints[0])
     else:
@@ -106,10 +110,11 @@ def ik_from_guides(
 
     # If set to have stretch, create the relevant nodes and attach them.
     if stretch:
-        
         # Create nodes to measure distance
         socket_local: str = cmds.group(empty=True, name=f"{socket}_LOCAL", parent=ik_group)
-        matrix_constraint(source_transform=socket, constrain_transform=socket_local, keep_offset=False)
+        matrix_constraint(
+            source_transform=socket, constrain_transform=socket_local, keep_offset=False
+        )
         handle_local: str = cmds.group(empty=True, name=f"{ik_handle}_LOCAL", parent=ik_group)
         matrix_constraint(ik_handle, handle_local, keep_offset=False)
 
@@ -126,14 +131,14 @@ def ik_from_guides(
             cmds.connectAttr(f"{joint}.matrix", f"{temp_distance_node}.inMatrix2")
             rest_length += cmds.getAttr(f"{temp_distance_node}.distance")
             cmds.disconnectAttr(f"{joint}.matrix", f"{temp_distance_node}.inMatrix2")
-        #rest_distance = cmds.getAttr(f"{distance_node}.distance")
+        # rest_distance = cmds.getAttr(f"{distance_node}.distance")
         normalize_node: str = cmds.createNode("divide", name=f"{name}_dist_norm")
         cmds.connectAttr(f"{distance_node}.distance", f"{normalize_node}.input1")
         cmds.setAttr(f"{normalize_node}.input2", rest_length)
 
         # Only stretch, dont shrink the limb.
         condition_node: str = cmds.createNode("condition", name=f"{name}_dist_cond")
-        cmds.setAttr(f"{condition_node}.operation", 2) # Greater than
+        cmds.setAttr(f"{condition_node}.operation", 2)  # Greater than
         cmds.setAttr(f"{condition_node}.secondTerm", 1)
         cmds.connectAttr(f"{normalize_node}.output", f"{condition_node}.firstTerm")
         cmds.connectAttr(f"{normalize_node}.output", f"{condition_node}.colorIfTrueR")
@@ -141,18 +146,22 @@ def ik_from_guides(
 
         for joint in ik_joints[0:-1]:
             # Get the rest Y position, multiply by the scale factor, and pump it into the Y position.
-            #joint_y_adjust = cmds.createNode("multDoubleLinear", name=f"{joint}_yAdjust")
-            #cmds.connectAttr(scale_factor_attr, f"{joint_y_adjust}.input1")
-            #rest_y = cmds.getAttr(f"{joint}.translate.translateY")
-            #cmds.setAttr(f"{joint_y_adjust}.input2", rest_y)
-            #cmds.connectAttr(f"{joint_y_adjust}.output", f"{joint}.translate.translateY")
+            # joint_y_adjust = cmds.createNode("multDoubleLinear", name=f"{joint}_yAdjust")
+            # cmds.connectAttr(scale_factor_attr, f"{joint_y_adjust}.input1")
+            # rest_y = cmds.getAttr(f"{joint}.translate.translateY")
+            # cmds.setAttr(f"{joint_y_adjust}.input2", rest_y)
+            # cmds.connectAttr(f"{joint_y_adjust}.output", f"{joint}.translate.translateY")
             cmds.connectAttr(scale_factor_attr, f"{joint}.scale.scaleY")
 
-    return IkChain(ik_chain_joints=ik_chain, socket=socket ,pole_vector=pole_vector)
+    return IkChain(ik_chain_joints=ik_chain, socket=socket, pole_vector=pole_vector)
 
 
 def fk_from_guides(
-    guides: list[str], name: str | None = None, parent: str | None = None, suffix: str = "_FK", side_mult: int = 1
+    guides: list[str],
+    name: str | None = None,
+    parent: str | None = None,
+    suffix: str = "_FK",
+    side_mult: int = 1,
 ) -> str:
     """
     Takes a hierarchy of guides and creates an FK chain.
@@ -202,7 +211,9 @@ def ik_fk_blend(ik_joint: str, fk_joint: str, blended_joint: str, blend_attr: st
     cmds.connectAttr(blend_attr, f"{blend_matrix}.target[0].weight")
 
     # Create the Decomposed Matrix and connect its input
-    decompose_matrix: str = cmds.createNode("decomposeMatrix", name=f"{blended_joint}_BlendMatrixDecompose")
+    decompose_matrix: str = cmds.createNode(
+        "decomposeMatrix", name=f"{blended_joint}_BlendMatrixDecompose"
+    )
     cmds.connectAttr(f"{blend_matrix}.outputMatrix", f"{decompose_matrix}.inputMatrix")
     cmds.connectAttr(f"{blended_joint}.rotateOrder", f"{decompose_matrix}.inputRotateOrder")
 
@@ -215,7 +226,9 @@ def ik_fk_blend(ik_joint: str, fk_joint: str, blended_joint: str, blend_attr: st
     cmds.connectAttr(f"{decompose_matrix}.outputShear", f"{blended_joint}.shear")
 
 
-def ik_fk_blend_list(ik_joints: list[str], fk_joints: list[str], blended_joints: list[str], blend_attr: str) -> None:
+def ik_fk_blend_list(
+    ik_joints: list[str], fk_joints: list[str], blended_joints: list[str], blend_attr: str
+) -> None:
     """
     Takes two lists of joints and blends their transforms based on an attribute. joints need the same hierarchy and orients.
     Args:
@@ -228,10 +241,18 @@ def ik_fk_blend_list(ik_joints: list[str], fk_joints: list[str], blended_joints:
         raise RuntimeError("Number of fk ik and blend joints don't match!")
     for index, blended_joint in enumerate(blended_joints):
         ik_fk_blend(
-            ik_joint=ik_joints[index], fk_joint=fk_joints[index], blended_joint=blended_joint, blend_attr=blend_attr
+            ik_joint=ik_joints[index],
+            fk_joint=fk_joints[index],
+            blended_joint=blended_joint,
+            blend_attr=blend_attr,
         )
 
 
 def blend_selected(blend_attr: str) -> None:
     selection: list[str] = cmds.ls(selection=True)
-    ik_fk_blend(ik_joint=selection[0], fk_joint=selection[1], blended_joint=selection[2], blend_attr=blend_attr)
+    ik_fk_blend(
+        ik_joint=selection[0],
+        fk_joint=selection[1],
+        blended_joint=selection[2],
+        blend_attr=blend_attr,
+    )

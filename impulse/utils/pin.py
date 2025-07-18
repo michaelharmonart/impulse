@@ -34,7 +34,9 @@ def make_uv_pin(
         cmds.error(f"No shape nodes found on surface: {surface}")
 
     # Choose the primary shape (non-intermediate if available) and check for an existing intermediate shape.
-    primary_shape = next((s for s in shapes if not cmds.getAttr(f"{s}.intermediateObject")), shapes[0])
+    primary_shape = next(
+        (s for s in shapes if not cmds.getAttr(f"{s}.intermediateObject")), shapes[0]
+    )
     shape_origin = next((s for s in shapes if cmds.getAttr(f"{s}.intermediateObject")), None)
 
     # Determine attribute names based on surface type.
@@ -62,7 +64,9 @@ def make_uv_pin(
         new_name = f"{primary_shape}Orig"
         shape_origin = cmds.rename(shape_origin, new_name)
         # If there is an incoming connection, reconnect it.
-        in_conn = cmds.listConnections(f"{primary_shape}{attr_input}", plugs=True, connections=True, destination=True)
+        in_conn = cmds.listConnections(
+            f"{primary_shape}{attr_input}", plugs=True, connections=True, destination=True
+        )
         if in_conn:
             cmds.connectAttr(in_conn[1], f"{shape_origin}{attr_input}")
         cmds.connectAttr(f"{shape_origin}{attr_world}", f"{primary_shape}{attr_input}", force=True)
@@ -160,7 +164,9 @@ def consolidate_uvpins() -> None:
         else:
             uv_pin_dict[input_geo] = [(connections, attribute_values)]
     for input_geo, connections_attributes in uv_pin_dict.items():
-        uv_pin = cmds.createNode("uvPin", name=f"{input_geo[1]}_uvPin".replace("Shape.worldSpace", "_master"))
+        uv_pin = cmds.createNode(
+            "uvPin", name=f"{input_geo[1]}_uvPin".replace("Shape.worldSpace", "_master")
+        )
         cmds.connectAttr(input_geo[0], f"{uv_pin}.originalGeometry")
         cmds.connectAttr(input_geo[1], f"{uv_pin}.deformedGeometry")
         pin_num: int = 0
@@ -245,7 +251,9 @@ def make_matrix_pin(
         cmds.error(f"No shape nodes found on surface: {surface}")
 
     # Choose the primary shape (non-intermediate if available) and check for an existing intermediate shape.
-    primary_shape = next((s for s in shapes if not cmds.getAttr(f"{s}.intermediateObject")), shapes[0])
+    primary_shape = next(
+        (s for s in shapes if not cmds.getAttr(f"{s}.intermediateObject")), shapes[0]
+    )
     shape_origin = next((s for s in shapes if cmds.getAttr(f"{s}.intermediateObject")), None)
 
     # Determine attribute names based on surface type.
@@ -270,7 +278,9 @@ def make_matrix_pin(
         new_name = f"{primary_shape}Orig"
         shape_origin = cmds.rename(shape_origin, new_name)
         # If there is an incoming connection, reconnect it.
-        in_conn = cmds.listConnections(f"{primary_shape}{attr_input}", plugs=True, connections=True, destination=True)
+        in_conn = cmds.listConnections(
+            f"{primary_shape}{attr_input}", plugs=True, connections=True, destination=True
+        )
         if in_conn:
             cmds.connectAttr(in_conn[1], f"{shape_origin}{attr_input}")
         cmds.connectAttr(f"{shape_origin}{attr_world}", f"{primary_shape}{attr_input}", force=True)
