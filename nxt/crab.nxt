@@ -982,6 +982,7 @@
             ]
         },
         "/limb/controls/bend": {
+            "enabled": false,
             "attrs": {
                 "bend_control_size": {
                     "type": "float",

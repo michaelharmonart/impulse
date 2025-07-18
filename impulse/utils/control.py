@@ -14,15 +14,20 @@ CONTROL_DIR: str = os.path.dirname(os.path.realpath(__file__)) + "/control_shape
 
 
 class ControlShape(Enum):
-    """Enum for available control shapes."""
+    """Enum for available control shapes with file names."""
 
-    CIRCLE = 0
-    SQUARE = 1
-    CUBE = 2
-    SPHERE = 3
-    LOCATOR = 4
-    DIAMOND = 5
+    CIRCLE = "circle"
+    SQUARE = "square"
+    CUBE = "cube"
+    SPHERE = "sphere"
+    LOCATOR = "locator"
+    DIAMOND = "diamond"
+    TRIANGLE = "triangle"
 
+    @property
+    def filename(self) -> str:
+        """returns the filename of the json file representing the control shape."""
+        return self.value
 
 class Direction(Enum):
     """Enum for available control directions"""
@@ -30,17 +35,6 @@ class Direction(Enum):
     X = 0
     Y = 1
     Z = 2
-
-
-# Mapping from control shape to its corresponding MEL command string.
-CONTROL_FILES = {
-    ControlShape.CIRCLE: "circle",
-    ControlShape.SQUARE: "square",
-    ControlShape.CUBE: "cube",
-    ControlShape.SPHERE: "sphere",
-    ControlShape.LOCATOR: "locator",
-    ControlShape.DIAMOND: "diamond",
-}
 
 
 def get_shapes(transform: str) -> list[str]:
@@ -191,10 +185,10 @@ def get_curve_data(curve_shape: ControlShape | str) -> dict:
         curve_shape: ControlShape = ControlShape[curve_shape.strip().upper()]
     if curve_shape not in _loaded_control_shapes:
         # check if curve dict is a file and convert it to dictionary if it is
-        file_path = f"{CONTROL_DIR}/{CONTROL_FILES[curve_shape]}.json"
+        file_path = f"{CONTROL_DIR}/{curve_shape.filename}.json"
         if not os.path.isfile(file_path):
             cmds.error(
-                "Shape does not exist in library. You must write out " + "shape before reading."
+                f"Shape does not exist in library. You must write out the file {file_path} before reading."
             )
 
         with open(file_path, "r") as json_file:
@@ -229,22 +223,20 @@ def create_curve(curve_shape: ControlShape | str = ControlShape.CIRCLE) -> str:
         ]
         if index == 0:
             curve_transform: str = cmds.curve(
-                name=CONTROL_FILES[curve_shape],
+                name=curve_shape.value,
                 pointWeight=position_weights,
                 knot=knots,
                 periodic=periodic,
                 degree=degree,
             )
             curve_shape_node: str = get_shapes(curve_transform)[0]
-            curve_shape_node = cmds.rename(curve_shape_node, f"{CONTROL_FILES[curve_shape]}Shape")
+            curve_shape_node = cmds.rename(curve_shape_node, f"{curve_shape.value}Shape")
         else:
             child_curve_transform: str = cmds.curve(
                 pointWeight=position_weights, knot=knots, periodic=periodic, degree=degree
             )
             curve_shape_node: str = get_shapes(child_curve_transform)[0]
-            curve_shape_node = cmds.rename(
-                curve_shape_node, f"{CONTROL_FILES[curve_shape]}Shape{index}"
-            )
+            curve_shape_node = cmds.rename(curve_shape_node, f"{curve_shape.value}Shape{index}")
             cmds.parent(curve_shape_node, curve_transform, shape=True, relative=True)
             cmds.delete(child_curve_transform)
     cmds.select(curve_transform)
