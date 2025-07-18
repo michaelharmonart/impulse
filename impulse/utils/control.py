@@ -21,6 +21,7 @@ class ControlShape(Enum):
     CUBE = 2
     SPHERE = 3
     LOCATOR = 4
+    DIAMOND = 5
 
 
 class Direction(Enum):
@@ -38,6 +39,7 @@ CONTROL_FILES = {
     ControlShape.CUBE: "cube",
     ControlShape.SPHERE: "sphere",
     ControlShape.LOCATOR: "locator",
+    ControlShape.DIAMOND: "diamond",
 }
 
 

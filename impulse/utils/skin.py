@@ -1,6 +1,5 @@
 import maya.cmds as cmds
 import os
-import json
 from impulse.structs.transform import Vector3 as Vector3
 from impulse.utils import spline as spline
 from ngSkinTools2 import api as ng
@@ -95,7 +94,7 @@ def get_vertex_positions(shape: str) -> list[Vector3]:
     surface_type = cmds.objectType(shape)
     if surface_type != "mesh":
         raise RuntimeError(f"Unsupported surface type: {surface_type}")
-    vertex_count: int = cmds.polyEvaluate(shape, vertex=True)
+    #vertex_count: int = cmds.polyEvaluate(shape, vertex=True)
     vertex_list = cmds.xform(f"{shape}.vtx[*]", query=True, translation=True, worldSpace=True)
     vertex_positions = [
         Vector3(vertex_list[i], vertex_list[i + 1], vertex_list[i + 2])

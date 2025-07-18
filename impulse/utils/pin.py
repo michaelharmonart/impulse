@@ -20,7 +20,8 @@ def make_uv_pin(
         surface: The name of the surface (mesh or NURBS) to pin to.
         u: The U coordinate.
         v: The V coordinate.
-        local_space: When true, sets UVPin node to local relativeSpaceMode. When false, the pinned object has inheritsTransform disabled to prevent double transforms.
+        local_space: When true, sets UVPin node to local relativeSpaceMode. 
+        When false, the pinned object has inheritsTransform disabled to prevent double transforms.
         normalize: Enable Isoparm normalization (NURBS UV will be remapped between 0-1).
         normal_axis: Normal axis of the generated uvPin, can be x y z -x -y -z.
         tangent_axis: Tangent axis of the generated uvPin, can be x y z -x -y -z.
@@ -80,9 +81,9 @@ def make_uv_pin(
     if reset_transforms:
         cmds.xform(object_to_pin, translation=[0, 0, 0], rotation=[0, 0, 0])
 
-    if normal_axis == None:
+    if normal_axis is None:
         normal_axis = "y"
-    if tangent_axis == None:
+    if tangent_axis is None:
         tangent_axis = "x"
 
     if normal_axis == "x":

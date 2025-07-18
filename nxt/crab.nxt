@@ -955,7 +955,8 @@
         "/limb/controls": {
             "child_order": [
                 "fk",
-                "ik"
+                "ik",
+                "bend"
             ],
             "attrs": {
                 "control_size": {
@@ -978,6 +979,53 @@
                 ")",
                 "cmds.setAttr(f\"{ctls}.overrideEnabled\", 1)",
                 "cmds.setAttr(f\"{ctls}.overrideRGBColors\", 1)"
+            ]
+        },
+        "/limb/controls/bend": {
+            "attrs": {
+                "bend_control_size": {
+                    "type": "float",
+                    "value": "0.05"
+                }
+            },
+            "code": [
+                "controls = []",
+                "bend_group = cmds.group(empty=True, name=\"${part_name}_Bend_CTLS\", parent=\"${part_ctls}\")",
+                "for index, joint in enumerate(self.pose_joints):",
+                "    # Check if the joint has a child and if so, generate a controls and matrix spline",
+                "    joint_children = cmds.listRelatives(joint, children=True, type=\"joint\") or []",
+                "    if len(joint_children) > 0:",
+                "        joint_child = joint_children[0]",
+                "        y_translate = cmds.getAttr(f\"{joint_child}.translateY\")",
+                "    ",
+                "        start_control = impulse.utils.control.make_control(",
+                "            name=f\"{joint}_Bend_Start\", ",
+                "            target_transform=joint, ",
+                "            size=${bend_control_size}, ",
+                "            control_shape=impulse.utils.control.ControlShape.SPHERE,",
+                "            offset=0,",
+                "            )",
+                "        impulse.utils.control.draw_on_top(start_control)",
+                "        if index == 0:",
+                "            cmds.parent(start_control.offset_transform, bend_group)",
+                "        else:",
+                "            cmds.parent(start_control.offset_transform, controls[-1].control_transform)",
+                "        mid_control = impulse.utils.control.make_control(",
+                "            name=f\"{joint}_Bend_Mid\", ",
+                "            target_transform=joint, ",
+                "            size=${bend_control_size}, ",
+                "            control_shape=impulse.utils.control.ControlShape.SPHERE,",
+                "            offset=0,",
+                "            )",
+                "        cmds.parent(mid_control.offset_transform, start_control.control_transform)",
+                "        cmds.move(0, y_translate/2, 0, mid_control.offset_transform, relative=True, objectSpace=True)",
+                "        controls.append(mid_control)",
+                "        impulse.utils.control.draw_on_top(mid_control)",
+                "        cmds.parent(start_control.offset_transform, bend_group)",
+                "        cmds.parent(mid_control.offset_transform, bend_group)",
+                "",
+                "        ",
+                "        "
             ]
         },
         "/limb/controls/fk": {
