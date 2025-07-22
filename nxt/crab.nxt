@@ -1149,7 +1149,7 @@
                 "    name=\"${pole_vector}\", ",
                 "    target_transform=\"${pole_vector}\", ",
                 "    size=${pole_vector_size}, ",
-                "    control_shape=impulse.utils.control.ControlShape.SPHERE,",
+                "    control_shape=impulse.utils.control.ControlShape.DIAMOND,",
                 "    offset=0,",
                 "    )    ",
                 "cmds.parent(pv_control.offset_transform, pole_vector_parent)",
@@ -1190,7 +1190,14 @@
                 "control_selector"
             ]
         },
-        "/main_window/manual_tab/curve/grid/control_selector": {},
+        "/main_window/manual_tab/curve/grid/control_selector": {
+            "attrs": {
+                "menu_value": {
+                    "type": "raw",
+                    "value": "Triangle"
+                }
+            }
+        },
         "/main_window/manual_tab/main_panel/grid/set_rotation_order": {},
         "/middle": {
             "instance": "/side",

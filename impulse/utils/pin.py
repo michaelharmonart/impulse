@@ -263,7 +263,7 @@ def make_matrix_pin(
         attr_input = ".create"
         attr_world = ".worldSpace[0]"
         attr_local = ".local"
-        attr_surface = ".inputSurface"
+        #attr_surface = ".inputSurface"
     else:
         cmds.error(f"Unsupported surface type: {surface_type}")
 

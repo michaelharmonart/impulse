@@ -224,7 +224,7 @@
             "attrs": {
                 "menu_items": {
                     "type": "raw",
-                    "value": "Circle Square Sphere Cube Locator"
+                    "value": "Circle Square Sphere Cube Locator Triangle"
                 },
                 "menu_value": {
                     "type": "raw",
