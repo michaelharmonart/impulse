@@ -148,14 +148,14 @@ def get_mesh_spline_weights(
     mesh_points: om2.MPointArray = fn_mesh.getPoints(space=om2.MSpace.kWorld)
 
     point_weights: list[tuple[om2.MPoint, list[tuple[Any, float]]]] = []
-
+    knots = spline.get_knots(curve_shape=curve_shape)
+    vertex_colors: list[om2.MColor] = []
+    vertex_indices: list[int] = []
+    
     # iterate over the points and get the deboor weights
     for i, point in enumerate(mesh_points):
         parameter: float = fn_curve.closestPoint(point, space=om2.MSpace.kWorld)[1]
-        # color: om2.MColor = om2.MColor([parameter,parameter, parameter])
 
-        degree: int = cmds.getAttr(f"{curve_shape}.degree")
-        knots = spline.get_knots(curve_shape=curve_shape)
         weights: list[tuple[Any, float]] = spline.point_on_curve_weights(
             cvs=cv_colors, t=parameter, degree=degree, knots=knots, normalize=False
         )
@@ -163,7 +163,11 @@ def get_mesh_spline_weights(
         point_color: om2.MColor = om2.MColor([0, 0, 0])
         for color, weight in weights:
             point_color += color * weight
-        fn_mesh.setVertexColor(point_color, i)
+        vertex_colors.append(point_color)
+        vertex_indices.append(i)
+        #fn_mesh.setVertexColor(point_color, i)
 
+    # Set all vertex colors at once
+    fn_mesh.setVertexColors(vertex_colors, vertex_indices)
     cmds.delete(curve_transform)
     return point_weights
