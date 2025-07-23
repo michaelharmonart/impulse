@@ -284,6 +284,7 @@ def point_on_spline_weights(
     )
     return [(_cvs[index], weight) for index, weight in cvWeights.items() if weight != 0.0]
 
+
 def get_weights_along_spline(
     cvs: list[Any],
     parameters: list[float],
@@ -326,6 +327,7 @@ def get_weights_along_spline(
                 row.append((cvs[i], float(weight)))
         result.append(row)
     return result
+
 
 def tangent_on_spline_weights(
     cvs: list[Any],
@@ -686,7 +688,9 @@ def pin_to_matrix_spline(
 
     # Create node that blends the matrices based on the calculated DeBoor weights.
     blended_matrix = cmds.createNode("wtAddMatrix", name=f"{segment_name}_BaseMatrix")
-    point_weights = point_on_spline_weights(cvs=cv_matrices, t=parameter, degree=degree, knots=knots)
+    point_weights = point_on_spline_weights(
+        cvs=cv_matrices, t=parameter, degree=degree, knots=knots
+    )
     for index, point_weight in enumerate(point_weights):
         cmds.setAttr(f"{blended_matrix}.wtMatrix[{index}].weightIn", point_weight[1])
         cmds.connectAttr(f"{point_weight[0]}", f"{blended_matrix}.wtMatrix[{index}].matrixIn")

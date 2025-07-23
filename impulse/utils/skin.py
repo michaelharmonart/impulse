@@ -245,10 +245,10 @@ def visualize_split_weights(mesh: str, cv_transforms: list[str], degree: int = 2
     mesh_points: om2.MPointArray = fn_mesh.getPoints(space=om2.MSpace.kWorld)
 
     point_weights: list[tuple[om2.MPoint, list[tuple[Any, float]]]] = []
-    knots = spline.get_knots(curve_shape=curve_shape)
+    knots: list[float] = spline.get_knots(curve_shape=curve_shape)
     vertex_colors: list[om2.MColor] = []
     vertex_indices: list[int] = []
-    spline_weights_per_vertex = get_mesh_spline_weights(
+    spline_weights_per_vertex: list[list[tuple[Any, float]]] = get_mesh_spline_weights(
         mesh_shape=mesh_shape, cv_transforms=cv_transforms, degree=degree
     )
     # iterate over the points and assign colors
