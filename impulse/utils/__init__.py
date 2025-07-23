@@ -6,3 +6,4 @@ from . import transform as transform
 from . import skin as skin
 from . import ik as ik
 from . import naming as naming
+from . import vertex_color as vertex_color
