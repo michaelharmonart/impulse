@@ -1,3 +1,5 @@
+import colorsys
+from impulse.utils.color import linear_srgb_to_oklab, oklab_to_linear_srgb
 from typing import Any
 import maya.cmds as cmds
 from maya.api import OpenMaya as om2
@@ -99,7 +101,6 @@ def skin_mesh(
 def get_mesh_spline_weights(
     mesh: str, cv_transforms: list[str], degree: int = 2
 ) -> list[tuple[om2.MPoint, list[tuple[Any, float]]]]:
-
     # Create a curve for checking the closest point
     cv_positions: list[list[float, float, float]] = []
     cv_colors: list[om2.MColor] = []
@@ -110,17 +111,16 @@ def get_mesh_spline_weights(
         position_tuple: tuple[float, float, float] = tuple(position)
         cv_positions.append(position)
 
-        color = (
-            om2.MColor(
-                [
-                    (hash(position_tuple) % 64) / 64,
+        lab_color: om2.MColor = om2.MColor(
+            linear_srgb_to_oklab(
+                colorsys.hsv_to_rgb(
                     (hash(position_tuple) % 128) / 128,
-                    (hash(position_tuple) % 256) / 128,
-                ]
+                    0.8,
+                    0.9,
+                )
             )
-            * 0.5
         )
-        cv_colors.append(color)
+        cv_colors.append(lab_color)
 
     curve_transform: str = cmds.curve(
         name=f"{mesh}_SplineWeightsTempCurve", point=cv_positions, degree=degree
@@ -132,6 +132,7 @@ def get_mesh_spline_weights(
 
     # make sure the target shape can show vertex colors
     cmds.setAttr(f"{mesh_shape}.displayColors", 1)
+    cmds.setAttr(f"{mesh_shape}.displayColorChannel", "Diffuse", type="string")
 
     # get the MDagPaths
     msel: om2.MSelectionList = om2.MSelectionList()
@@ -151,23 +152,28 @@ def get_mesh_spline_weights(
     knots = spline.get_knots(curve_shape=curve_shape)
     vertex_colors: list[om2.MColor] = []
     vertex_indices: list[int] = []
-    
-    # iterate over the points and get the deboor weights
+
+    # iterate over the points and get the closest parameter
+    parameters: list[float] = []
     for i, point in enumerate(mesh_points):
         parameter: float = fn_curve.closestPoint(point, space=om2.MSpace.kWorld)[1]
-
-        weights: list[tuple[Any, float]] = spline.point_on_curve_weights(
-            cvs=cv_colors, t=parameter, degree=degree, knots=knots, normalize=False
-        )
-        point_weights.append((point, weights))
+        parameters.append(parameter)
+    spline_weights_per_vertex: list[list[tuple[Any, float]]] = spline.get_weights_along_spline(
+        cvs=cv_colors, parameters=parameters, degree=degree, knots=knots
+    )
+    for i, point in enumerate(mesh_points):
         point_color: om2.MColor = om2.MColor([0, 0, 0])
+        weights: list[tuple[Any, float]] = spline_weights_per_vertex[i]
         for color, weight in weights:
             point_color += color * weight
+        point_color_tuple: tuple[float, float, float, float] = tuple(point_color.getColor())
+        point_color_rgb = oklab_to_linear_srgb(color=point_color_tuple)
+        point_color = om2.MColor(point_color_rgb)
         vertex_colors.append(point_color)
         vertex_indices.append(i)
-        #fn_mesh.setVertexColor(point_color, i)
+        # fn_mesh.setVertexColor(point_color, i)
 
     # Set all vertex colors at once
     fn_mesh.setVertexColors(vertex_colors, vertex_indices)
     cmds.delete(curve_transform)
-    return point_weights
+    return 

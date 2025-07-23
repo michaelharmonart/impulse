@@ -3,11 +3,14 @@ Functions for working with splines.
 
 """
 
+from scipy.interpolate._bsplines import BSpline
 from typing import Any
 import maya.cmds as cmds
 from impulse.structs.transform import Vector3 as Vector3
 from impulse.utils.control import Control, ControlShape, connect_control, make_control
 from impulse.utils.transform import matrix_constraint
+import numpy as np
+from scipy.interpolate import BSpline
 
 
 def generate_knots(count: int, degree: int = 3) -> list[float]:
@@ -232,7 +235,7 @@ def deBoor_weights(
     return rational_weights
 
 
-def point_on_curve_weights(
+def point_on_spline_weights(
     cvs: list[Any],
     t: float,
     degree: int = 3,
@@ -281,8 +284,50 @@ def point_on_curve_weights(
     )
     return [(_cvs[index], weight) for index, weight in cvWeights.items() if weight != 0.0]
 
+def get_weights_along_spline(
+    cvs: list[Any],
+    parameters: list[float],
+    degree: int = 3,
+    knots: list[float] | None = None,
+) -> list[list[tuple[Any, float]]]:
+    """
+    Evaluates B-spline basis weights for a given list of parameters.
+    Faster than point_on_spline_weights
+    Args:
+        cvs(list): A list of cvs, these are used for the return value.
+        parameters(list): List of parameters.
+        degree: Degree of the B-spline.
+        knots(list): Knot vector of the B-spline.
 
-def tangent_on_curve_weights(
+    Returns:
+        A (len(parameters), n_basis) matrix of spline weights.
+    """
+    if not knots:
+        knots = generate_knots(len(cvs), degree=degree)
+
+    # Convert inputs to numpy arrays
+    parameter_array = np.asarray(parameters, dtype=np.float64)
+    knots_array = np.asarray(knots, dtype=np.float64)
+
+    n_basis = len(knots_array) - degree - 1
+    identity_coeffs = np.eye(n_basis)
+
+    # Build a B-spline with identity coefficients to evaluate all basis functions
+    spline: BSpline = BSpline(knots_array, identity_coeffs, degree)
+
+    # Evaluate weights for all input parameters
+    weight_matrix: np.ndarray = spline(parameter_array)  # shape: (len(u), n_basis)
+
+    result: list[list[tuple[Any, float]]] = []
+    for weights in weight_matrix:
+        row = []
+        for i, weight in enumerate(weights):
+            if weight != 0.0:
+                row.append((cvs[i], float(weight)))
+        result.append(row)
+    return result
+
+def tangent_on_spline_weights(
     cvs: list[Any],
     t: float,
     degree: int = 3,
@@ -361,8 +406,8 @@ def point_on_surface_weights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
     Returns:
         list: A list of control point, weight pairs.
     """
-    matrixWeightRows = [point_on_curve_weights(row, u, degree, uKnots) for row in cvs]
-    matrixWeightColumns = point_on_curve_weights(
+    matrixWeightRows = [point_on_spline_weights(row, u, degree, uKnots) for row in cvs]
+    matrixWeightColumns = point_on_spline_weights(
         [i for i in range(len(matrixWeightRows))], v, degree, vKnots
     )
     surfaceMatrixWeights = []
@@ -390,8 +435,8 @@ def tangent_u_on_surface_weights(cvs, u, v, uKnots=None, vKnots=None, degree=3):
         list: A list of control point, weight pairs.
     """
 
-    matrixWeightRows = [point_on_curve_weights(row, u, degree, uKnots) for row in cvs]
-    matrixWeightColumns = tangent_on_curve_weights(
+    matrixWeightRows = [point_on_spline_weights(row, u, degree, uKnots) for row in cvs]
+    matrixWeightColumns = tangent_on_spline_weights(
         [i for i in range(len(matrixWeightRows))], v, degree, vKnots
     )
     surfaceMatrixWeights = []
@@ -435,7 +480,7 @@ def get_point_on_spline(
     weights: list[float] | None = None,
 ) -> Vector3:
     position: Vector3 = Vector3()
-    for control_point, weight in point_on_curve_weights(
+    for control_point, weight in point_on_spline_weights(
         cvs=cv_positions, t=t, degree=degree, knots=knots, weights=weights
     ):
         position += control_point * weight
@@ -446,7 +491,7 @@ def get_tangent_on_spline(
     cv_positions: list[Vector3], t: float, degree: int = 3, knots: list[float] | None = None
 ) -> Vector3:
     tangent: Vector3 = Vector3()
-    for control_point, weight in tangent_on_curve_weights(
+    for control_point, weight in tangent_on_spline_weights(
         cvs=cv_positions, t=t, degree=degree, knots=knots
     ):
         tangent += control_point * weight
@@ -641,13 +686,13 @@ def pin_to_matrix_spline(
 
     # Create node that blends the matrices based on the calculated DeBoor weights.
     blended_matrix = cmds.createNode("wtAddMatrix", name=f"{segment_name}_BaseMatrix")
-    point_weights = point_on_curve_weights(cvs=cv_matrices, t=parameter, degree=degree, knots=knots)
+    point_weights = point_on_spline_weights(cvs=cv_matrices, t=parameter, degree=degree, knots=knots)
     for index, point_weight in enumerate(point_weights):
         cmds.setAttr(f"{blended_matrix}.wtMatrix[{index}].weightIn", point_weight[1])
         cmds.connectAttr(f"{point_weight[0]}", f"{blended_matrix}.wtMatrix[{index}].matrixIn")
 
     blended_tangent_matrix = cmds.createNode("wtAddMatrix", name=f"{segment_name}_TangentMatrix")
-    tangent_weights = tangent_on_curve_weights(
+    tangent_weights = tangent_on_spline_weights(
         cvs=cv_matrices, t=parameter, degree=degree, knots=knots
     )
     for index, tangent_weight in enumerate(tangent_weights):

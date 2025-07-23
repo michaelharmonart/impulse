@@ -1,7 +1,73 @@
+import math
 from typing import Any
 from maya.api.OpenMaya import MColor, MColorArray, MFnMesh, MSelectionList
 import maya.cmds as cmds
 import maya.api.OpenMaya as om2
+
+def clamp_color(color: tuple[float, float, float]) -> tuple[float, float, float]:
+    """
+    Clamps each component of a color to the range [0.0, 1.0].
+
+    Args:
+        color: A tuple of three floats (e.g., RGB or any color space).
+    Returns:
+        A tuple with each component clamped to the [0.0, 1.0] range.
+    """
+    return tuple(max(0.0, min(1.0, c)) for c in color)
+
+def linear_srgb_to_oklab(color: tuple[float, float, float])  -> tuple[float, float, float]:
+    """
+    Converts a linear sRGB color to the Oklab color space.
+    
+    Args:
+        color (RGB): The input color in linear sRGB space.
+    
+    Returns:
+        color (OkLab): The corresponding color in Oklab space.
+    """
+    l: float = 0.4122214708 * color[0] + 0.5363325363 * color[1] + 0.0514459929 * color[2]
+    m: float = 0.2119034982 * color[0] + 0.6806995451 * color[1] + 0.1073969566 * color[2]
+    s: float = 0.0883024619 * color[0] + 0.2817188376 * color[1] + 0.6299787005 * color[2]
+
+    
+    l_: float = math.copysign(abs(l) ** (1/3), l)
+    m_: float = math.copysign(abs(m) ** (1/3), m)
+    s_: float = math.copysign(abs(s) ** (1/3), s)
+
+    return (
+        0.2104542553*l_ + 0.7936177850*m_ - 0.0040720468*s_,
+        1.9779984951*l_ - 2.4285922050*m_ + 0.4505937099*s_,
+        0.0259040371*l_ + 0.7827717662*m_ - 0.8086757660*s_,
+    )
+
+
+def oklab_to_linear_srgb(color: tuple[float, float, float], clamp: bool = True)  -> tuple[float, float, float]:
+    """
+    Converts a Oklab color to the linear sRGB color space.
+    Args:
+        color (OkLab): The input color in the Oklab space.
+        clamp: When True the values of the color will be in a 0-1 range.
+    Returns:
+        color (OkLab): The corresponding color in linear sRGB space.
+    """
+    l_: float = color[0] + 0.3963377774 * color[1] + 0.2158037573 * color[2]
+    m_: float = color[0] - 0.1055613458 * color[1] - 0.0638541728 * color[2]
+    s_: float = color[0] - 0.0894841775 * color[1] - 1.2914855480 * color[2]
+
+    l: float = l_*l_*l_
+    m: float = m_*m_*m_
+    s: float = s_*s_*s_
+
+    rgb: tuple[float, float, float] = (
+		+4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+		-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+		-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s,
+    )
+    if clamp:
+        return clamp_color(rgb)
+    else:
+        return rgb
+
 
 def linear_to_srgb_color(linear_color: om2.MColor) -> om2.MColor:
     """
