@@ -1,3 +1,4 @@
+from typing import Any
 from maya.api.OpenMaya import MColor, MColorArray, MFnMesh, MSelectionList
 import maya.cmds as cmds
 import maya.api.OpenMaya as om2
@@ -134,15 +135,18 @@ def face_color_from_texture(mesh: str, anti_alias: bool = False) -> None:
         v_average = v / num_face_verts
         # Sample color from shader using UV
         if anti_alias:
-            result = cmds.colorAtPoint(texture_node, output='RGB', u=tuple(u_list), v=tuple(v_list))
-            r, g, b = result
+            rgb_list = cmds.colorAtPoint(texture_node, output='RGB', u=tuple(u_list), v=tuple(v_list))
+            color_list: list[tuple[float, float, float]] = list(zip(rgb_list[0::3], rgb_list[1::3], rgb_list[2::3]))
+            total_colors: int = len(color_list)
+            transposed = zip(*color_list)
+            averaged = tuple(sum(values) / total_colors for values in transposed)
+            r, g, b = averaged
         else:
             result = cmds.colorAtPoint(texture_node, output='RGB', u=u_average, v=v_average)
-
-        if result:
             r, g, b = result
-            color: MColor = om2.MColor([r, g, b, 1.0])
-            color = srgb_to_linear_color(color)
-            face_colors.append(color)
-            face_indices.append(face_index)
+        
+        color: MColor = om2.MColor([r, g, b, 1.0])
+        color = srgb_to_linear_color(color)
+        face_colors.append(color)
+        face_indices.append(face_index)
     fn_mesh.setFaceColors(face_colors, face_indices)
