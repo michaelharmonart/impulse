@@ -161,10 +161,7 @@ def get_mesh_spline_weights(
     # get the points in world space
     mesh_points: om2.MPointArray = fn_mesh.getPoints(space=om2.MSpace.kWorld)
 
-    point_weights: list[tuple[om2.MPoint, list[tuple[Any, float]]]] = []
     knots = spline.get_knots(curve_shape=curve_shape)
-    vertex_colors: list[om2.MColor] = []
-    vertex_indices: list[int] = []
 
     # iterate over the points and get the closest parameter
     parameters: list[float] = []
@@ -174,7 +171,7 @@ def get_mesh_spline_weights(
     spline_weights_per_vertex: list[list[tuple[Any, float]]] = spline.get_weights_along_spline(
         cvs=cv_transforms, parameters=parameters, degree=degree, knots=knots
     )
-
+    cmds.delete(curve_transform)
     return spline_weights_per_vertex
 
 

@@ -145,6 +145,18 @@ def get_texture_from_shader(shader: str) -> str | None:
 
 
 def face_color_from_texture(mesh: str, anti_alias: bool = False) -> None:
+    """
+    Samples texture color at each face of the given mesh and assigns the result as per-face vertex color.
+
+    The function traces the mesh's connected shader, extracts the associated file texture,
+    and samples the color at the average UV position of each face. The resulting color
+    is converted from sRGB to linear and stored as a per-face color on the mesh.
+
+    Args:
+        mesh (str): The name of the mesh transform or shape node to process.
+        anti_alias (bool): If True, samples color from all UVs of the face and averages them
+            for anti-aliased result. If False, samples a single color at the average UV.
+    """
     shapes = cmds.listRelatives(mesh, shapes=True) or []
     if not shapes:
         raise RuntimeError(f"No shape node found for {mesh}")
