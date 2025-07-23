@@ -13,6 +13,8 @@ dependencies = [
 line-length = 100
 
 [tool.pyright]
-extraPaths = ["/usr/autodesk/ApplicationPlugins/ngskintools2/Contents/scripts"]
-#stubPath = "./.stubs/"
+extraPaths = [
+    "./.stubs/",
+    "/usr/autodesk/ApplicationPlugins/ngskintools2/Contents/scripts"
+]
 typeCheckingMode = "off"

@@ -1,4 +1,6 @@
+from typing import Any
 import maya.cmds as cmds
+from maya.api import OpenMaya as om2
 import os
 from impulse.structs.transform import Vector3 as Vector3
 from impulse.utils import spline as spline
@@ -83,45 +85,6 @@ def write_ng_skin_weights(filepath: str, geometry: str, force: bool = False) -> 
     return
 
 
-def get_vertex_positions(shape: str) -> list[Vector3]:
-    """
-    Returns a list of Vector3 positions of all the vertices in the given shape.
-    Args:
-        shape: The mesh shape node to query for vertex positions.
-    Returns:
-        list: A list of positions (Vector3)
-    """
-    surface_type = cmds.objectType(shape)
-    if surface_type != "mesh":
-        raise RuntimeError(f"Unsupported surface type: {surface_type}")
-    #vertex_count: int = cmds.polyEvaluate(shape, vertex=True)
-    vertex_list = cmds.xform(f"{shape}.vtx[*]", query=True, translation=True, worldSpace=True)
-    vertex_positions = [
-        Vector3(vertex_list[i], vertex_list[i + 1], vertex_list[i + 2])
-        for i in range(0, len(vertex_list), 3)
-    ]
-
-    return vertex_positions
-
-
-def map_vertices_to_curve(vertex_positions: list[Vector3], curve_shape: str) -> list[float]:
-    temp_info_node = cmds.createNode("nearestPointOnCurve", name="temp_nearestPointOnCurve")
-    cmds.connectAttr(f"{curve_shape}.worldSpace", f"{temp_info_node}.inputCurve")
-    vertex_parameters: list[float] = []
-    for vertex_position in vertex_positions:
-        cmds.setAttr(
-            f"{temp_info_node}.inPosition",
-            vertex_position.x,
-            vertex_position.y,
-            vertex_position.z,
-            type="float3",
-        )
-        parameter: float = cmds.getAttr(f"{temp_info_node}.result.parameter")
-        vertex_parameters.append(parameter)
-    cmds.delete(temp_info_node)
-    return vertex_parameters
-
-
 def skin_mesh(
     bind_joints: list[str], geometry: str, name: str | None = None, dual_quaternion: bool = False
 ) -> str:
@@ -131,3 +94,76 @@ def skin_mesh(
         bind_joints, geometry, skinMethod=1 if dual_quaternion else 0, name=name
     )
     return skin_cluster
+
+
+def get_mesh_spline_weights(
+    mesh: str, cv_transforms: list[str], degree: int = 2
+) -> list[tuple[om2.MPoint, list[tuple[Any, float]]]]:
+
+    # Create a curve for checking the closest point
+    cv_positions: list[list[float, float, float]] = []
+    cv_colors: list[om2.MColor] = []
+    for transform in cv_transforms:
+        position: list[float, float, float] = cmds.xform(
+            transform, query=True, worldSpace=True, translation=True
+        )
+        position_tuple: tuple[float, float, float] = tuple(position)
+        cv_positions.append(position)
+
+        color = (
+            om2.MColor(
+                [
+                    (hash(position_tuple) % 64) / 64,
+                    (hash(position_tuple) % 128) / 128,
+                    (hash(position_tuple) % 256) / 128,
+                ]
+            )
+            * 0.5
+        )
+        cv_colors.append(color)
+
+    curve_transform: str = cmds.curve(
+        name=f"{mesh}_SplineWeightsTempCurve", point=cv_positions, degree=degree
+    )
+
+    # get the shape nodes
+    mesh_shape: str = cmds.listRelatives(mesh, shapes=True)[0]
+    curve_shape: str = cmds.listRelatives(curve_transform, shapes=True)[0]
+
+    # make sure the target shape can show vertex colors
+    cmds.setAttr(f"{mesh_shape}.displayColors", 1)
+
+    # get the MDagPaths
+    msel: om2.MSelectionList = om2.MSelectionList()
+    msel.add(mesh_shape)
+    msel.add(curve_shape)
+    mesh_dag: om2.MDagPath = msel.getDagPath(0)
+    curve_dag: om2.MDagPath = msel.getDagPath(1)
+
+    # make the function set and get the points
+    fn_mesh: om2.MFnMesh = om2.MFnMesh(mesh_dag)
+    fn_curve: om2.MFnNurbsCurve = om2.MFnNurbsCurve(curve_dag)
+
+    # get the points in world space
+    mesh_points: om2.MPointArray = fn_mesh.getPoints(space=om2.MSpace.kWorld)
+
+    point_weights: list[tuple[om2.MPoint, list[tuple[Any, float]]]] = []
+
+    # iterate over the points and get the deboor weights
+    for i, point in enumerate(mesh_points):
+        parameter: float = fn_curve.closestPoint(point, space=om2.MSpace.kWorld)[1]
+        # color: om2.MColor = om2.MColor([parameter,parameter, parameter])
+
+        degree: int = cmds.getAttr(f"{curve_shape}.degree")
+        knots = spline.get_knots(curve_shape=curve_shape)
+        weights: list[tuple[Any, float]] = spline.point_on_curve_weights(
+            cvs=cv_colors, t=parameter, degree=degree, knots=knots, normalize=False
+        )
+        point_weights.append((point, weights))
+        point_color: om2.MColor = om2.MColor([0, 0, 0])
+        for color, weight in weights:
+            point_color += color * weight
+        fn_mesh.setVertexColor(point_color, i)
+
+    cmds.delete(curve_transform)
+    return point_weights

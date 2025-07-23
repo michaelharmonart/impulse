@@ -3,6 +3,7 @@
         "bitangent",
         "Descendents",
         "isoparm",
+        "msel",
         "NURBS"
     ],
     "python.analysis.extraPaths": [

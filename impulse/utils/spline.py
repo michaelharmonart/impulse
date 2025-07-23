@@ -961,7 +961,7 @@ def matrix_spline_from_transforms(
         matrix_spline: The resulting matrix spline.
     """
 
-    cv_positions: list[str] = []
+    cv_positions: list[Vector3] = []
 
     for transform in transforms:
         position = cmds.xform(transform, query=True, worldSpace=True, translation=True)
