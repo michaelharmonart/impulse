@@ -1,5 +1,5 @@
 import colorsys
-from maya.api.OpenMaya import MDagPath, MFnSingleIndexedComponent, MObject, MSelectionList
+from maya.api.OpenMaya import MDagPath, MFnSingleIndexedComponent, MObject, MPointArray, MSelectionList
 from impulse.utils.color import linear_srgb_to_oklab, oklab_to_linear_srgb
 from typing import Any
 import maya.cmds as cmds
@@ -119,9 +119,23 @@ def skin_mesh(
     )
     return skin_cluster
 
+def get_mesh_points(fn_mesh: om2.MFnMesh, vertex_indices: list[int] | None = None) -> om2.MPointArray:
+    if vertex_indices is None:
+        mesh_points: om2.MPointArray = fn_mesh.getPoints(space=om2.MSpace.kWorld)
+        vertex_indices = list(range(mesh_points.length()))
+    else:
+        mesh_points: om2.MPointArray = om2.MPointArray()
+        all_points: om2.MPointArray = fn_mesh.getPoints(space=om2.MSpace.kWorld)
+        for idx in vertex_indices:
+            mesh_points.append(all_points[idx])
+    return mesh_points
 
+    
 def get_mesh_spline_weights(
-    mesh_shape: str, cv_transforms: list[str], degree: int = 2
+    mesh_shape: str,
+    cv_transforms: list[str],
+    degree: int = 2,
+    vertex_indices: list[int] | None = None,
 ) -> list[list[tuple[Any, float]]]:
     """
     Calculates spline-based weights for each vertex on a mesh relative to a temporary NURBS curve
@@ -135,7 +149,7 @@ def get_mesh_spline_weights(
         mesh_shape (str): The name of the mesh shape node (not the transform).
         cv_transforms (list[str]): A list of transform names representing the CVs of the curve.
         degree (int, optional): Degree of the spline curve. Defaults to 2.
-
+        vertex_indices: A list of vertex indices to output weights for.
     Returns:
         list[list[tuple[Any, float]]]: A list of weights per vertex. Each entry is a list of tuples,
         where each tuple contains a CV transform and its corresponding influence weight on the vertex.
@@ -167,7 +181,8 @@ def get_mesh_spline_weights(
     fn_curve: om2.MFnNurbsCurve = om2.MFnNurbsCurve(curve_dag)
 
     # get the points in world space
-    mesh_points: om2.MPointArray = fn_mesh.getPoints(space=om2.MSpace.kWorld)
+
+    mesh_points: MPointArray = get_mesh_points(fn_mesh=fn_mesh, vertex_indices=vertex_indices)
 
     knots = spline.get_knots(curve_shape=curve_shape)
 
@@ -208,7 +223,7 @@ def get_weights_of_influence(skin_cluster: str, joint: str) -> dict[int, float]:
     return index_weights
 
 
-def get_weights(shape: str) -> dict[int, tuple[str, float]]:
+def get_weights(shape: str, skin_cluster: str | None = None) -> dict[int, list[tuple[str, float]]]:
     """
     Retrieves skinCluster weights for all vertices of the given mesh shape.
 
@@ -220,10 +235,13 @@ def get_weights(shape: str) -> dict[int, tuple[str, float]]:
         shape (str): The name of the mesh shape node to query. Must have a skinCluster.
 
     Returns:
-        dict[int, list[tuple[str, float]]]: A dictionary mapping each vertex index to a list of 
+        dict[int, list[tuple[str, float]]]: A dictionary mapping each vertex index to a list of
         (joint_name, weight) tuples, including only non-zero weights.
     """
-    skin_cluster: str | None = get_skin_cluster(shape)
+    if not skin_cluster:
+        skin_cluster: str | None = get_skin_cluster(shape)
+        if not skin_cluster:
+            raise RuntimeError(f"No skinCluster on {shape}")
 
     sel: MSelectionList = om2.MSelectionList()
     sel.add(shape)
@@ -241,7 +259,7 @@ def get_weights(shape: str) -> dict[int, tuple[str, float]]:
     flat_weights, influence_count = mfn_skin_cluster.getWeights(shape_dag, vtx_component)
     influences_objects: list[MDagPath] = mfn_skin_cluster.influenceObjects()
     influences: list[str] = [str(object) for object in influences_objects]
-    weights_dict: dict[int, tuple[str, float]] = {}
+    weights_dict: dict[int, list[tuple[str, float]]] = {}
     for vtx_id in range(num_verts):
         start: int = vtx_id * influence_count
         end: int = start + influence_count
@@ -254,12 +272,41 @@ def get_weights(shape: str) -> dict[int, tuple[str, float]]:
     return weights_dict
 
 
-def split_weights(mesh: str, original_joint: str, split_joints: list[str]) -> None:
+def split_weights(
+    mesh: str, original_joints: list[str], split_joints: list[list[str]], degree: int = 2
+) -> None:
     # get the shape node
     mesh_shape: str = cmds.listRelatives(mesh, shapes=True)[0]
     # get the skinCluster node
     skin_cluster: str | None = get_skin_cluster(mesh)
-    return get_weights_of_influence(skin_cluster=skin_cluster, joint=original_joint)
+    original_weights: dict[int, list[tuple[str, float]]] = get_weights(
+        shape=mesh_shape, skin_cluster=skin_cluster
+    )
+    weights_by_influence: dict[str, dict[int, float]] = {}
+
+    for vertex in original_weights.keys():
+        influence_weights: list[tuple[str, float]] = original_weights[vertex]
+        for influence, weight in influence_weights:
+            if influence in weights_by_influence:
+                weights_by_influence[influence][vertex] = weight
+            else:
+                weights_by_influence[influence] = {vertex: weight}
+    for original_joint, split_joints_list in zip(original_joints, split_joints):
+        vertex_weights: dict[int, float] = weights_by_influence[original_joint]
+        influenced_vertex_weights: list[tuple[int, float]] = []
+        influenced_vertices: list[int] = []
+        for vertex in vertex_weights.keys():
+            weight: float = vertex_weights[vertex]
+            if weight > 0:
+                influenced_vertex_weights.append((vertex, weight))
+                influenced_vertices.append(vertex)
+        spline_weights: list[list[tuple[Any, float]]] = get_mesh_spline_weights(
+            mesh_shape=mesh_shape,
+            cv_transforms=split_joints_list,
+            degree=degree,
+            vertex_indices=influenced_vertices,
+        )
+    return spline_weights
 
 
 def visualize_split_weights(mesh: str, cv_transforms: list[str], degree: int = 2) -> None:
