@@ -1,5 +1,11 @@
 import colorsys
-from maya.api.OpenMaya import MDagPath, MFnSingleIndexedComponent, MObject, MPointArray, MSelectionList
+from maya.api.OpenMaya import (
+    MDagPath,
+    MFnSingleIndexedComponent,
+    MObject,
+    MPointArray,
+    MSelectionList,
+)
 from impulse.utils.color import linear_srgb_to_oklab, oklab_to_linear_srgb
 from typing import Any
 import maya.cmds as cmds
@@ -119,7 +125,10 @@ def skin_mesh(
     )
     return skin_cluster
 
-def get_mesh_points(fn_mesh: om2.MFnMesh, vertex_indices: list[int] | None = None) -> om2.MPointArray:
+
+def get_mesh_points(
+    fn_mesh: om2.MFnMesh, vertex_indices: list[int] | None = None
+) -> om2.MPointArray:
     if vertex_indices is None:
         mesh_points: om2.MPointArray = fn_mesh.getPoints(space=om2.MSpace.kWorld)
         vertex_indices = list(range(mesh_points.length()))
@@ -130,7 +139,7 @@ def get_mesh_points(fn_mesh: om2.MFnMesh, vertex_indices: list[int] | None = Non
             mesh_points.append(all_points[idx])
     return mesh_points
 
-    
+
 def get_mesh_spline_weights(
     mesh_shape: str,
     cv_transforms: list[str],

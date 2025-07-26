@@ -57,7 +57,7 @@ def matrix_constraint(
     mult_index: int = 0
     mult_matrix: str = cmds.createNode("multMatrix", name=f"{constraint_name}_ConstraintMultMatrix")
 
-    # If we want to keep the offset, we put the position of the constrained transform into 
+    # If we want to keep the offset, we put the position of the constrained transform into
     # the source transform's space and record it.
     if keep_offset:
         # Get the offset matrix
@@ -72,7 +72,7 @@ def matrix_constraint(
         )
         offset_matrix = cmds.getAttr(f"{offset_matrix_node}.matrixSum")
 
-        # Check the matrix against an identity matrix. If it's the same within a margin of error, 
+        # Check the matrix against an identity matrix. If it's the same within a margin of error,
         # the transforms aren't offset, meaning we can skip that extra matrix multiplication.
         if not is_identity_matrix(matrix=offset_matrix):
             # Put the offset into the matrix multiplier

@@ -1030,10 +1030,31 @@
             ]
         },
         "/limb/controls/fk": {
+            "attrs": {
+                "orient_spaces": {
+                    "type": "list",
+                    "value": "[\"Root\", \"COG\", \"Parent\"]"
+                },
+                "orient_transforms": {
+                    "type": "raw",
+                    "value": "[\"${controls_parent}\", \"COG_CTL\", ${socket}]"
+                }
+            },
             "code": [
                 "controls = []",
                 "fk_group = cmds.group(empty=True, name=\"${part_name}_FK_CTLS\", parent=\"${part_ctls}\")",
                 "cmds.connectAttr(\"${ik_switch}\", f\"{fk_group}.visibility\")",
+                "",
+                "control_panel: str = cmds.createNode(\"network\", name=\"${part_name}_FK_ControlPanel\")",
+                "cmds.addAttr(",
+                "            control_panel,",
+                "            longName=f\"FkOrient\", ",
+                "            niceName=f\"Follow\", ",
+                "            attributeType=\"enum\",",
+                "            enumName=\"Root:COG:Parent\",",
+                "            keyable=True,",
+                "            )",
+                "fk_follow_attr = f\"{control_panel}.FkOrient\"",
                 "for index, joint in enumerate(self.fk_joints):",
                 "    # Check if the joint has a child and if so, generate a control",
                 "    joint_children = cmds.listRelatives(joint, children=True, type=\"joint\") or []",
@@ -1058,17 +1079,42 @@
                 "            cmds.parent(control.offset_transform, fk_group)",
                 "",
                 "            socket = ${socket} or fk_group",
-                "            socket_group = cmds.group(empty=True, name=f\"{control.name}_Socket\", parent=socket)",
+                "            socket_group = cmds.group(empty=True, name=f\"{control.name}_Socket\", parent=fk_group)",
                 "            impulse.utils.transform.match_transform(socket_group, control.control_transform)",
-                "            cmds.pointConstraint(socket_group, control.offset_transform, maintainOffset=True)",
+                "            cmds.parentConstraint(socket, socket_group, maintainOffset=True)",
+                "            orient_group = cmds.group(empty=True, name=f\"{control.name}_Orient\", parent=socket_group)",
+                "            space_groups = []",
+                "            condition_attrs = []",
+                "            for i, (orient, orient_transform) in enumerate(zip(${orient_spaces}, ${orient_transforms})):",
+                "                space_group = cmds.group(empty=True, name=f\"{control.name}_Orient_{orient}\", parent=socket_group)",
+                "                impulse.utils.transform.matrix_constraint(orient_transform, space_group, keep_offset=True)",
+                "                space_groups.append(space_group)",
+                "                condition_node = cmds.createNode(\"condition\", name=f\"{control.name}_Orient_{orient}_cond\")",
+                "                cmds.setAttr(f\"{condition_node}.operation\", 0)",
+                "                cmds.setAttr(f\"{condition_node}.colorIfTrueR\", 1)",
+                "                cmds.setAttr(f\"{condition_node}.colorIfFalseR\", 0)",
+                "                cmds.connectAttr(fk_follow_attr, f\"{condition_node}.firstTerm\")",
+                "                cmds.setAttr(f\"{condition_node}.secondTerm\", i)",
+                "                condition_attrs.append(f\"{condition_node}.outColorR\")",
+                "                ",
+                "            orient_constraint = cmds.orientConstraint(*space_groups, orient_group)[0]",
+                "            space_attrs = cmds.orientConstraint(orient_constraint, query=True, weightAliasList=True)",
+                "            for space_attr, condition_attr in zip(space_attrs, condition_attrs):",
+                "                cmds.connectAttr(condition_attr, f\"{orient_constraint}.{space_attr}\")",
+                "            impulse.utils.transform.matrix_constraint(orient_group, control.offset_transform, keep_offset=False)",
                 "            ",
-                "        ",
                 "        control_transform = control.control_transform",
                 "        cmds.addAttr(",
                 "            control_transform,",
                 "            longName=\"${part_name}_IkFkSwitch\", ",
                 "            niceName=f\"{self.part_name.replace('_', ' ')} IK FK Switch\", ",
-                "            proxy=\"${ik_switch}\")"
+                "            proxy=\"${ik_switch}\")",
+                "        cmds.addAttr(",
+                "            control_transform,",
+                "            longName=\"FkOrient\", ",
+                "            niceName=f\"{self.part_name.replace('_', ' ')} Follow\", ",
+                "            proxy=fk_follow_attr)",
+                "        "
             ]
         },
         "/limb/controls/ik": {
