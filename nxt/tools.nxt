@@ -1,7 +1,7 @@
 {
     "version": "1.17",
     "alias": "tools",
-    "color": "#991c24",
+    "color": "#c39113",
     "mute": false,
     "solo": false,
     "references": [
@@ -71,7 +71,7 @@
             ]
         },
         "colors": {
-            "$NXT_BUILTINS/WidgetNodes.nxt": "#26aebd"
+            "$NXT_BUILTINS/WidgetNodes.nxt": "#0d7358"
         }
     },
     "nodes": {
@@ -463,6 +463,17 @@
                     "value": "3"
                 }
             }
+        },
+        "/setup_file/load_guides": {
+            "code": [
+                "cmds.file(\"${guides_path}\", i=True, defaultNamespace=True)",
+                "cmds.parent(\"${guides_group}\", \"${rig_group}\")",
+                "",
+                "joints = cmds.listRelatives(\"${guides_group}\", allDescendents=True, type=\"joint\") or []",
+                "",
+                "for joint in joints:",
+                "    cmds.setAttr(f\"{joint}.segmentScaleCompensate\", 0)"
+            ]
         }
     }
 }

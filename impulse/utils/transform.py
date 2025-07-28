@@ -236,7 +236,7 @@ def orient_to_world(transform: str) -> None:
     parents: list[str] = cmds.listRelatives(transform, parent=True)
     parent: str | None = parents[0] if parents else None
 
-    # Unparent to world to avoid inherited transforms
+    # Un-parent to world to avoid inherited transforms
     if parent:
         cmds.parent(transform, world=True, absolute=True)
 

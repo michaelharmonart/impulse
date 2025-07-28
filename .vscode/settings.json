@@ -4,7 +4,10 @@
         "Descendents",
         "isoparm",
         "msel",
-        "NURBS"
+        "NURBS",
+        "oklab",
+        "srgb",
+        "verts"
     ],
     "python.analysis.extraPaths": [
         "/usr/autodesk/ApplicationPlugins/ngskintools2/Contents/scripts"

@@ -21,13 +21,7 @@
         }
     },
     "meta_data": {
-        "colors": {
-            "$NXT_BUILTINS/WidgetNodes.nxt": "#28549b",
-            "./tools.nxt": "#b9a221",
-            "/users/guest/g/graphite/maya-python/impulse/nxt/cleanup.nxt": "#2371d0",
-            "/users/guest/g/graphite/maya-python/impulse/nxt/setup.nxt": "#49936d",
-            "/users/guest/g/graphite/maya-python/impulse/nxt/tools.nxt": "#d0a31a"
-        },
+        "colors": {},
         "positions": {
             "/Cleanup": [
                 955.239112846677,
@@ -211,7 +205,7 @@
             "attrs": {
                 "asset_root": {
                     "type": "raw",
-                    "value": "${path::/groups/crabby/Assets/Rigging/Scuttle/Build}"
+                    "value": "/groups/crabby/Assets/Rigging/Scuttle/Build"
                 },
                 "body_joints": {},
                 "eye_joints": {},
@@ -279,11 +273,10 @@
         },
         "/cleanup": {
             "execute_in": "/skinning",
+            "child_order": [
+                "control_shapes"
+            ],
             "attrs": {
-                "control_filepath": {
-                    "type": "raw",
-                    "value": "${asset_root}/controls.json"
-                },
                 "hide_playback": {
                     "type": "bool",
                     "value": "True"
@@ -301,8 +294,6 @@
                 "cmds.hide(\"${mch_group}\")",
                 "cmds.hide(\"${def_group}\")",
                 "",
-                "# Read and apply control shapes",
-                "impulse.utils.control.apply_control_file(filepath=\"${control_filepath}\")",
                 "",
                 "# Hide Controls on Playback",
                 "if ${hide_playback}:",
@@ -312,6 +303,19 @@
                 "if ${release}:",
                 "    cmds.setAttr(\"${geo_group}.overrideEnabled\", 1)",
                 "    cmds.setAttr(\"${geo_group}.overrideDisplayType\", 2)"
+            ]
+        },
+        "/cleanup/control_shapes": {
+            "attrs": {
+                "control_filepath": {
+                    "type": "raw",
+                    "value": "${asset_root}/controls.json"
+                }
+            },
+            "code": [
+                "# Read and apply control shapes",
+                "impulse.utils.control.apply_control_file(filepath=\"${control_filepath}\")",
+                ""
             ]
         },
         "/left": {
@@ -1439,6 +1443,10 @@
                 "tangent_offset": {
                     "type": "float",
                     "value": "0.2"
+                },
+                "tweak_control_height": {
+                    "type": "float",
+                    "value": "0.1"
                 }
             },
             "code": [
@@ -1532,7 +1540,7 @@
                 "    padded=False,",
                 "    control_size=${control_size},",
                 "    control_shape=impulse.utils.control.ControlShape.CUBE,",
-                "    control_height=0.1,",
+                "    control_height=${tweak_control_height},",
                 "    parent=part_group,",
                 "    spline_group=part_group,",
                 "    def_group=def_group,",
@@ -1592,11 +1600,6 @@
                 "load_guides",
                 "def_lists"
             ],
-            "attrs": {
-                "asset_root": {
-                    "value": "/groups/crabby/Assets/Rigging/Scuttle/Build"
-                }
-            },
             "code": [
                 "cmds.file(force=True, newFile=True)",
                 "cmds.group(empty=True, name=\"${rig_group}\")"
@@ -1609,6 +1612,7 @@
                 "STAGE.eye_joints = []"
             ]
         },
+        "/setup_file/load_geo": {},
         "/side": {
             "attrs": {
                 "control_color": {

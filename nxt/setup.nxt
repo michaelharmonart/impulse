@@ -87,7 +87,9 @@
                 "create_groups"
             ],
             "attrs": {
-                "attr": {}
+                "model_path": {
+                    "value": "${asset_root}/model.mb"
+                }
             },
             "code": [
                 "cmds.file(force=True, newFile=True)",

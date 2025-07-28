@@ -1,10 +1,116 @@
 {
     "version": "1.17",
     "alias": "king",
-    "color": "#0052aa",
+    "color": "#1665aa",
     "mute": false,
     "solo": false,
     "references": [
         "./crab.nxt"
-    ]
+    ],
+    "meta_data": {
+        "collapse": {
+            "/cleanup": false
+        }
+    },
+    "nodes": {
+        "/": {
+            "attrs": {
+                "asset_root": {
+                    "type": "raw",
+                    "value": "/groups/crabby/Assets/Rigging/King Bling/Build"
+                }
+            }
+        },
+        "/base": {
+            "attrs": {
+                "control_color": {
+                    "type": "list",
+                    "value": "[0.069, 0.091, 0.272]"
+                },
+                "size": {
+                    "type": "int",
+                    "value": "6"
+                }
+            }
+        },
+        "/cleanup/control_shapes": {
+            "enabled": false
+        },
+        "/left/arms": {
+            "attrs": {
+                "socket": {
+                    "type": "str",
+                    "value": "\"Spine_M_matrixSpline_Segment4_CTL\""
+                }
+            }
+        },
+        "/left/arms/pincers": {
+            "attrs": {
+                "pincer_guides": {
+                    "type": "list",
+                    "value": "['${part_name}_Pincers', '${part_name}_Pincer']"
+                }
+            }
+        },
+        "/left/eye/stalk": {
+            "attrs": {
+                "socket": {
+                    "value": "Spine_M_matrixSpline_Segment5_CTL"
+                }
+            }
+        },
+        "/left/legs/back": {
+            "attrs": {
+                "chain": {
+                    "value": "['Section1', 'Section2', 'Section3', 'Section4', 'Section5', 'Section6', 'END']"
+                },
+                "socket": {
+                    "value": "\"Spine_M_matrixSpline_Segment2_CTL\""
+                }
+            }
+        },
+        "/left/legs/front": {
+            "attrs": {
+                "socket": {
+                    "value": "\"Spine_M_matrixSpline_Segment3_CTL\""
+                }
+            }
+        },
+        "/left/mouth_pincer": {
+            "enabled": false
+        },
+        "/limb/controls": {
+            "attrs": {
+                "control_size": {
+                    "type": "float",
+                    "value": "0.3"
+                }
+            }
+        },
+        "/middle/spine": {
+            "attrs": {
+                "control_size": {
+                    "type": "float",
+                    "value": "0.8"
+                },
+                "segments": {
+                    "value": "5"
+                },
+                "tweak_control_height": {
+                    "value": "0.3"
+                }
+            }
+        },
+        "/setup_file": {
+            "child_order": [
+                "load_geo",
+                "load_guides",
+                "def_lists",
+                "create_groups"
+            ]
+        },
+        "/skinning/apply_weights": {
+            "enabled": false
+        }
+    }
 }
