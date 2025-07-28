@@ -1170,6 +1170,7 @@
                 "        offset=0,",
                 "        )",
                 "controls.append(end_control)",
+                "pole_vector_parent = end_control.control_transform",
                 "cmds.parent(end_control.offset_transform, ik_group)",
                 "impulse.utils.control.connect_control(end_control, joint)",
                 "",
