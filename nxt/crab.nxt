@@ -901,7 +901,7 @@
                 },
                 "reverse_segments": {
                     "type": "int",
-                    "value": "0"
+                    "value": "1"
                 },
                 "side": {
                     "type": "raw",

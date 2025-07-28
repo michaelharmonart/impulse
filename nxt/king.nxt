@@ -8,6 +8,20 @@
         "./crab.nxt"
     ],
     "meta_data": {
+        "positions": {
+            "/base": [
+                -481.8322778064832,
+                -404.8036992053844
+            ],
+            "/middle": [
+                -40.04341079170109,
+                -413.2039626786624
+            ],
+            "/setup_file": [
+                -933.266262423356,
+                -404.3239377276612
+            ]
+        },
         "collapse": {
             "/cleanup": false
         }
@@ -37,10 +51,16 @@
             "enabled": false
         },
         "/left/arms": {
+            "child_order": [
+                "pincers"
+            ],
             "attrs": {
+                "reverse_segments": {
+                    "value": "1"
+                },
                 "socket": {
                     "type": "str",
-                    "value": "\"Spine_M_matrixSpline_Segment4_CTL\""
+                    "value": "\"Spine_M_matrixSpline_Segment5_CTL\""
                 }
             }
         },
@@ -52,10 +72,32 @@
                 }
             }
         },
+        "/left/eye": {
+            "child_order": [
+                "stalk",
+                "eye"
+            ],
+            "attrs": {
+                "parent": {
+                    "value": "Head_M_CTL"
+                }
+            }
+        },
+        "/left/eye/eye": {
+            "attrs": {
+                "segments": {
+                    "value": "4"
+                }
+            }
+        },
         "/left/eye/stalk": {
             "attrs": {
+                "segments": {
+                    "value": "5"
+                },
                 "socket": {
-                    "value": "Spine_M_matrixSpline_Segment5_CTL"
+                    "type": "raw",
+                    "value": "Spine_M_matrixSpline_Segment6_CTL"
                 }
             }
         },
@@ -65,14 +107,16 @@
                     "value": "['Section1', 'Section2', 'Section3', 'Section4', 'Section5', 'Section6', 'END']"
                 },
                 "socket": {
-                    "value": "\"Spine_M_matrixSpline_Segment2_CTL\""
+                    "type": "str",
+                    "value": "\"Spine_M_matrixSpline_Segment3_CTL\""
                 }
             }
         },
         "/left/legs/front": {
             "attrs": {
                 "socket": {
-                    "value": "\"Spine_M_matrixSpline_Segment3_CTL\""
+                    "type": "str",
+                    "value": "\"Spine_M_matrixSpline_Segment4_CTL\""
                 }
             }
         },
@@ -80,10 +124,22 @@
             "enabled": false
         },
         "/limb/controls": {
+            "child_order": [
+                "ik"
+            ],
             "attrs": {
                 "control_size": {
                     "type": "float",
                     "value": "0.3"
+                }
+            }
+        },
+        "/limb/controls/ik": {},
+        "/middle/shell": {
+            "attrs": {
+                "control_size": {
+                    "type": "float",
+                    "value": "0.1"
                 }
             }
         },
@@ -93,8 +149,16 @@
                     "type": "float",
                     "value": "0.8"
                 },
+                "guides": {
+                    "value": "['Body_M_Section1', 'Body_M_Section2' , 'Head_M']"
+                },
                 "segments": {
-                    "value": "5"
+                    "type": "int",
+                    "value": "6"
+                },
+                "tangent_offset": {
+                    "type": "float",
+                    "value": "0.6"
                 },
                 "tweak_control_height": {
                     "value": "0.3"
