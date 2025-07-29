@@ -1,7 +1,7 @@
 {
     "version": "1.17",
     "alias": "king",
-    "color": "#1665aa",
+    "color": "#4449aa",
     "mute": false,
     "solo": false,
     "references": [
@@ -66,13 +66,13 @@
             }
         },
         "/cleanup/control_shapes": {
-            "enabled": false
+            "enabled": true
         },
         "/cleanup/stache_bend": {
             "attrs": {
                 "bend_amount": {
                     "type": "int",
-                    "value": "72"
+                    "value": "75"
                 },
                 "down_amount": {
                     "type": "int",
@@ -193,7 +193,7 @@
                 },
                 "guides": {
                     "type": "list",
-                    "value": "[\"Main\", \"Section1\", \"Section2\", \"Section3\", \"Section4\", \"Section5\", \"Section6\", \"Section7\", \"Section8\"]"
+                    "value": "[\"Main\", \"Section1\", \"Section2\", \"Section3\", \"Section4\", \"Section5\", \"Section6\", \"Section7\", \"Section8\", \"Section9\"]"
                 },
                 "parent": {
                     "type": "raw",
@@ -346,6 +346,9 @@
                 "control_size": {
                     "type": "float",
                     "value": "0.1"
+                },
+                "segments": {
+                    "value": "5"
                 }
             }
         },
