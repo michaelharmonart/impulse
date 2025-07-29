@@ -507,6 +507,7 @@ def resample(
     knots: list[float] | None = None,
     weights: list[float] | None = None,
     padded: bool = True,
+    arc_length: bool = True,
     sample_points: int = 256,
 ) -> list[float]:
     """
@@ -518,10 +519,23 @@ def resample(
         knots(list): A list of knot values.
         weights(list): A list of CV weight values.
         padded(bool): When True, the points are returned such that the end points have half a segment of spacing from the ends of the curve.
+        arc_length(bool): When True, the points are returned with even spacing according to arc length.
         sample_points: The number of points to sample along the curve to find even arc-length segments. More points will be more accurate/evenly spaced.
     Returns:
         list: List of the parameter values of the picked points along the curve.
     """
+
+    if not arc_length:
+        point_parameters: list[float] = []
+        for i in range(number_of_points):
+            if padded:
+                u = (i + 0.5) / number_of_points
+            else:
+                u = i / (number_of_points - 1)
+            point_parameters.append(u)
+        return point_parameters
+
+    # Arc length based resampling
     samples: list[Vector3] = []
     for i in range(sample_points):
         parameter: float = i * (1 / (sample_points - 1))
@@ -855,6 +869,7 @@ def matrix_spline_from_curve(
     tweak_control_height: float = 1,
     parent: str | None = None,
     stretch: bool = True,
+    arc_length: bool = True,
 ) -> MatrixSpline:
     """
     Takes a curve shape and creates a matrix spline with controls and deformation joints.
@@ -870,6 +885,7 @@ def matrix_spline_from_curve(
         tweak_control_size: Height multiplier for generated tweak controls.
         parent: Parent for the newly created matrix spline group.
         stretch: Whether to apply automatic scaling along the spline tangent.
+        arc_length: When True, the parameters for the spline will be even according to arc length.
 
     Returns:
         matrix_spline: The resulting matrix spline.
@@ -946,6 +962,7 @@ def matrix_spline_from_curve(
         degree=degree,
         knots=knots,
         padded=padded,
+        arc_length=arc_length,
     )
 
     for i in range(segments):
@@ -976,6 +993,7 @@ def matrix_spline_from_transforms(
     segments: int,
     periodic: bool = False,
     degree: int = 3,
+    knots: list[str] | None = None,
     padded: bool = True,
     name: str | None = None,
     control_size: float = 0.1,
@@ -983,6 +1001,7 @@ def matrix_spline_from_transforms(
     control_height: float = 1,
     parent: str | None = None,
     stretch: bool = True,
+    arc_length: bool = True,
     spline_group: str | None = None,
     ctl_group: str | None = None,
     def_group: str | None = None,
@@ -994,6 +1013,7 @@ def matrix_spline_from_transforms(
         segments: Number of matrices to pin to the curve.
         periodic: Whether the given transforms form a periodic curve or not (no need for repeated CVs)
         degree: Degree of the spline to be created.
+        knots: The knot vector for the generated B-Spline.
         padded: When True, segments are sampled such that the end points have half a segment of spacing from the ends of the spline.
         name: Name of the matrix spline group to be created.
         control_size: Size of generated controls.
@@ -1003,6 +1023,7 @@ def matrix_spline_from_transforms(
         tweak_control_size: Height multiplier for generated tweak controls.
         parent: Parent for the newly created matrix spline group.
         stretch: Whether to apply automatic scaling along the spline tangent.
+        arc_length: When True, the parameters for the spline will be even according to arc length.
         spline_group: The container group for all the generated subcontrols and joints.
         ctl_group: The container for the generated sub-controls.
         def_group: The container for the generated deformation joints.
@@ -1049,11 +1070,16 @@ def matrix_spline_from_transforms(
         cmds.parent(cv_transform, mch_group)
 
     matrix_spline: MatrixSpline = MatrixSpline(
-        cv_transforms=cv_transforms, degree=degree, periodic=periodic, name=name
+        cv_transforms=cv_transforms, degree=degree, periodic=periodic, name=name, knots=knots
     )
 
     segment_parameters: list[float] = resample(
-        cv_positions=cv_positions, number_of_points=segments, degree=degree, padded=padded
+        cv_positions=cv_positions,
+        number_of_points=segments,
+        degree=degree,
+        knots=knots,
+        padded=padded,
+        arc_length=arc_length,
     )
 
     for i in range(segments):

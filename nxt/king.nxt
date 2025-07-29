@@ -13,6 +13,14 @@
                 -481.8322778064832,
                 -404.8036992053844
             ],
+            "/left/mouth_pincer": [
+                0.0,
+                0.0
+            ],
+            "/left_pasted": [
+                134.55453536884042,
+                496.0849031275429
+            ],
             "/middle": [
                 -40.04341079170109,
                 -413.2039626786624
@@ -20,10 +28,18 @@
             "/setup_file": [
                 -933.266262423356,
                 -404.3239377276612
+            ],
+            "/stache": [
+                398.17103527830375,
+                503.602236391896
             ]
         },
         "collapse": {
-            "/cleanup": false
+            "/cleanup": false,
+            "/middle/spine": true
+        },
+        "colors": {
+            "./crab.nxt": "#bc422a"
         }
     },
     "nodes": {
@@ -32,7 +48,9 @@
                 "asset_root": {
                     "type": "raw",
                     "value": "/groups/crabby/Assets/Rigging/King Bling/Build"
-                }
+                },
+                "stache_offsets_L": {},
+                "stache_offsets_R": {}
             }
         },
         "/base": {
@@ -49,6 +67,46 @@
         },
         "/cleanup/control_shapes": {
             "enabled": false
+        },
+        "/cleanup/stache_bend": {
+            "attrs": {
+                "bend_amount": {
+                    "type": "int",
+                    "value": "72"
+                },
+                "down_amount": {
+                    "type": "int",
+                    "value": "15"
+                }
+            },
+            "code": [
+                "",
+                "left = STAGE.stache_offsets_L",
+                "right = STAGE.stache_offsets_R",
+                "for index, offset in enumerate(left):",
+                "    if index == 0:",
+                "        continue",
+                "    if index == 1:",
+                "        cmds.rotate(0, 0, -${down_amount}, offset, relative=True, forceOrderXYZ=True, objectSpace=True)",
+                "    else:",
+                "        cmds.rotate(0, 0, ${bend_amount}, offset, relative=True, forceOrderXYZ=True, objectSpace=True)",
+                "for index, offset in enumerate(right):",
+                "    if index == 0:",
+                "        continue",
+                "    if index == 1:",
+                "        cmds.rotate(0, 0, -${down_amount}, offset, relative=True, forceOrderXYZ=True, objectSpace=True)",
+                "    else:",
+                "        cmds.rotate(0, 0, ${bend_amount}, offset, relative=True, forceOrderXYZ=True, objectSpace=True)"
+            ]
+        },
+        "/left": {
+            "child_order": [
+                "arms",
+                "legs",
+                "eye",
+                "mouth_pincer",
+                "stache"
+            ]
         },
         "/left/arms": {
             "child_order": [
@@ -122,6 +180,154 @@
         },
         "/left/mouth_pincer": {
             "enabled": false
+        },
+        "/left/stache": {
+            "attrs": {
+                "control_size": {
+                    "type": "float",
+                    "value": "0.1"
+                },
+                "ctl_group": {
+                    "type": "raw",
+                    "value": "${part_name}_CTLS"
+                },
+                "guides": {
+                    "type": "list",
+                    "value": "[\"Main\", \"Section1\", \"Section2\", \"Section3\", \"Section4\", \"Section5\", \"Section6\", \"Section7\", \"Section8\"]"
+                },
+                "parent": {
+                    "type": "raw",
+                    "value": "Head_M_CTL"
+                },
+                "part_def": {
+                    "type": "raw",
+                    "value": "${part_name}_DEF"
+                },
+                "part_group": {
+                    "type": "raw",
+                    "value": "${part_name}_MCH"
+                },
+                "part_name": {
+                    "type": "raw",
+                    "value": "${prefix}${side}"
+                },
+                "prefix": {
+                    "type": "raw",
+                    "value": "Stache_"
+                },
+                "segments": {
+                    "type": "int",
+                    "value": "16"
+                },
+                "socket": {
+                    "type": "raw",
+                    "value": "Spine_M_matrixSpline_Segment6_CTL"
+                },
+                "tweak_attr": {
+                    "type": "raw",
+                    "value": "${part_name}_ControlPanel.${tweak_attr_long}"
+                },
+                "tweak_attr_long": {
+                    "type": "raw",
+                    "value": "tweakVisibility"
+                },
+                "tweak_attr_nice": {
+                    "type": "raw",
+                    "value": "Tweak Control Visibility"
+                },
+                "tweak_group": {
+                    "type": "raw",
+                    "value": "${part_name}_Tweak_CTLS"
+                },
+                "tweak_size": {
+                    "type": "float",
+                    "value": "0.05"
+                }
+            },
+            "code": [
+                "part_group = cmds.group(empty=True, name=\"${part_group}\", parent=\"${parent}\")",
+                "def_group = cmds.group(empty=True, name=\"${part_def}\", parent=\"${def_group}\")",
+                "ctl_group = cmds.group(empty=True, name=\"${part_name}_CTLS\", parent=part_group)",
+                "tweak_group = cmds.group(empty=True, name=\"${tweak_group}\", parent=ctl_group)",
+                "cmds.hide(tweak_group)",
+                "",
+                "cmds.connectAttr(",
+                "    \"${control_layer}.controlColor\", ",
+                "    f\"{ctl_group}.drawOverride.overrideColorRGB\"",
+                ")",
+                "cmds.setAttr(f\"{ctl_group}.overrideEnabled\", 1)",
+                "cmds.setAttr(f\"{ctl_group}.overrideRGBColors\", 1)",
+                "",
+                "control_panel: str = cmds.createNode(\"network\", name=\"${part_name}_ControlPanel\")",
+                "cmds.addAttr(",
+                "            control_panel,",
+                "            longName=\"${tweak_attr_long}\", ",
+                "            niceName=\"${tweak_attr_nice}\", ",
+                "            attributeType=\"bool\",",
+                "            )",
+                "tweak_attr = f\"{control_panel}.${tweak_attr_long}\"",
+                "cmds.setAttr(tweak_attr, channelBox=True)   ",
+                "",
+                "joints = [f\"${prefix}${side}_{joint}\" for joint in self.guides]",
+                "self.joints = joints  ",
+                "",
+                "controls = []",
+                "offsets = []",
+                "last_control: str",
+                "for i, guide in enumerate(joints):",
+                "    control = impulse.utils.control.make_control(",
+                "            name=guide, ",
+                "            size=${control_size}, ",
+                "            target_transform=guide,",
+                "            control_shape=impulse.utils.control.ControlShape.CIRCLE,",
+                "            parent=ctl_group,  ",
+                "    )",
+                "    controls.append(control.control_transform)",
+                "    offsets.append(control.offset_transform)",
+                "",
+                "    if i == 0:",
+                "        impulse.utils.transform.matrix_constraint(\"${socket}\", control.offset_transform, keep_offset=True)",
+                "    else:",
+                "        if i == 2:",
+                "            cmds.connectAttr(\"${tweak_attr}\", f\"{control.offset_transform}.visibility\")",
+                "        cmds.parent(control.offset_transform, last_control)",
+                "    last_control = control.control_transform",
+                "knots = []",
+                "for i in range(len(joints)-1):",
+                "    if i == 0:",
+                "        knots.extend([0,0,0])",
+                "    elif i == len(joints)-2:",
+                "        knots.extend([i,i,i])",
+                "    elif i == 1:",
+                "        knots.append(0.1)",
+                "    else:",
+                "        knots.append(i)",
+                "impulse.utils.spline.matrix_spline_from_transforms(",
+                "    name=\"${part_name}\",",
+                "    transforms=controls, ",
+                "    degree=2,",
+                "    knots=knots,",
+                "    segments=${segments}, ",
+                "    control_size=${tweak_size},",
+                "    control_shape=impulse.utils.control.ControlShape.CUBE,",
+                "    control_height=1,",
+                "    parent=part_group,",
+                "    spline_group=part_group,",
+                "    def_group=def_group,",
+                "    ctl_group=tweak_group,",
+                "    arc_length=True,",
+                ")",
+                "",
+                "for control in controls:",
+                "    cmds.addAttr(",
+                "        control,",
+                "        longName=f\"${part_name}_${tweak_attr_long}\", ",
+                "        niceName=f\"{self.part_name.replace('_', ' ')} ${tweak_attr_nice}\", ",
+                "        proxy=\"${tweak_attr}\")",
+                "        ",
+                "STAGE.body_joints.extend(cmds.listRelatives(def_group, type=\"joint\", allDescendents=True))",
+                "STAGE.stache_offsets_${side} = offsets"
+            ]
         },
         "/limb/controls": {
             "child_order": [
