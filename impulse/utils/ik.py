@@ -13,10 +13,11 @@ class IkChain:
         pole_vector (str): The name of the transform used as the pole vector controller.
     """
 
-    def __init__(self, ik_chain_joints: list[str], socket: str, pole_vector: str):
+    def __init__(self, ik_chain_joints: list[str], socket: str, pole_vector: str, ik_handle: str):
         self.ik_chain_joints = ik_chain_joints
         self.socket = socket
         self.pole_vector = pole_vector
+        self.ik_handle = ik_handle
 
 
 def ik_from_guides(
@@ -115,6 +116,7 @@ def ik_from_guides(
         matrix_constraint(
             source_transform=socket, constrain_transform=socket_local, keep_offset=False
         )
+        
         handle_local: str = cmds.group(empty=True, name=f"{ik_handle}_LOCAL", parent=ik_group)
         matrix_constraint(ik_handle, handle_local, keep_offset=False)
 
@@ -153,7 +155,7 @@ def ik_from_guides(
             # cmds.connectAttr(f"{joint_y_adjust}.output", f"{joint}.translate.translateY")
             cmds.connectAttr(scale_factor_attr, f"{joint}.scale.scaleY")
 
-    return IkChain(ik_chain_joints=ik_chain, socket=socket, pole_vector=pole_vector)
+    return IkChain(ik_chain_joints=ik_chain, socket=socket, pole_vector=pole_vector, ik_handle=ik_handle)
 
 
 def fk_from_guides(
