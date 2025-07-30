@@ -950,8 +950,8 @@
                 "",
                 "impulse.utils.ik.ik_fk_blend_list(self.ik_chain_joints, self.fk_joints, self.pose_joints, self.ik_switch)",
                 "",
-                "def_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_def}\", parent=\"${def_group}\", suffix=\"_DEF\", side_mult=${side_mult})",
-                "impulse.utils.transform.constrain_transforms(self.pose_joints, def_joints)",
+                "def_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_def}\", parent=\"${def_group}\", suffix=\"_DEF\", side_mult=${side_mult}, include_last=False)",
+                "impulse.utils.transform.constrain_transforms(self.pose_joints[:-1], def_joints)",
                 "",
                 "STAGE.body_joints.extend(def_joints)"
             ]

@@ -164,6 +164,7 @@ def fk_from_guides(
     parent: str | None = None,
     suffix: str = "_FK",
     side_mult: int = 1,
+    include_last: bool = True,
 ) -> str:
     """
     Takes a hierarchy of guides and creates an FK chain.
@@ -185,8 +186,11 @@ def fk_from_guides(
         cmds.parent(fk_group, parent, relative=False)
 
     # Start by duplicating and renaming the guides
+    filtered_guides: list[str] = guides
+    if not include_last:
+        filtered_guides: list[str] = guides[:-1]
     fk_joints: list[str] = []
-    for index, guide in enumerate(guides):
+    for index, guide in enumerate(filtered_guides):
         fk_joint: str = cmds.duplicate(guide, name=f"{guide}{suffix}", parentOnly=True)[0]
         fk_joints.append(fk_joint)
         if index > 0:

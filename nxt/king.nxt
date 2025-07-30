@@ -217,7 +217,7 @@
                 },
                 "segments": {
                     "type": "int",
-                    "value": "16"
+                    "value": "24"
                 },
                 "socket": {
                     "type": "raw",
@@ -299,7 +299,7 @@
                 "    elif i == len(joints)-2:",
                 "        knots.extend([i,i,i])",
                 "    elif i == 1:",
-                "        knots.append(0.1)",
+                "        knots.append(0.5)",
                 "    else:",
                 "        knots.append(i)",
                 "impulse.utils.spline.matrix_spline_from_transforms(",
@@ -315,7 +315,7 @@
                 "    spline_group=part_group,",
                 "    def_group=def_group,",
                 "    ctl_group=tweak_group,",
-                "    arc_length=True,",
+                "    arc_length=False,",
                 ")",
                 "",
                 "for control in controls:",
@@ -383,7 +383,12 @@
             ]
         },
         "/skinning/apply_weights": {
-            "enabled": false
+            "enabled": true,
+            "code": [
+                "impulse.utils.skin.apply_ng_skin_weights(\"${body_weights}\", \"${body_geo}\")",
+                "impulse.utils.skin.apply_ng_skin_weights(\"${shell_weights}\", \"${shell_geo}\")",
+                "impulse.utils.skin.apply_ng_skin_weights(\"${eye_weights}\", \"${eye_geo}\")"
+            ]
         }
     }
 }
