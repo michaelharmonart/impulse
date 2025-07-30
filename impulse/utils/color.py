@@ -15,6 +15,21 @@ def clamp_color(color: tuple[float, float, float]) -> tuple[float, float, float]
     """
     return tuple(max(0.0, min(1.0, c)) for c in color)
 
+
+
+def linear_srgb_to_rec2020(color: tuple[float, float, float]) -> tuple[float, float, float]:
+    SRGB_TO_REC2020 = (
+    (0.6274, 0.3293, 0.0433),
+    (0.0691, 0.9195, 0.0114),
+    (0.0164, 0.0880, 0.8956),
+    )
+    r2020_linear: tuple[float, float, float] = (
+            SRGB_TO_REC2020[0][0] * color[0] + SRGB_TO_REC2020[0][1] * color[1] + SRGB_TO_REC2020[0][2] * color[2],
+            SRGB_TO_REC2020[1][0] * color[0] + SRGB_TO_REC2020[1][1] * color[1] + SRGB_TO_REC2020[1][2] * color[2],
+            SRGB_TO_REC2020[2][0] * color[0] + SRGB_TO_REC2020[2][1] * color[1] + SRGB_TO_REC2020[2][2] * color[2],
+    )
+    return r2020_linear
+
 def linear_srgb_to_oklab(color: tuple[float, float, float])  -> tuple[float, float, float]:
     """
     Converts a linear sRGB color to the Oklab color space.
@@ -110,7 +125,7 @@ def srgb_to_linear_color(srgb_color: om2.MColor) -> om2.MColor:
         om2.MColor: Linear color.
     """
     def convert_channel(c: float) -> float:
-        if c <= 0.04045:
+        if c <= 0.0404482362771082:
             return c / 12.92
         else:
             return ((c + 0.055) / 1.055) ** 2.4
@@ -224,7 +239,7 @@ def face_color_from_texture(mesh: str, anti_alias: bool = False) -> None:
             r, g, b = result
         
         color: MColor = om2.MColor([r, g, b, 1.0])
-        color = srgb_to_linear_color(color)
+        color = linear_srgb_to_rec2020(srgb_to_linear_color(color))
         face_colors.append(color)
         face_indices.append(face_index)
     fn_mesh.setFaceColors(face_colors, face_indices)

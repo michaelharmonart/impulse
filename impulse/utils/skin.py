@@ -57,7 +57,7 @@ def apply_ng_skin_weights(weights_file: str, geometry: str) -> None:
 
     if not os.path.isfile(path=weights_file):
         raise RuntimeError(f"{weights_file} doesn't exist, unable to load weights.")
-
+    
     # Run the import
     ng.import_json(
         target=geometry,
