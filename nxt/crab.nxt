@@ -52,8 +52,8 @@
                 -213.81406421755742
             ],
             "/base": [
-                -484.92970825922265,
-                -416.6663346502985
+                -476.63510246925495,
+                -416.1133609309674
             ],
             "/button": [
                 -1607.5243713135055,
@@ -163,6 +163,14 @@
                 -1607.5243713135055,
                 -1174.765096806026
             ],
+            "/texture_switch": [
+                -286.57486379033287,
+                -288.0904729950696
+            ],
+            "/texture_to_face_color": [
+                -549.0283153217507,
+                -682.6244059280805
+            ],
             "/window": [
                 -1607.5243713135055,
                 -1234.765096806026
@@ -189,10 +197,12 @@
             "/left/legs/front": false,
             "/left/mouth_pincer": true,
             "/limb": false,
+            "/main_window/manual_tab/Geometry/grid/node": true,
             "/main_window/manual_tab/curve/grid/node": true,
             "/main_window/manual_tab/main_panel/grid": false,
             "/main_window/manual_tab/main_panel/grid/set_rotation_order": true,
             "/main_window/manual_tab/main_panel/node": true,
+            "/main_window/manual_tab/node": true,
             "/middle/shell": false,
             "/middle/spine": true,
             "/right": false,
@@ -214,6 +224,9 @@
         },
         "/base": {
             "execute_in": "/setup_file",
+            "child_order": [
+                "control_panel"
+            ],
             "attrs": {
                 "control_color": {
                     "type": "list",
@@ -269,6 +282,60 @@
                 "            )",
                 "    cmds.setAttr(f\"{control_transform}.overrideEnabled\", 1)",
                 "    cmds.setAttr(f\"{control_transform}.overrideRGBColors\", 1)"
+            ]
+        },
+        "/base/control_panel": {
+            "child_order": [
+                "texture_switch"
+            ],
+            "attrs": {
+                "control_panel": {
+                    "type": "raw",
+                    "value": "Base_ControlPanel"
+                }
+            },
+            "code": [
+                "settings = cmds.createNode(\"network\", name=\"${control_panel}\")",
+                ""
+            ]
+        },
+        "/base/control_panel/texture_switch": {
+            "attrs": {
+                "geo_list": {
+                    "type": "list",
+                    "value": "[\"Shell_GEO\"]"
+                }
+            },
+            "code": [
+                "control_panel = \"${control_panel}\"",
+                "cmds.addAttr(",
+                "            control_panel,",
+                "            longName=f\"textureSwitch\", ",
+                "            niceName=f\"Texture Switch\", ",
+                "            attributeType=\"bool\",",
+                ")",
+                "switch_attr = f\"{control_panel}.textureSwitch\"",
+                "cmds.setAttr(switch_attr, channelBox=True)",
+                "",
+                "texture_switch_reverse = cmds.createNode(\"subtract\", name=\"TextureSwitch_Reverse\")",
+                "cmds.setAttr(f\"{texture_switch_reverse}.input1\", 1)",
+                "cmds.connectAttr(switch_attr, f\"{texture_switch_reverse}.input2\")",
+                "reverse_switch_attr = f\"{texture_switch_reverse}.output\"",
+                "",
+                "for control in [\"ROOT_CTL\", \"LOCAL_CTL\"]:",
+                "    cmds.addAttr(",
+                "        control,",
+                "        longName=\"textureSwitch\", ",
+                "        niceName=\"Texture Switch\", ",
+                "        proxy=switch_attr)",
+                "    cmds.setAttr(f\"{control}.textureSwitch\", channelBox=True)",
+                "",
+                "shapes = []",
+                "for geo in ${geo_list}:",
+                "    shapes.extend(impulse.utils.transform.get_shapes(geo))",
+                "    ",
+                "for shape in shapes:",
+                "    cmds.connectAttr(reverse_switch_attr, f\"{shape}.displayColors\")"
             ]
         },
         "/cleanup": {
@@ -1133,7 +1200,7 @@
                 "controls = []",
                 "ik_group = cmds.group(empty=True, name=\"${part_name}_IK_CTLS\", parent=\"${part_ctls}\")",
                 "ik_joints = self.ik_joints",
-                "ik_switch_reverse = cmds.createNode(\"subtract\")",
+                "ik_switch_reverse = cmds.createNode(\"subtract\", name=f\"${part_name}_IkSwitchReverse\")",
                 "cmds.setAttr(f\"{ik_switch_reverse}.input1\", 1)",
                 "cmds.connectAttr(\"${ik_switch}\", f\"{ik_switch_reverse}.input2\")",
                 "cmds.connectAttr(f\"{ik_switch_reverse}.output\", f\"{ik_group}.visibility\")",

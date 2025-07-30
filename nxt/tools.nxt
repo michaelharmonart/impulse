@@ -61,6 +61,10 @@
                 -1160.1899959037398,
                 -913.186860840478
             ],
+            "/texture_to_face_color": [
+                -702.3084207374891,
+                -1741.544218151311
+            ],
             "/window": [
                 -1160.1899959037398,
                 -973.186860840478
@@ -95,13 +99,54 @@
                 "selection_panel",
                 "main_panel",
                 "curve",
-                "Skinning"
+                "Skinning",
+                "Geometry"
             ],
             "attrs": {
                 "text": {
                     "value": "Manual Tools"
                 }
             }
+        },
+        "/main_window/manual_tab/Geometry": {
+            "instance": "/panel",
+            "child_order": [
+                "texture_to_face_color_quick",
+                "texture_to_face_color"
+            ],
+            "attrs": {
+                "text": {
+                    "value": "Geometry"
+                }
+            }
+        },
+        "/main_window/manual_tab/Geometry/texture_to_face_color": {
+            "instance": "/button",
+            "attrs": {
+                "text": {
+                    "type": "raw",
+                    "value": "Bake Face Color of Selected"
+                }
+            },
+            "code": [
+                "selection = cmds.ls(selection=True)",
+                "for object in selection:",
+                "    impulse.utils.color.face_color_from_texture(object, anti_alias=True)"
+            ]
+        },
+        "/main_window/manual_tab/Geometry/texture_to_face_color_quick": {
+            "instance": "/button",
+            "attrs": {
+                "text": {
+                    "type": "raw",
+                    "value": "Quick Bake Face Color of Selected"
+                }
+            },
+            "code": [
+                "selection = cmds.ls(selection=True)",
+                "for object in selection:",
+                "    impulse.utils.color.face_color_from_texture(object, anti_alias=False)"
+            ]
         },
         "/main_window/manual_tab/Skinning": {
             "instance": "/panel",
