@@ -151,7 +151,8 @@
         "/left/eye/stalk": {
             "attrs": {
                 "segments": {
-                    "value": "5"
+                    "type": "int",
+                    "value": "8"
                 },
                 "socket": {
                     "type": "raw",
@@ -378,8 +379,8 @@
             "child_order": [
                 "load_geo",
                 "load_guides",
-                "def_lists",
-                "create_groups"
+                "create_groups",
+                "def_lists"
             ]
         },
         "/skinning/apply_weights": {
