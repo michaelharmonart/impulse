@@ -1,7 +1,11 @@
 import colorsys
+import enum
 from maya.api.OpenMaya import (
     MDagPath,
+    MDagPathArray,
+    MDoubleArray,
     MFnSingleIndexedComponent,
+    MIntArray,
     MObject,
     MPointArray,
     MSelectionList,
@@ -242,6 +246,7 @@ def get_weights(shape: str, skin_cluster: str | None = None) -> dict[int, dict[s
 
     Args:
         shape (str): The name of the mesh shape node to query. Must have a skinCluster.
+        skin_cluster: Optional specification of which skinCluster node.
 
     Returns:
         dict[int, dict[str, float]: A dictionary mapping each vertex index to a list of
@@ -258,27 +263,127 @@ def get_weights(shape: str, skin_cluster: str | None = None) -> dict[int, dict[s
     shape_dag: MDagPath = sel.getDagPath(0)
     skin_cluster_mob: MObject = sel.getDependNode(1)
     mfn_skin_cluster: oma.MFnSkinCluster = oma.MFnSkinCluster(skin_cluster_mob)
+
+    influence_paths = mfn_skin_cluster.influenceObjects()
+    influence_map = {
+        mfn_skin_cluster.indexForInfluenceObject(path): om2.MFnDependencyNode(path.node()).name()
+        for path in influence_paths
+    }
+
     # Create vertex component
     num_verts: int = om2.MFnMesh(shape_dag).numVertices
     fn_comp: MFnSingleIndexedComponent = om2.MFnSingleIndexedComponent()
-    vtx_component = fn_comp.create(om2.MFn.kMeshVertComponent)
+    vtx_components = fn_comp.create(om2.MFn.kMeshVertComponent)
     fn_comp.addElements(list(range(num_verts)))
+
     flat_weights: list[float]
     influence_count: int
-    flat_weights, influence_count = mfn_skin_cluster.getWeights(shape_dag, vtx_component)
-    influences_objects: list[MDagPath] = mfn_skin_cluster.influenceObjects()
-    influences: list[str] = [str(object) for object in influences_objects]
+    flat_weights, influence_count = mfn_skin_cluster.getWeights(shape_dag, vtx_components)
+    
     weights_dict: dict[int, list[tuple[str, float]]] = {}
     for vtx_id in range(num_verts):
-        start: int = vtx_id * influence_count
-        end: int = start + influence_count
-        weights: dict[int, float] = {
-            influences[i]: flat_weights[start + i]
-            for i in range(influence_count)
-            if flat_weights[start + i] > 0.0
-        }
-        weights_dict[vtx_id] = weights
+        start_index: int = vtx_id * influence_count
+        vtx_weights: dict[int, float] = {}
+        for i in range(influence_count):
+            weight_value = flat_weights[start_index + i]
+            if weight_value > 1e-6:
+                influence_name = influence_map.get(i)
+                if influence_name:
+                    vtx_weights[influence_name] = weight_value
+        if vtx_weights:
+            weights_dict[vtx_id] = vtx_weights
     return weights_dict
+
+
+def set_weights(
+    shape: str,
+    new_weights: dict[int, dict[str, float]],
+    skin_cluster: str | None = None,
+    normalize=True,
+) -> None:
+    """
+    Sets skinCluster weights for all vertices of the given mesh shape.
+
+    Args:
+        shape (str): The name of the mesh shape node to query. Must have a skinCluster.
+        new_weights (dict): Dictionary of vertex weights: {vtx_index: {influence_name: weight}}.
+        skin_cluster: Optional specification of which skinCluster node.
+        normalize: When True, the given weights will additionally be normalized.
+    """
+    if not skin_cluster:
+        skin_cluster: str | None = get_skin_cluster(shape)
+        if not skin_cluster:
+            raise RuntimeError(f"No skinCluster on {shape}")
+
+
+    # Ensure all influences in new_weights exist on the skinCluster
+    all_influences_in_data: set[str] = set(
+        influence_name
+        for vtx_weights in new_weights.values()
+        for influence_name in vtx_weights.keys()
+    )
+
+    # Defer MFnSkinCluster initialization until after potential modifications --
+    temp_skin = oma.MFnSkinCluster()
+    sel_for_check = om2.MSelectionList()
+    sel_for_check.add(skin_cluster)
+    temp_skin.setObject(sel_for_check.getDependNode(0))
+
+    existing_influences = {
+        om2.MFnDependencyNode(influence.node()).name()
+        for influence in temp_skin.influenceObjects()
+    }
+
+    # Add missing influences to the skinCluster
+    for influence in all_influences_in_data - set(existing_influences):
+        if not cmds.objExists(influence):
+            raise RuntimeError(f"Influence '{influence}' does not exist in the scene.")
+        cmds.skinCluster(skin_cluster, edit=True, addInfluence=influence, weight=0.0)
+
+    sel: MSelectionList = om2.MSelectionList()
+    sel.add(shape)
+    sel.add(skin_cluster)
+    shape_dag: MDagPath = sel.getDagPath(0)
+    skin_cluster_mob: MObject = sel.getDependNode(1)
+    mfn_skin_cluster: oma.MFnSkinCluster = oma.MFnSkinCluster(skin_cluster_mob)
+
+    # Get influence indices
+    influence_paths: MDagPathArray = mfn_skin_cluster.influenceObjects()
+    influence_indices: dict[str, int] = {
+        om2.MFnDependencyNode(path.node()).name(): mfn_skin_cluster.indexForInfluenceObject(path)
+        for path in influence_paths
+    }
+
+    ordered_influences: list[tuple[str, int]] = sorted(influence_indices.items(), key=lambda item: item[1])
+    ordered_influence_names = [name for name, index in ordered_influences]
+    ordered_indices_only = [index for name, index in ordered_influences]
+
+    influence_indices_array: MIntArray = om2.MIntArray()
+    for index in ordered_indices_only:
+        influence_indices_array.append(index)
+
+    # Create vertex component
+    num_verts: int = om2.MFnMesh(shape_dag).numVertices
+    fn_comp: MFnSingleIndexedComponent = om2.MFnSingleIndexedComponent()
+    vtx_components = fn_comp.create(om2.MFn.kMeshVertComponent)
+    fn_comp.addElements(list(range(num_verts)))
+
+    # Create a flat weight list and list of influence indices used
+    weights_array: MDoubleArray = om2.MDoubleArray()
+
+    for vtx_id in range(num_verts):
+        vtx_weights = new_weights.get(vtx_id, {})
+        for influence_name, influence_index in ordered_influences:
+            weight = vtx_weights.get(influence_name, 0.0)
+            weights_array.append(weight)
+
+    if not mfn_skin_cluster.object().hasFn(om2.MFn.kSkinClusterFilter):
+        raise RuntimeError(f"Selected node {skin_cluster} is not a skinCluster")
+
+    # Set weights
+    mfn_skin_cluster.setWeights(
+        shape_dag, vtx_components, influence_indices_array, weights_array, normalize=normalize, returnOldWeights=False
+    )
 
 
 def split_weights(
@@ -293,18 +398,19 @@ def split_weights(
         shape=mesh_shape, skin_cluster=skin_cluster
     )
     new_weights: dict[int, dict[str, float]] = {}
+
     # Organize weights by influence rather than vertex
     weights_by_influence: dict[str, dict[int, float]] = {}
     for vertex in original_weights.keys():
         influence_weights: dict[str, float] = original_weights[vertex]
-        for influence, weight in influence_weights:
+        for influence, weight in influence_weights.items():
             if influence in weights_by_influence:
                 weights_by_influence[influence][vertex] = weight
             else:
                 weights_by_influence[influence] = {vertex: weight}
 
     for original_joint, split_joints_list in zip(original_joints, split_joints):
-        vertex_weights: dict[int, float] = weights_by_influence[original_joint]
+        vertex_weights: dict[int, float] = weights_by_influence.get(original_joint, {})
 
         # Get a list of all vertices that are influenced by the given influence/joint
         influenced_vertex_weights: list[tuple[int, float]] = []
@@ -322,15 +428,23 @@ def split_weights(
             vertex_indices=influenced_vertices,
         )
 
-        for vertex, original_weight in influenced_vertex_weights:
-            weights_by_influence[original_joint] = 0
-            if vertex not in new_weights.keys():
-                new_weights[vertex] = {}
-            for influence in spline_weights:
-                if influence not in new_weights[vertex]:
-                    new_weights[vertex][influence]
+        for i, (vertex, original_weight) in enumerate(influenced_vertex_weights):
+            if vertex not in new_weights:
+                # Start with a copy of the original weights
+                new_weights[vertex] = original_weights[vertex].copy()
 
-    return spline_weights
+            # Remove original joint weight
+            new_weights[vertex][original_joint] = 0.0
+
+            # Add redistributed weights to split joints
+            for influence, spline_weight in spline_weights[i]:
+                if influence not in new_weights[vertex]:
+                    new_weights[vertex][influence] = 0.0
+                new_weights[vertex][influence] += spline_weight * original_weight
+
+    set_weights(
+        shape=mesh_shape, new_weights=new_weights, skin_cluster=skin_cluster, normalize=True
+    )
 
 
 def visualize_split_weights(mesh: str, cv_transforms: list[str], degree: int = 2) -> None:
