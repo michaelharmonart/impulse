@@ -426,6 +426,7 @@ def set_ng_layer_weights(
         layer_name (str): Name for the new layer.
         normalize (bool): Whether to normalize weights per vertex.
     """
+    ensure_ng_initialized()
     if not skin_cluster:
         skin_cluster: str | None = get_skin_cluster(shape)
         if not skin_cluster:
@@ -444,7 +445,7 @@ def set_ng_layer_weights(
         om2.MFnDependencyNode(path.node()).name(): mfn_skin_cluster.indexForInfluenceObject(path)
         for path in influence_paths
     }
-    if not ng.get_layers_enabled():
+    if not ng.get_layers_enabled(skin_cluster):
         init_layers(shape)
     layers: Layers = Layers(skin_cluster)
 
@@ -481,7 +482,7 @@ def set_ng_layer_weights(
     # Build vertex weight arrays
     for influence, id in influence_indices.items():
         weights_list: list[float] = [
-            weights_by_influence[influence].get(i, 0) for i in range(num_verts)
+            weights_by_influence.get(influence, {}).get(i, 0) for i in range(num_verts)
         ]
         new_layer.set_weights(id, weights_list)
 
