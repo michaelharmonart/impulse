@@ -1,5 +1,7 @@
 import colorsys
 import enum
+
+from ngSkinTools2.api.layers import Layer, Layers
 from maya.api.OpenMaya import (
     MDagPath,
     MDagPathArray,
@@ -19,7 +21,7 @@ import os
 from impulse.structs.transform import Vector3 as Vector3
 from impulse.utils import spline as spline
 from ngSkinTools2 import api as ng
-from ngSkinTools2.api import plugin
+from ngSkinTools2.api import Layers, plugin
 from ngSkinTools2.api.influenceMapping import InfluenceMappingConfig
 from ngSkinTools2.api.transfer import VertexTransferMode
 
@@ -41,6 +43,30 @@ def init_layers(shape: str) -> ng.Layers:
     base_layer: ng.Layer = layers.add("Base Weights")
     base_layer.set_weights
     return layers
+
+
+def get_or_create_ng_layer(skin_cluster: str, layer_name: str) -> Layer:
+    """
+    Gets or creates an ngSkinTools2 layer with the given name on the specified shape.
+
+    Args:
+        skin_cluster(str): The name of the skinCluster node.
+        layer_name (str): The name of the layer to create or retrieve.
+
+    Returns:
+        ngSkinTools2.api.layers.Layer: The existing or newly created layer object.
+    """
+
+    layers: Layers = Layers(skin_cluster)
+
+    # Check for existing layer
+    for layer in layers.list():
+        if layer.name == layer_name:
+            return layer
+
+    # Create and return new layer
+    new_layer = layers.add(layer_name)
+    return new_layer
 
 
 def apply_ng_skin_weights(weights_file: str, geometry: str) -> None:
@@ -279,7 +305,7 @@ def get_weights(shape: str, skin_cluster: str | None = None) -> dict[int, dict[s
     flat_weights: list[float]
     influence_count: int
     flat_weights, influence_count = mfn_skin_cluster.getWeights(shape_dag, vtx_components)
-    
+
     weights_dict: dict[int, list[tuple[str, float]]] = {}
     for vtx_id in range(num_verts):
         start_index: int = vtx_id * influence_count
@@ -315,7 +341,6 @@ def set_weights(
         if not skin_cluster:
             raise RuntimeError(f"No skinCluster on {shape}")
 
-
     # Ensure all influences in new_weights exist on the skinCluster
     all_influences_in_data: set[str] = set(
         influence_name
@@ -323,23 +348,15 @@ def set_weights(
         for influence_name in vtx_weights.keys()
     )
 
-    # Defer MFnSkinCluster initialization until after potential modifications --
-    temp_skin = oma.MFnSkinCluster()
-    sel_for_check = om2.MSelectionList()
-    sel_for_check.add(skin_cluster)
-    temp_skin.setObject(sel_for_check.getDependNode(0))
-
-    existing_influences = {
-        om2.MFnDependencyNode(influence.node()).name()
-        for influence in temp_skin.influenceObjects()
-    }
+    existing_influences = set(cmds.skinCluster(skin_cluster, query=True, influence=True) or [])
 
     # Add missing influences to the skinCluster
-    for influence in all_influences_in_data - set(existing_influences):
+    for influence in all_influences_in_data - existing_influences:
         if not cmds.objExists(influence):
             raise RuntimeError(f"Influence '{influence}' does not exist in the scene.")
         cmds.skinCluster(skin_cluster, edit=True, addInfluence=influence, weight=0.0)
 
+    # Get a the actual MFnSkinCluster to apply weights with
     sel: MSelectionList = om2.MSelectionList()
     sel.add(shape)
     sel.add(skin_cluster)
@@ -354,7 +371,9 @@ def set_weights(
         for path in influence_paths
     }
 
-    ordered_influences: list[tuple[str, int]] = sorted(influence_indices.items(), key=lambda item: item[1])
+    ordered_influences: list[tuple[str, int]] = sorted(
+        influence_indices.items(), key=lambda item: item[1]
+    )
     ordered_influence_names = [name for name, index in ordered_influences]
     ordered_indices_only = [index for name, index in ordered_influences]
 
@@ -382,12 +401,96 @@ def set_weights(
 
     # Set weights
     mfn_skin_cluster.setWeights(
-        shape_dag, vtx_components, influence_indices_array, weights_array, normalize=normalize, returnOldWeights=False
+        shape_dag,
+        vtx_components,
+        influence_indices_array,
+        weights_array,
+        normalize=normalize,
+        returnOldWeights=False,
     )
 
 
+def set_ng_layer_weights(
+    shape: str,
+    new_weights: dict[int, dict[str, float]],
+    layer_name: str = "Generated Weights",
+    skin_cluster: str | None = None,
+    normalize: bool = True,
+) -> None:
+    """
+    Applies split weights to a new ngSkinTools2 layer.
+
+    Args:
+        shape (str): Name of the mesh shape (must be bound to a skinCluster with ngSkinTools2).
+        new_weights (dict): Vertex weights as {vtx_index: {influence_name: weight}}.
+        layer_name (str): Name for the new layer.
+        normalize (bool): Whether to normalize weights per vertex.
+    """
+    if not skin_cluster:
+        skin_cluster: str | None = get_skin_cluster(shape)
+        if not skin_cluster:
+            raise RuntimeError(f"No skinCluster on {shape}")
+
+    sel: MSelectionList = om2.MSelectionList()
+    sel.add(shape)
+    sel.add(skin_cluster)
+    shape_dag: MDagPath = sel.getDagPath(0)
+    skin_cluster_mob: MObject = sel.getDependNode(1)
+    mfn_skin_cluster: oma.MFnSkinCluster = oma.MFnSkinCluster(skin_cluster_mob)
+
+    # Get influence indices
+    influence_paths: MDagPathArray = mfn_skin_cluster.influenceObjects()
+    influence_indices: dict[str, int] = {
+        om2.MFnDependencyNode(path.node()).name(): mfn_skin_cluster.indexForInfluenceObject(path)
+        for path in influence_paths
+    }
+
+    layers: Layers = Layers(skin_cluster)
+
+    # Ensure all influences in new_weights exist on the skinCluster
+    all_influences_in_data: set[str] = set(
+        influence_name
+        for vtx_weights in new_weights.values()
+        for influence_name in vtx_weights.keys()
+    )
+
+    existing_influences = set(cmds.skinCluster(skin_cluster, query=True, influence=True) or [])
+
+    # Add missing influences to the skinCluster
+    for influence in all_influences_in_data - existing_influences:
+        if not cmds.objExists(influence):
+            raise RuntimeError(f"Influence '{influence}' does not exist in the scene.")
+        cmds.skinCluster(skin_cluster, edit=True, addInfluence=influence, weight=0.0)
+
+    num_verts: int = om2.MFnMesh(shape_dag).numVertices
+
+    # Organize weights by influence rather than vertex
+    weights_by_influence: dict[str, dict[int, float]] = {}
+    for vertex in new_weights.keys():
+        influence_weights: dict[str, float] = new_weights[vertex]
+        for influence, weight in influence_weights.items():
+            if influence in weights_by_influence:
+                weights_by_influence[influence][vertex] = weight
+            else:
+                weights_by_influence[influence] = {vertex: weight}
+
+    # Create and select new layer
+    new_layer: Layer = get_or_create_ng_layer(skin_cluster=skin_cluster, layer_name=layer_name)
+
+    # Build vertex weight arrays
+    for influence, id in influence_indices.items():
+        weights_list: list[float] = [
+            weights_by_influence[influence].get(i, 0) for i in range(num_verts)
+        ]
+        new_layer.set_weights(id, weights_list)
+
+
 def split_weights(
-    mesh: str, original_joints: list[str], split_joints: list[list[str]], degree: int = 2
+    mesh: str,
+    original_joints: list[str],
+    split_joints: list[list[str]],
+    degree: int = 2,
+    add_ng_layer: bool = True,
 ) -> None:
     # get the shape node
     mesh_shape: str = cmds.listRelatives(mesh, shapes=True)[0]
@@ -442,9 +545,18 @@ def split_weights(
                     new_weights[vertex][influence] = 0.0
                 new_weights[vertex][influence] += spline_weight * original_weight
 
-    set_weights(
-        shape=mesh_shape, new_weights=new_weights, skin_cluster=skin_cluster, normalize=True
-    )
+    if add_ng_layer:
+        set_ng_layer_weights(
+            shape=mesh_shape,
+            new_weights=new_weights,
+            skin_cluster=skin_cluster,
+            normalize=True,
+            layer_name="Split Weights",
+        )
+    else:
+        set_weights(
+            shape=mesh_shape, new_weights=new_weights, skin_cluster=skin_cluster, normalize=True
+        )
 
 
 def visualize_split_weights(mesh: str, cv_transforms: list[str], degree: int = 2) -> None:
