@@ -21,6 +21,7 @@ def is_identity_matrix(matrix: list[float], epsilon: float = 0.001) -> bool:
         for value, identity in zip(matrix, [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
     )
 
+
 def get_shapes(transform: str) -> list[str]:
     # list the shapes of node
     shape_list: list[str] = cmds.listRelatives(
@@ -31,6 +32,7 @@ def get_shapes(transform: str) -> list[str]:
         return shape_list
     else:
         raise RuntimeError(f"{transform} has no child shape nodes")
+
 
 def match_transform(transform: str, target_transform: str) -> None:
     """

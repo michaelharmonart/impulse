@@ -33,6 +33,10 @@
                 -932.7891977788381,
                 -1221.0551092259636
             ],
+            "/grid2": [
+                280,
+                20
+            ],
             "/gridLayout": [
                 -1160.1899959037398,
                 -793.186860840478
@@ -57,6 +61,14 @@
                 -1160.1899959037398,
                 -853.186860840478
             ],
+            "/rotation_order": [
+                280,
+                20
+            ],
+            "/set_rotation_order": [
+                280,
+                20
+            ],
             "/tab": [
                 -1160.1899959037398,
                 -913.186860840478
@@ -76,7 +88,8 @@
         },
         "colors": {
             "$NXT_BUILTINS/WidgetNodes.nxt": "#0d7358"
-        }
+        },
+        "collapse": {}
     },
     "nodes": {
         "/main_window": {
@@ -339,7 +352,8 @@
         "/main_window/manual_tab/main_panel": {
             "instance": "/panel",
             "child_order": [
-                "grid"
+                "grid",
+                "grid2"
             ],
             "attrs": {
                 "text": {
@@ -351,11 +365,8 @@
             "instance": "/gridLayout",
             "child_order": [
                 "constrain",
-                "multi_constrain",
-                "orient_world",
                 "mirror",
-                "rotation_order",
-                "set_rotation_order"
+                "orient_world"
             ]
         },
         "/main_window/manual_tab/main_panel/grid/constrain": {
@@ -385,18 +396,6 @@
                 "    impulse.utils.transform.mirror_transform(transform=object)"
             ]
         },
-        "/main_window/manual_tab/main_panel/grid/multi_constrain": {
-            "instance": "/button",
-            "attrs": {
-                "text": {
-                    "type": "raw",
-                    "value": "Multi Matrix Constrain"
-                }
-            },
-            "code": [
-                "impulse.utils.transform.constrain_transforms(STAGE.selection1, STAGE.selection2)"
-            ]
-        },
         "/main_window/manual_tab/main_panel/grid/orient_world": {
             "instance": "/button",
             "attrs": {
@@ -410,7 +409,14 @@
                 "    impulse.utils.transform.orient_to_world(transform=object)"
             ]
         },
-        "/main_window/manual_tab/main_panel/grid/rotation_order": {
+        "/main_window/manual_tab/main_panel/grid2": {
+            "instance": "/gridLayout",
+            "child_order": [
+                "rotation_order",
+                "set_rotation_order"
+            ]
+        },
+        "/main_window/manual_tab/main_panel/grid2/rotation_order": {
             "instance": "/dropDownMenu",
             "attrs": {
                 "menu_items": {
@@ -426,7 +432,7 @@
                 }
             }
         },
-        "/main_window/manual_tab/main_panel/grid/set_rotation_order": {
+        "/main_window/manual_tab/main_panel/grid2/set_rotation_order": {
             "instance": "/button",
             "attrs": {
                 "rotation_order": {

@@ -57,7 +57,7 @@ def apply_ng_skin_weights(weights_file: str, geometry: str) -> None:
 
     if not os.path.isfile(path=weights_file):
         raise RuntimeError(f"{weights_file} doesn't exist, unable to load weights.")
-    
+
     # Run the import
     ng.import_json(
         target=geometry,
@@ -232,7 +232,7 @@ def get_weights_of_influence(skin_cluster: str, joint: str) -> dict[int, float]:
     return index_weights
 
 
-def get_weights(shape: str, skin_cluster: str | None = None) -> dict[int, list[tuple[str, float]]]:
+def get_weights(shape: str, skin_cluster: str | None = None) -> dict[int, dict[str, float]]:
     """
     Retrieves skinCluster weights for all vertices of the given mesh shape.
 
@@ -244,8 +244,8 @@ def get_weights(shape: str, skin_cluster: str | None = None) -> dict[int, list[t
         shape (str): The name of the mesh shape node to query. Must have a skinCluster.
 
     Returns:
-        dict[int, list[tuple[str, float]]]: A dictionary mapping each vertex index to a list of
-        (joint_name, weight) tuples, including only non-zero weights.
+        dict[int, dict[str, float]: A dictionary mapping each vertex index to a list of
+        (joint_name, weight) dictionaries, including only non-zero weights.
     """
     if not skin_cluster:
         skin_cluster: str | None = get_skin_cluster(shape)
@@ -272,11 +272,11 @@ def get_weights(shape: str, skin_cluster: str | None = None) -> dict[int, list[t
     for vtx_id in range(num_verts):
         start: int = vtx_id * influence_count
         end: int = start + influence_count
-        weights: list[tuple[int, float]] = [
-            (influences[i], flat_weights[start + i])
+        weights: dict[int, float] = {
+            influences[i]: flat_weights[start + i]
             for i in range(influence_count)
             if flat_weights[start + i] > 0.0
-        ]
+        }
         weights_dict[vtx_id] = weights
     return weights_dict
 
@@ -286,22 +286,27 @@ def split_weights(
 ) -> None:
     # get the shape node
     mesh_shape: str = cmds.listRelatives(mesh, shapes=True)[0]
-    # get the skinCluster node
+
+    # get the skinCluster and weights
     skin_cluster: str | None = get_skin_cluster(mesh)
-    original_weights: dict[int, list[tuple[str, float]]] = get_weights(
+    original_weights: dict[int, dict[str, float]] = get_weights(
         shape=mesh_shape, skin_cluster=skin_cluster
     )
+    new_weights: dict[int, dict[str, float]] = {}
+    # Organize weights by influence rather than vertex
     weights_by_influence: dict[str, dict[int, float]] = {}
-
     for vertex in original_weights.keys():
-        influence_weights: list[tuple[str, float]] = original_weights[vertex]
+        influence_weights: dict[str, float] = original_weights[vertex]
         for influence, weight in influence_weights:
             if influence in weights_by_influence:
                 weights_by_influence[influence][vertex] = weight
             else:
                 weights_by_influence[influence] = {vertex: weight}
+
     for original_joint, split_joints_list in zip(original_joints, split_joints):
         vertex_weights: dict[int, float] = weights_by_influence[original_joint]
+
+        # Get a list of all vertices that are influenced by the given influence/joint
         influenced_vertex_weights: list[tuple[int, float]] = []
         influenced_vertices: list[int] = []
         for vertex in vertex_weights.keys():
@@ -309,12 +314,22 @@ def split_weights(
             if weight > 0:
                 influenced_vertex_weights.append((vertex, weight))
                 influenced_vertices.append(vertex)
+
         spline_weights: list[list[tuple[Any, float]]] = get_mesh_spline_weights(
             mesh_shape=mesh_shape,
             cv_transforms=split_joints_list,
             degree=degree,
             vertex_indices=influenced_vertices,
         )
+
+        for vertex, original_weight in influenced_vertex_weights:
+            weights_by_influence[original_joint] = 0
+            if vertex not in new_weights.keys():
+                new_weights[vertex] = {}
+            for influence in spline_weights:
+                if influence not in new_weights[vertex]:
+                    new_weights[vertex][influence]
+
     return spline_weights
 
 
