@@ -349,9 +349,9 @@ def set_weights(
     )
 
     existing_influences = set(cmds.skinCluster(skin_cluster, query=True, influence=True) or [])
-
+    
     # Add missing influences to the skinCluster
-    for influence in all_influences_in_data - existing_influences:
+    for influence in sorted(all_influences_in_data - existing_influences):
         if not cmds.objExists(influence):
             raise RuntimeError(f"Influence '{influence}' does not exist in the scene.")
         cmds.skinCluster(skin_cluster, edit=True, addInfluence=influence, weight=0.0)
@@ -432,6 +432,9 @@ def set_ng_layer_weights(
         if not skin_cluster:
             raise RuntimeError(f"No skinCluster on {shape}")
 
+    normalize_value: int = cmds.getAttr(f"{skin_cluster}.normalizeWeights")
+    cmds.setAttr(f"{skin_cluster}.normalizeWeights", 0)
+
     sel: MSelectionList = om2.MSelectionList()
     sel.add(shape)
     sel.add(skin_cluster)
@@ -459,7 +462,7 @@ def set_ng_layer_weights(
     existing_influences = set(cmds.skinCluster(skin_cluster, query=True, influence=True) or [])
 
     # Add missing influences to the skinCluster
-    for influence in all_influences_in_data - existing_influences:
+    for influence in sorted(all_influences_in_data - existing_influences):
         if not cmds.objExists(influence):
             raise RuntimeError(f"Influence '{influence}' does not exist in the scene.")
         cmds.skinCluster(skin_cluster, edit=True, addInfluence=influence, weight=0.0)
@@ -486,6 +489,7 @@ def set_ng_layer_weights(
         ]
         new_layer.set_weights(id, weights_list)
 
+    cmds.setAttr(f"{skin_cluster}.normalizeWeights", normalize_value)
 
 def split_weights(
     mesh: str,
