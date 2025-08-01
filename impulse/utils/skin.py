@@ -444,7 +444,8 @@ def set_ng_layer_weights(
         om2.MFnDependencyNode(path.node()).name(): mfn_skin_cluster.indexForInfluenceObject(path)
         for path in influence_paths
     }
-
+    if not ng.get_layers_enabled():
+        init_layers(shape)
     layers: Layers = Layers(skin_cluster)
 
     # Ensure all influences in new_weights exist on the skinCluster
