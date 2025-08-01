@@ -506,7 +506,7 @@ def split_weights(
     original_weights: dict[int, dict[str, float]] = get_weights(
         shape=mesh_shape, skin_cluster=skin_cluster
     )
-    new_weights: dict[int, dict[str, float]] = {}
+    new_weights: dict[int, dict[str, float]] = {vtx: weights.copy() for vtx, weights in original_weights.items()}
 
     # Organize weights by influence rather than vertex
     weights_by_influence: dict[str, dict[int, float]] = {}
