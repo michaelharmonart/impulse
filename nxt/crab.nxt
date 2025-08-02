@@ -953,6 +953,10 @@
                     "type": "raw",
                     "value": "${part_name}_DEF"
                 },
+                "part_group": {
+                    "type": "raw",
+                    "value": "${part_name}_MCH"
+                },
                 "part_name": {
                     "type": "raw",
                     "value": "${prefix}${side}"
@@ -980,7 +984,8 @@
                 }
             },
             "code": [
-                "part_group = cmds.group(empty=True, name=\"${part_name}_MCH\", parent=\"${mch_group}\")",
+                "part_group = cmds.group(empty=True, name=\"${part_group}\", parent=\"${mch_group}\")",
+                "",
                 "impulse.utils.transform.matrix_constraint(\"${controls_parent}\", part_group, keep_offset=True)",
                 "cmds.scale(${side_mult}, 1, 1, part_group, absolute=True)",
                 "",
@@ -1067,7 +1072,7 @@
             ]
         },
         "/limb/controls/bend": {
-            "enabled": true,
+            "enabled": false,
             "attrs": {
                 "bend_control_size": {
                     "type": "float",
@@ -1080,7 +1085,8 @@
             },
             "code": [
                 "controls = []",
-                "bend_group = cmds.group(empty=True, name=\"${part_name}_Bend_CTLS\", parent=\"${part_ctls}\")",
+                "bend_control_group = cmds.group(empty=True, name=\"${part_name}_Bend_CTLS\", parent=\"${part_ctls}\")",
+                "bend_group = cmds.group(empty=True, name=\"${part_name}_Bend_MCH\", parent=\"${part_group}\")",
                 "joints = self.pose_joints",
                 "joint_bend_dict: dict[str, list] = {}",
                 "",
@@ -1088,7 +1094,6 @@
                 "    # Check if the joint has a child and if so, generate a controls and matrix spline",
                 "    joint_children = cmds.listRelatives(joint, children=True, type=\"joint\") or []",
                 "    name=joint.rsplit(\"_\", 1)[0]",
-                "    bend_controls = []",
                 "    if index == 0:",
                 "        start_control = impulse.utils.control.make_control(",
                 "            name=f\"{name}_Bend_Start\", ",
@@ -1098,7 +1103,8 @@
                 "            offset=0,",
                 "            )",
                 "        impulse.utils.control.draw_on_top(start_control)",
-                "        cmds.parent(start_control.offset_transform, bend_group)  ",
+                "        cmds.parent(start_control.offset_transform, bend_control_group)",
+                "        impulse.utils.transform.matrix_constraint(joint, start_control.offset_transform)  ",
                 "        start_control = start_control",
                 "    if index < (len(self.pose_joints) - 1):",
                 "        joint_child = joint_children[0]",
@@ -1113,7 +1119,8 @@
                 "            )",
                 "        impulse.utils.control.draw_on_top(mid_control)",
                 "        cmds.move(0, y_translate/2, 0, mid_control.offset_transform, relative=True, objectSpace=True)",
-                "        cmds.parent(mid_control.offset_transform, bend_group)",
+                "        cmds.parent(mid_control.offset_transform, bend_control_group)",
+                "        impulse.utils.transform.matrix_constraint(joint, mid_control.offset_transform)  ",
                 "        ",
                 "        end_control = impulse.utils.control.make_control(",
                 "            name=f\"{name}_Bend_END\", ",
@@ -1125,7 +1132,9 @@
                 "        impulse.utils.control.draw_on_top(end_control)",
                 "        y_translate = cmds.getAttr(f\"{self.pose_joints[index+1]}.translateY\")",
                 "        cmds.move(0, y_translate, 0, end_control.offset_transform, relative=True, objectSpace=True)",
-                "        cmds.parent(end_control.offset_transform, bend_group)",
+                "        impulse.utils.transform.match_location(end_control.offset_transform, self.pose_joints[index+1])",
+                "        cmds.parent(end_control.offset_transform, bend_control_group)",
+                "        impulse.utils.transform.matrix_constraint(joint, end_control.offset_transform)  ",
                 "        ",
                 "        if index != 0:",
                 "            start_control = prev_start_control",
@@ -1136,6 +1145,7 @@
                 "        transforms=[start_control.control_transform, mid_control.control_transform, end_control.control_transform], ",
                 "        degree=2,",
                 "        segments=${segments}, ",
+                "        padded=True,",
                 "        control_size=0.1,",
                 "        control_shape=impulse.utils.control.ControlShape.CUBE,",
                 "        control_height=1,",

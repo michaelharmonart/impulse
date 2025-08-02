@@ -43,7 +43,22 @@ def match_transform(transform: str, target_transform: str) -> None:
         target_transform: Name of the transform to match to.
     """
     source_matrix = cmds.xform(target_transform, query=True, worldSpace=True, matrix=True)
+    
     cmds.xform(transform, worldSpace=True, matrix=source_matrix)
+
+def match_location(transform: str, target_transform: str) -> None:
+    """
+    Match a transforms location to another in world space.
+
+    Args:
+        transform: Object to be moved to the specified transform.
+        target_transform: Name of the transform to match to.
+    """
+    # Get the world-space translation of the target object.
+    target_pos = cmds.xform(target_transform, query=True, worldSpace=True, translation=True)
+    
+    # Set the world-space translation of the source object to the target's position.
+    cmds.xform(transform, worldSpace=True, translation=target_pos)
 
 
 def matrix_constraint(
