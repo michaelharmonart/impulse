@@ -216,7 +216,7 @@ def matrix_constraint(
                 rotate_attr = f"{orient_decompose_matrix}.outputRotate"
         else:
             cmds.setAttr(f"{constrain_transform}.jointOrient", 0, 0, 0, type="float3")
-
+    cmds.setAttr('{constrain_transform}.rotateAxis', 0, 0, 0, type="float3")
     cmds.connectAttr(rotate_attr, f"{constrain_transform}.rotate")
     cmds.connectAttr(f"{decompose_matrix}.outputTranslate", f"{constrain_transform}.translate")
     cmds.connectAttr(f"{decompose_matrix}.outputScale", f"{constrain_transform}.scale")

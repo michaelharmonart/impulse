@@ -349,7 +349,7 @@ def set_weights(
     )
 
     existing_influences = set(cmds.skinCluster(skin_cluster, query=True, influence=True) or [])
-    
+
     # Add missing influences to the skinCluster
     for influence in sorted(all_influences_in_data - existing_influences):
         if not cmds.objExists(influence):
@@ -491,6 +491,7 @@ def set_ng_layer_weights(
 
     cmds.setAttr(f"{skin_cluster}.normalizeWeights", normalize_value)
 
+
 def split_weights(
     mesh: str,
     original_joints: list[str],
@@ -506,7 +507,11 @@ def split_weights(
     original_weights: dict[int, dict[str, float]] = get_weights(
         shape=mesh_shape, skin_cluster=skin_cluster
     )
-    new_weights: dict[int, dict[str, float]] = {vtx: weights.copy() for vtx, weights in original_weights.items()}
+
+    # Copy the original weights for modification.
+    new_weights: dict[int, dict[str, float]] = {
+        vtx: weights.copy() for vtx, weights in original_weights.items()
+    }
 
     # Organize weights by influence rather than vertex
     weights_by_influence: dict[str, dict[int, float]] = {}
