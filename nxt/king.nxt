@@ -33,6 +33,10 @@
                 -40.04341079170109,
                 -413.2039626786624
             ],
+            "/node": [
+                154.12682368323743,
+                -114.2572247222127
+            ],
             "/rotation_order": [
                 -613.5267312209569,
                 -577.9239028471064
@@ -52,7 +56,8 @@
         },
         "collapse": {
             "/cleanup": false,
-            "/middle/spine": true
+            "/middle/cog": true,
+            "/middle/spine": false
         },
         "colors": {
             "./crab.nxt": "#bc422a"
@@ -153,7 +158,8 @@
             ],
             "attrs": {
                 "parent": {
-                    "value": "Head_M_CTL"
+                    "type": "raw",
+                    "value": "Head_M_END_CTL"
                 }
             }
         },
@@ -172,7 +178,7 @@
                 },
                 "socket": {
                     "type": "raw",
-                    "value": "Spine_M_matrixSpline_Segment6_CTL"
+                    "value": "${parent}"
                 }
             }
         },
@@ -214,7 +220,7 @@
                 },
                 "parent": {
                     "type": "raw",
-                    "value": "Head_M_CTL"
+                    "value": "Head_M_END_CTL"
                 },
                 "part_def": {
                     "type": "raw",
@@ -238,7 +244,7 @@
                 },
                 "socket": {
                     "type": "raw",
-                    "value": "Spine_M_matrixSpline_Segment6_CTL"
+                    "value": "${parent}"
                 },
                 "tweak_attr": {
                     "type": "raw",
@@ -358,6 +364,60 @@
             }
         },
         "/limb/controls/ik": {},
+        "/middle": {
+            "child_order": [
+                "cog",
+                "spine",
+                "head",
+                "shell"
+            ]
+        },
+        "/middle/head": {
+            "enabled": true,
+            "attrs": {
+                "control_size": {
+                    "type": "float",
+                    "value": "0.8"
+                },
+                "guides": {
+                    "type": "list",
+                    "value": "[\"Head_M\", \"Head_M_END\"]"
+                },
+                "parent": {
+                    "type": "raw",
+                    "value": "Head_M_CTL"
+                },
+                "part_name": {
+                    "type": "raw",
+                    "value": "${prefix}${side}"
+                },
+                "prefix": {
+                    "type": "raw",
+                    "value": "Head_"
+                }
+            },
+            "code": [
+                "part_group = cmds.group(empty=True, name=\"${part_name}_MCH\", parent=\"${mch_group}\")",
+                "def_group = cmds.group(empty=True, name=\"${part_name}_DEF\", parent=\"${def_group}\")",
+                "ctl_group = cmds.group(empty=True, name=\"${part_name}_CTLS\", parent=\"${parent}\")",
+                "",
+                "guides = ${guides}",
+                "base_guide = guides[0]",
+                "name= guides[1]",
+                "control = impulse.utils.control.make_control(",
+                "            name=name, ",
+                "            size=${control_size}, ",
+                "            target_transform=base_guide,",
+                "            control_shape=impulse.utils.control.ControlShape.CIRCLE,",
+                "            parent=ctl_group,  ",
+                "            offset=1,",
+                "    )",
+                "head_joint = cmds.duplicate(base_guide, name=f\"{name}_DEF\", parentOnly=True)[0]",
+                "cmds.parent(head_joint, def_group)   ",
+                "impulse.utils.control.connect_control(control, head_joint)",
+                "STAGE.body_joints.extend(cmds.listRelatives(def_group, type=\"joint\", allDescendents=True))"
+            ]
+        },
         "/middle/shell": {
             "attrs": {
                 "control_size": {

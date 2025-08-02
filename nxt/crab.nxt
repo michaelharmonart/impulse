@@ -303,7 +303,7 @@
             "attrs": {
                 "geo_list": {
                     "type": "list",
-                    "value": "[\"Shell_GEO\"]"
+                    "value": "[\"Shell_GEO\", \"Body_GEO\"]"
                 }
             },
             "code": [
@@ -612,10 +612,6 @@
                 "segments": {
                     "type": "int",
                     "value": "3"
-                },
-                "socket": {
-                    "type": "raw",
-                    "value": "Spine_M_matrixSpline_Segment4_CTL"
                 },
                 "stalk": {
                     "type": "list",
