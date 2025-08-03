@@ -60,6 +60,26 @@ def match_location(transform: str, target_transform: str) -> None:
     # Set the world-space translation of the source object to the target's position.
     cmds.xform(transform, worldSpace=True, translation=target_pos)
 
+def zero_rotation_axis(transform: str) -> None:
+
+    # Remember parent so we can reparent later
+    parents: list[str] = cmds.listRelatives(transform, parent=True)
+    parent: str | None = parents[0] if parents else None
+
+    # Get rotation axis
+    rotate_axis: tuple[float, float, float] = cmds.getAttr(f"{transform}.rotateAxis")[0]
+    if rotate_axis == (0.0, 0.0, 0.0):
+        return  # No rotateAxis to clear
+
+    # Apply the opposite rotation onto a parent transform to negate it.
+    opposite_rotate_axis = tuple(-value for value in rotate_axis)
+    temp_parent = cmds.group(empty=True, name=f"{transform}_tempParent", parent=parent)
+    cmds.parent(transform, temp_parent, absolute=True)
+    cmds.setAttr(f"{temp_parent}.rotate", *opposite_rotate_axis, type="float3")
+    cmds.setAttr(f"{transform}.rotateAxis", 0, 0, 0, type="float3")
+
+    # Re-apply parent
+    cmds.parent(transform, parent, absolute=True)
 
 def matrix_constraint(
     source_transform: str,
