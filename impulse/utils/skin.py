@@ -41,7 +41,6 @@ def init_layers(shape: str) -> ng.Layers:
     skin_cluster = ng.target_info.get_related_skin_cluster(shape)
     layers = ng.layers.init_layers(skin_cluster)
     base_layer: ng.Layer = layers.add("Base Weights")
-    base_layer.set_weights
     return layers
 
 
@@ -306,7 +305,7 @@ def get_weights(shape: str, skin_cluster: str | None = None) -> dict[int, dict[s
     influence_count: int
     flat_weights, influence_count = mfn_skin_cluster.getWeights(shape_dag, vtx_components)
 
-    weights_dict: dict[int, list[tuple[str, float]]] = {}
+    weights_dict: dict[int, dict[str, float]] = {}
     for vtx_id in range(num_verts):
         start_index: int = vtx_id * influence_count
         vtx_weights: dict[int, float] = {}
@@ -318,6 +317,7 @@ def get_weights(shape: str, skin_cluster: str | None = None) -> dict[int, dict[s
                     vtx_weights[influence_name] = weight_value
         if vtx_weights:
             weights_dict[vtx_id] = vtx_weights
+
     return weights_dict
 
 
@@ -374,6 +374,7 @@ def set_weights(
     )
     ordered_influence_names = [name for name, index in ordered_influences]
     ordered_indices_only = [index for name, index in ordered_influences]
+    num_influences: int = len(ordered_influence_names)
 
     influence_indices_array: MIntArray = om2.MIntArray()
     for index in ordered_indices_only:
@@ -387,12 +388,17 @@ def set_weights(
 
     # Create a flat weight list and list of influence indices used
     weights_array: MDoubleArray = om2.MDoubleArray()
+    weights_array.setLength(num_verts * num_influences)
 
     for vtx_id in range(num_verts):
-        vtx_weights = new_weights.get(vtx_id, {})
-        for influence_name, influence_index in ordered_influences:
-            weight = vtx_weights.get(influence_name, 0.0)
-            weights_array.append(weight)
+        vtx_weights: dict[str, float] = {}
+        if vtx_id in new_weights:
+            vtx_weights = new_weights[vtx_id]
+        for influence_name, influence_index in influence_indices.items():
+            weight: float = 0.0
+            if influence_name in vtx_weights:
+                weight = vtx_weights[influence_name]
+            weights_array[vtx_id * num_influences + influence_index] = weight
 
     if not mfn_skin_cluster.object().hasFn(om2.MFn.kSkinClusterFilter):
         raise RuntimeError(f"Selected node {skin_cluster} is not a skinCluster")
@@ -513,8 +519,8 @@ def split_weights(
 
     # Organize weights by influence rather than vertex
     weights_by_influence: dict[str, dict[int, float]] = {}
-    for vertex in original_weights.keys():
-        influence_weights: dict[str, float] = original_weights[vertex]
+    for vertex, influence_weights in original_weights.items():
+
         for influence, weight in influence_weights.items():
             if influence in weights_by_influence:
                 weights_by_influence[influence][vertex] = weight
@@ -522,17 +528,17 @@ def split_weights(
                 weights_by_influence[influence] = {vertex: weight}
 
     for original_joint, split_joints_list in zip(original_joints, split_joints):
-        vertex_weights: dict[int, float] = weights_by_influence.get(original_joint, {})
+        vertex_weights: dict[int, float] = {}
+        if original_joint in weights_by_influence:
+            vertex_weights: dict[int, float] = weights_by_influence[original_joint]
 
         # Get a list of all vertices that are influenced by the given influence/joint
         influenced_vertex_weights: list[tuple[int, float]] = []
         influenced_vertices: list[int] = []
-        for vertex in vertex_weights.keys():
-            weight: float = vertex_weights[vertex]
+        for vertex, weight in vertex_weights.items():
             if weight > 0:
                 influenced_vertex_weights.append((vertex, weight))
                 influenced_vertices.append(vertex)
-
         spline_weights: list[list[tuple[Any, float]]] = get_mesh_spline_weights(
             mesh_shape=mesh_shape,
             cv_transforms=split_joints_list,
@@ -541,13 +547,9 @@ def split_weights(
         )
 
         for i, (vertex, original_weight) in enumerate(influenced_vertex_weights):
-            if vertex not in new_weights:
-                # Start with a copy of the original weights
-                new_weights[vertex] = original_weights[vertex].copy()
-
             # Remove original joint weight
             new_weights[vertex][original_joint] = 0.0
-
+            
             # Add redistributed weights to split joints
             for influence, spline_weight in spline_weights[i]:
                 if influence not in new_weights[vertex]:

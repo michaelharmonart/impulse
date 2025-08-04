@@ -1149,6 +1149,7 @@
                 "            start_control = prev_start_control",
                 "        prev_start_control = end_control",
                 "        ",
+                "    section_def_group = cmds.group(empty=True, name=f\"{name}_Bend_DEF\", parent=def_group)",
                 "    impulse.utils.spline.matrix_spline_from_transforms(",
                 "        name=f\"{name}_Bend\",",
                 "        transforms=[start_control.control_transform, mid_control.control_transform, end_control.control_transform], ",
@@ -1159,9 +1160,9 @@
                 "        control_shape=impulse.utils.control.ControlShape.CUBE,",
                 "        control_height=1,",
                 "        parent=bend_group,",
-                "        def_group=def_group,",
+                "        def_group=section_def_group,",
                 "    )",
-                "    bend_def_joints = cmds.listRelatives(def_group, type=\"joint\", allDescendents=True)",
+                "    bend_def_joints = cmds.listRelatives(section_def_group, type=\"joint\", allDescendents=True)",
                 "    STAGE.bend_dict[f\"{name}_DEF\"] = bend_def_joints",
                 "    STAGE.bend_joints.extend(bend_def_joints)"
             ]
@@ -1854,10 +1855,10 @@
             ]
         },
         "/skinning/split_weights": {
+            "enabled": true,
             "code": [
                 "import cProfile",
                 "import pstats",
-                "",
                 "def profile_function():",
                 "    original_joints = []",
                 "    bend_joint_lists = []",
@@ -1872,12 +1873,13 @@
                 "        add_ng_layer=False,",
                 "    )",
                 "if STAGE.apply_bend_joints:",
-                "    profiler = cProfile.Profile()",
-                "    profiler.runcall(profile_function)",
-                "    profiler.dump_stats('profile_output')",
+                "    profile_function()",
+                "    #profiler = cProfile.Profile()",
+                "    #profiler.runcall(profile_function)",
+                "    #profiler.dump_stats('profile_output')",
                 "    # Read the stats",
-                "    stats = pstats.Stats('profile_output')",
-                "    stats.strip_dirs().sort_stats('cumtime').print_stats(20)",
+                "    #stats = pstats.Stats('profile_output')",
+                "    #stats.strip_dirs().sort_stats('cumtime').print_stats(20)",
                 "        ",
                 ""
             ]
