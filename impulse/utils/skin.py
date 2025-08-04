@@ -349,12 +349,10 @@ def set_weights(
     )
 
     existing_influences = set(cmds.skinCluster(skin_cluster, query=True, influence=True) or [])
-
+    
     # Add missing influences to the skinCluster
-    for influence in sorted(all_influences_in_data - existing_influences):
-        if not cmds.objExists(influence):
-            raise RuntimeError(f"Influence '{influence}' does not exist in the scene.")
-        cmds.skinCluster(skin_cluster, edit=True, addInfluence=influence, weight=0.0)
+    influences_to_add: list[str] = sorted(all_influences_in_data - existing_influences)
+    cmds.skinCluster(skin_cluster, edit=True, addInfluence=influences_to_add, weight=0.0)
 
     # Get a the actual MFnSkinCluster to apply weights with
     sel: MSelectionList = om2.MSelectionList()

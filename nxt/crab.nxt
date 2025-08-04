@@ -213,12 +213,17 @@
     "nodes": {
         "/": {
             "attrs": {
+                "apply_bend_joints": {
+                    "type": "bool",
+                    "value": "False"
+                },
                 "asset_root": {
                     "type": "raw",
                     "value": "/groups/crabby/Assets/Rigging/Scuttle/Build"
                 },
                 "body_joints": {},
                 "eye_joints": {},
+                "limb_joints": {},
                 "shell_joints": {}
             }
         },
@@ -935,6 +940,7 @@
                 "controls"
             ],
             "attrs": {
+                "def_joints": {},
                 "fk_joints": {},
                 "ik_chain_joints": {},
                 "ik_joints": {},
@@ -977,6 +983,10 @@
                 "socket": {
                     "type": "NoneType",
                     "value": "None"
+                },
+                "tweak_attr": {
+                    "type": "raw",
+                    "value": "${part_name}_ControlPanel.tweakVisibility"
                 }
             },
             "code": [
@@ -1007,7 +1017,7 @@
                 "            )",
                 "tweak_attr = f\"{control_panel}.{tweak_attr_long}\"",
                 "cmds.setAttr(tweak_attr, channelBox=True)  ",
-                "                 ",
+                "self.tweak_attr = tweak_attr                 ",
                 "",
                 "self.joints = [f\"${prefix}${side}_{joint}\" for joint in self.chain]",
                 "",
@@ -1034,7 +1044,7 @@
                 "",
                 "def_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_def}\", parent=\"${def_group}\", suffix=\"_DEF\", side_mult=${side_mult}, include_last=False)",
                 "impulse.utils.transform.constrain_transforms(self.pose_joints[:-1], def_joints)",
-                "",
+                "self.def_joints = def_joints",
                 "STAGE.body_joints.extend(def_joints)"
             ]
         },
@@ -1068,7 +1078,7 @@
             ]
         },
         "/limb/controls/bend": {
-            "enabled": false,
+            "enabled": true,
             "attrs": {
                 "bend_control_size": {
                     "type": "float",
@@ -1083,8 +1093,11 @@
                 "controls = []",
                 "bend_control_group = cmds.group(empty=True, name=\"${part_name}_Bend_CTLS\", parent=\"${part_ctls}\")",
                 "bend_group = cmds.group(empty=True, name=\"${part_name}_Bend_MCH\", parent=\"${part_group}\")",
+                "def_group = cmds.group(empty=True, name=\"${part_name}_Bend_DEF\", parent=\"${part_def}\")",
                 "joints = self.pose_joints",
                 "joint_bend_dict: dict[str, list] = {}",
+                "",
+                "cmds.connectAttr(\"${tweak_attr}\", f\"{bend_control_group}.visibility\")",
                 "",
                 "for index, joint in enumerate(self.pose_joints):",
                 "    # Check if the joint has a child and if so, generate a controls and matrix spline",
@@ -1146,7 +1159,11 @@
                 "        control_shape=impulse.utils.control.ControlShape.CUBE,",
                 "        control_height=1,",
                 "        parent=bend_group,",
-                "    )"
+                "        def_group=def_group,",
+                "    )",
+                "    bend_def_joints = cmds.listRelatives(def_group, type=\"joint\", allDescendents=True)",
+                "    STAGE.bend_dict[f\"{name}_DEF\"] = bend_def_joints",
+                "    STAGE.bend_joints.extend(bend_def_joints)"
             ]
         },
         "/limb/controls/fk": {
@@ -1234,6 +1251,11 @@
                 "            longName=\"FkOrient\", ",
                 "            niceName=f\"{self.part_name.replace('_', ' ')} Follow\", ",
                 "            proxy=fk_follow_attr)",
+                "        cmds.addAttr(",
+                "            control_transform,",
+                "            longName=\"tweakVisibility\", ",
+                "            niceName=f\"Tweak Control Visibility\", ",
+                "            proxy=\"${tweak_attr}\")",
                 "        "
             ]
         },
@@ -1328,7 +1350,12 @@
                 "        control_transform,",
                 "        longName=\"${part_name}_IkFkSwitch\", ",
                 "        niceName=f\"{self.part_name.replace('_', ' ')} IK FK Switch\", ",
-                "        proxy=\"${ik_switch}\")"
+                "        proxy=\"${ik_switch}\")",
+                "    cmds.addAttr(",
+                "            control_transform,",
+                "            longName=\"tweakVisibility\", ",
+                "            niceName=f\"Tweak Control Visibility\", ",
+                "            proxy=\"${tweak_attr}\")"
             ]
         },
         "/main_window": {
@@ -1716,23 +1743,26 @@
                 "load_geo",
                 "load_guides",
                 "def_lists",
-                "bend_dict"
+                "enable_bend_joints"
             ],
             "code": [
                 "cmds.file(force=True, newFile=True)",
                 "cmds.group(empty=True, name=\"${rig_group}\")"
             ]
         },
-        "/setup_file/bend_dict": {
-            "code": [
-                "STAGE.bend_dict = {}"
-            ]
-        },
         "/setup_file/def_lists": {
             "code": [
                 "STAGE.body_joints = []",
+                "STAGE.limb_joints = []",
                 "STAGE.shell_joints = []",
                 "STAGE.eye_joints = []"
+            ]
+        },
+        "/setup_file/enable_bend_joints": {
+            "code": [
+                "STAGE.bend_dict = {}",
+                "STAGE.apply_bend_joints = True",
+                "STAGE.bend_joints = []"
             ]
         },
         "/setup_file/load_geo": {},
@@ -1771,7 +1801,8 @@
             "execute_in": "/right",
             "child_order": [
                 "bind_skin",
-                "apply_weights"
+                "apply_weights",
+                "split_weights"
             ],
             "attrs": {
                 "body_geo": {
@@ -1817,9 +1848,38 @@
                 }
             },
             "code": [
-                "impulse.utils.skin.skin_mesh(STAGE.body_joints, \"${body_geo}\", dual_quaternion=${dual_quaternion})",
                 "impulse.utils.skin.skin_mesh(STAGE.shell_joints, \"${shell_geo}\", dual_quaternion=${dual_quaternion})",
-                "impulse.utils.skin.skin_mesh(STAGE.eye_joints, \"${eye_geo}\", dual_quaternion=${dual_quaternion})"
+                "impulse.utils.skin.skin_mesh(STAGE.eye_joints, \"${eye_geo}\", dual_quaternion=${dual_quaternion})",
+                "impulse.utils.skin.skin_mesh(STAGE.body_joints, \"${body_geo}\", dual_quaternion=${dual_quaternion})"
+            ]
+        },
+        "/skinning/split_weights": {
+            "code": [
+                "import cProfile",
+                "import pstats",
+                "",
+                "def profile_function():",
+                "    original_joints = []",
+                "    bend_joint_lists = []",
+                "    for joint, bend_joints in STAGE.bend_dict.items():",
+                "        original_joints.append(joint)",
+                "        bend_joint_lists.append(bend_joints)",
+                "    impulse.utils.skin.split_weights(",
+                "        mesh=\"${body_geo}\", ",
+                "        original_joints=original_joints,",
+                "        split_joints=bend_joint_lists,",
+                "        degree=2,",
+                "        add_ng_layer=False,",
+                "    )",
+                "if STAGE.apply_bend_joints:",
+                "    profiler = cProfile.Profile()",
+                "    profiler.runcall(profile_function)",
+                "    profiler.dump_stats('profile_output')",
+                "    # Read the stats",
+                "    stats = pstats.Stats('profile_output')",
+                "    stats.strip_dirs().sort_stats('cumtime').print_stats(20)",
+                "        ",
+                ""
             ]
         }
     }

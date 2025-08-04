@@ -80,6 +80,7 @@ def zero_rotation_axis(transform: str) -> None:
 
     # Re-apply parent
     cmds.parent(transform, parent, absolute=True)
+    cmds.delete(temp_parent)
 
 def matrix_constraint(
     source_transform: str,
