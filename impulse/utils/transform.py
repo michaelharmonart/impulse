@@ -1,3 +1,4 @@
+from maya.api.OpenMaya import MDagPath, MMatrix, MSelectionList
 import maya.cmds as cmds
 from enum import Enum
 
@@ -34,6 +35,21 @@ def get_shapes(transform: str) -> list[str]:
         raise RuntimeError(f"{transform} has no child shape nodes")
 
 
+def mmatrix_to_list(matrix: MMatrix) -> list[float]:
+    return [matrix.getElement(row, col) for row in range(4) for col in range(4)]
+
+
+def get_world_matrix(node: str) -> MMatrix:
+    """
+    Returns the full world matrix of a transform, including rotateAxis, jointOrient, etc.
+    Equivalent to Maya's internal world matrix.
+    """
+    selection = MSelectionList()
+    selection.add(node)
+    dag_path: MDagPath = selection.getDagPath(0)
+    return dag_path.inclusiveMatrix()
+
+
 def match_transform(transform: str, target_transform: str) -> None:
     """
     Match a transform to another in world space.
@@ -42,9 +58,9 @@ def match_transform(transform: str, target_transform: str) -> None:
         transform: Object to be moved to the specified transform.
         target_transform: Name of the transform to match to.
     """
-    source_matrix = cmds.xform(target_transform, query=True, worldSpace=True, matrix=True)
-    
-    cmds.xform(transform, worldSpace=True, matrix=source_matrix)
+    source_matrix: MMatrix = get_world_matrix(target_transform)
+    cmds.xform(transform, worldSpace=True, matrix=mmatrix_to_list(source_matrix))
+
 
 def match_location(transform: str, target_transform: str) -> None:
     """
@@ -56,31 +72,22 @@ def match_location(transform: str, target_transform: str) -> None:
     """
     # Get the world-space translation of the target object.
     target_pos = cmds.xform(target_transform, query=True, worldSpace=True, translation=True)
-    
+
     # Set the world-space translation of the source object to the target's position.
     cmds.xform(transform, worldSpace=True, translation=target_pos)
 
-def zero_rotation_axis(transform: str) -> None:
 
-    # Remember parent so we can reparent later
-    parents: list[str] = cmds.listRelatives(transform, parent=True)
-    parent: str | None = parents[0] if parents else None
+def zero_rotate_axis(transform: str) -> None:
+    node_type = cmds.nodeType(transform)
+    if node_type == "joint":
+        cmds.joint(transform, edit=True, zeroScaleOrient=True)
+    else:
+        temp_transform = cmds.group(empty=True, name=f"{transform}_temp")
+        match_transform(temp_transform, transform)
+        cmds.setAttr(f"{transform}.rotateAxis", 0, 0, 0, type="float3")
+        match_transform(transform, temp_transform)
+        cmds.delete(temp_transform)
 
-    # Get rotation axis
-    rotate_axis: tuple[float, float, float] = cmds.getAttr(f"{transform}.rotateAxis")[0]
-    if rotate_axis == (0.0, 0.0, 0.0):
-        return  # No rotateAxis to clear
-
-    # Apply the opposite rotation onto a parent transform to negate it.
-    opposite_rotate_axis = tuple(-value for value in rotate_axis)
-    temp_parent = cmds.group(empty=True, name=f"{transform}_tempParent", parent=parent)
-    cmds.parent(transform, temp_parent, absolute=True)
-    cmds.setAttr(f"{temp_parent}.rotate", *opposite_rotate_axis, type="float3")
-    cmds.setAttr(f"{transform}.rotateAxis", 0, 0, 0, type="float3")
-
-    # Re-apply parent
-    cmds.parent(transform, parent, absolute=True)
-    cmds.delete(temp_parent)
 
 def matrix_constraint(
     source_transform: str,

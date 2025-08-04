@@ -366,7 +366,8 @@
             "child_order": [
                 "constrain",
                 "mirror",
-                "orient_world"
+                "orient_world",
+                "match_transform"
             ]
         },
         "/main_window/manual_tab/main_panel/grid/constrain": {
@@ -380,6 +381,19 @@
                 "selection = cmds.ls(selection=True)",
                 "impulse.utils.transform.matrix_constraint(selection[0], selection[1])",
                 ""
+            ]
+        },
+        "/main_window/manual_tab/main_panel/grid/match_transform": {
+            "instance": "/button",
+            "attrs": {
+                "text": {
+                    "type": "raw",
+                    "value": "Match Transform"
+                }
+            },
+            "code": [
+                "selected = cmds.ls(selection=True)",
+                "impulse.utils.transform.match_transform(selected[0], selected[1])"
             ]
         },
         "/main_window/manual_tab/main_panel/grid/mirror": {
