@@ -7,3 +7,6 @@ Notable current features/code snippets that might be useful to you:
 - control.py has a helper function for generating a surface_control, which is a control that moves along the surface of a given NURBS or mesh
 - ribbon.py has helper functions for generating NURBS ribbons along with attached joints and controls.
 - spline.py has helper functions for generating a "ribbon" like spline based on weighted matrix sums, aka it's faster and more flexible than a ribbon (allows for scaling of control verts)
+- skin.py has helper funtions to automatically split weights for twist/bend joints
+- color.py has a helper function to bake textures into face colors
+- and many more!
