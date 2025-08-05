@@ -3,14 +3,15 @@ Functions for working with splines.
 
 """
 
-from scipy.interpolate._bsplines import BSpline
 from typing import Any
+
 import maya.cmds as cmds
+import numpy as np
+from scipy.interpolate import BSpline
+
 from impulse.structs.transform import Vector3 as Vector3
 from impulse.utils.control import Control, ControlShape, connect_control, make_control
 from impulse.utils.transform import matrix_constraint
-import numpy as np
-from scipy.interpolate import BSpline
 
 
 def generate_knots(count: int, degree: int = 3) -> list[float]:

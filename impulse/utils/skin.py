@@ -1,7 +1,11 @@
 import colorsys
 import enum
+import os
+from typing import Any
 
-from ngSkinTools2.api.layers import Layer, Layers
+import maya.cmds as cmds
+from maya.api import OpenMaya as om2
+from maya.api import OpenMayaAnim as oma
 from maya.api.OpenMaya import (
     MDagPath,
     MDagPathArray,
@@ -12,18 +16,15 @@ from maya.api.OpenMaya import (
     MPointArray,
     MSelectionList,
 )
-from impulse.utils.color import linear_srgb_to_oklab, oklab_to_linear_srgb
-from typing import Any
-import maya.cmds as cmds
-from maya.api import OpenMaya as om2
-from maya.api import OpenMayaAnim as oma
-import os
-from impulse.structs.transform import Vector3 as Vector3
-from impulse.utils import spline as spline
 from ngSkinTools2 import api as ng
 from ngSkinTools2.api import Layers, plugin
 from ngSkinTools2.api.influenceMapping import InfluenceMappingConfig
+from ngSkinTools2.api.layers import Layer, Layers
 from ngSkinTools2.api.transfer import VertexTransferMode
+
+from impulse.structs.transform import Vector3 as Vector3
+from impulse.utils import spline as spline
+from impulse.utils.color import linear_srgb_to_oklab, oklab_to_linear_srgb
 
 
 def get_skin_cluster(mesh: str) -> str | None:
@@ -349,7 +350,7 @@ def set_weights(
     )
 
     existing_influences = set(cmds.skinCluster(skin_cluster, query=True, influence=True) or [])
-    
+
     # Add missing influences to the skinCluster
     influences_to_add: list[str] = sorted(all_influences_in_data - existing_influences)
     cmds.skinCluster(skin_cluster, edit=True, addInfluence=influences_to_add, weight=0.0)
@@ -520,7 +521,6 @@ def split_weights(
     # Organize weights by influence rather than vertex
     weights_by_influence: dict[str, dict[int, float]] = {}
     for vertex, influence_weights in original_weights.items():
-
         for influence, weight in influence_weights.items():
             if influence in weights_by_influence:
                 weights_by_influence[influence][vertex] = weight
@@ -549,7 +549,7 @@ def split_weights(
         for i, (vertex, original_weight) in enumerate(influenced_vertex_weights):
             # Remove original joint weight
             new_weights[vertex][original_joint] = 0.0
-            
+
             # Add redistributed weights to split joints
             for influence, spline_weight in spline_weights[i]:
                 if influence not in new_weights[vertex]:

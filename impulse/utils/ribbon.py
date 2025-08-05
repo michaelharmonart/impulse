@@ -10,14 +10,15 @@ It leverages custom control curves from the control_gen module.
 """
 
 import maya.cmds as cmds
+
+from impulse.utils import pin as pin
 from impulse.utils.control import (
     Control,
+    Direction,
     connect_control,
     make_control,
     make_surface_control,
-    Direction,
 )
-from impulse.utils import pin as pin
 
 
 def generate_ribbon(

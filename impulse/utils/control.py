@@ -1,14 +1,14 @@
 import json
+import os
+from enum import Enum
 from typing import Literal
+
 import maya.cmds as cmds
 
-from impulse.utils.transform import RotationOrder, match_transform, matrix_constraint
-from impulse.utils import pin as pin
 from impulse.utils import math as math
-from enum import Enum
-import os
-
+from impulse.utils import pin as pin
 from impulse.utils.naming import flip_side, get_side
+from impulse.utils.transform import RotationOrder, match_transform, matrix_constraint
 
 CONTROL_DIR: str = os.path.dirname(os.path.realpath(__file__)) + "/control_shapes"
 

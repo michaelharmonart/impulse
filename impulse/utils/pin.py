@@ -20,7 +20,7 @@ def make_uv_pin(
         surface: The name of the surface (mesh or NURBS) to pin to.
         u: The U coordinate.
         v: The V coordinate.
-        local_space: When true, sets UVPin node to local relativeSpaceMode. 
+        local_space: When true, sets UVPin node to local relativeSpaceMode.
         When false, the pinned object has inheritsTransform disabled to prevent double transforms.
         normalize: Enable Isoparm normalization (NURBS UV will be remapped between 0-1).
         normal_axis: Normal axis of the generated uvPin, can be x y z -x -y -z.
@@ -263,7 +263,7 @@ def make_matrix_pin(
         attr_input = ".create"
         attr_world = ".worldSpace[0]"
         attr_local = ".local"
-        #attr_surface = ".inputSurface"
+        # attr_surface = ".inputSurface"
     else:
         cmds.error(f"Unsupported surface type: {surface_type}")
 

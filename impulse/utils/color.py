@@ -1,9 +1,12 @@
 import math
 from typing import Any
-from maya.api.OpenMaya import MColor, MColorArray, MFnDependencyNode, MFnMesh, MPlug, MSelectionList
-import maya.cmds as cmds
+
 import maya.api.OpenMaya as om2
+import maya.cmds as cmds
 import maya.OpenMaya as om
+from maya.api.OpenMaya import MColor, MColorArray, MFnDependencyNode, MFnMesh, MPlug, MSelectionList
+
+
 def clamp_color(color: tuple[float, float, float]) -> tuple[float, float, float]:
     """
     Clamps each component of a color to the range [0.0, 1.0].
@@ -16,27 +19,33 @@ def clamp_color(color: tuple[float, float, float]) -> tuple[float, float, float]
     return tuple(max(0.0, min(1.0, c)) for c in color)
 
 
-
 def linear_srgb_to_rec2020(color: tuple[float, float, float]) -> tuple[float, float, float]:
     SRGB_TO_REC2020 = (
-    (0.6274, 0.3293, 0.0433),
-    (0.0691, 0.9195, 0.0114),
-    (0.0164, 0.0880, 0.8956),
+        (0.6274, 0.3293, 0.0433),
+        (0.0691, 0.9195, 0.0114),
+        (0.0164, 0.0880, 0.8956),
     )
     r2020_linear: tuple[float, float, float] = (
-            SRGB_TO_REC2020[0][0] * color[0] + SRGB_TO_REC2020[0][1] * color[1] + SRGB_TO_REC2020[0][2] * color[2],
-            SRGB_TO_REC2020[1][0] * color[0] + SRGB_TO_REC2020[1][1] * color[1] + SRGB_TO_REC2020[1][2] * color[2],
-            SRGB_TO_REC2020[2][0] * color[0] + SRGB_TO_REC2020[2][1] * color[1] + SRGB_TO_REC2020[2][2] * color[2],
+        SRGB_TO_REC2020[0][0] * color[0]
+        + SRGB_TO_REC2020[0][1] * color[1]
+        + SRGB_TO_REC2020[0][2] * color[2],
+        SRGB_TO_REC2020[1][0] * color[0]
+        + SRGB_TO_REC2020[1][1] * color[1]
+        + SRGB_TO_REC2020[1][2] * color[2],
+        SRGB_TO_REC2020[2][0] * color[0]
+        + SRGB_TO_REC2020[2][1] * color[1]
+        + SRGB_TO_REC2020[2][2] * color[2],
     )
     return r2020_linear
 
-def linear_srgb_to_oklab(color: tuple[float, float, float])  -> tuple[float, float, float]:
+
+def linear_srgb_to_oklab(color: tuple[float, float, float]) -> tuple[float, float, float]:
     """
     Converts a linear sRGB color to the Oklab color space.
-    
+
     Args:
         color (RGB): The input color in linear sRGB space.
-    
+
     Returns:
         color (OkLab): The corresponding color in Oklab space.
     """
@@ -44,19 +53,20 @@ def linear_srgb_to_oklab(color: tuple[float, float, float])  -> tuple[float, flo
     m: float = 0.2119034982 * color[0] + 0.6806995451 * color[1] + 0.1073969566 * color[2]
     s: float = 0.0883024619 * color[0] + 0.2817188376 * color[1] + 0.6299787005 * color[2]
 
-    
-    l_: float = math.copysign(abs(l) ** (1/3), l)
-    m_: float = math.copysign(abs(m) ** (1/3), m)
-    s_: float = math.copysign(abs(s) ** (1/3), s)
+    l_: float = math.copysign(abs(l) ** (1 / 3), l)
+    m_: float = math.copysign(abs(m) ** (1 / 3), m)
+    s_: float = math.copysign(abs(s) ** (1 / 3), s)
 
     return (
-        0.2104542553*l_ + 0.7936177850*m_ - 0.0040720468*s_,
-        1.9779984951*l_ - 2.4285922050*m_ + 0.4505937099*s_,
-        0.0259040371*l_ + 0.7827717662*m_ - 0.8086757660*s_,
+        0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_,
+        1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_,
+        0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_,
     )
 
 
-def oklab_to_linear_srgb(color: tuple[float, float, float], clamp: bool = True)  -> tuple[float, float, float]:
+def oklab_to_linear_srgb(
+    color: tuple[float, float, float], clamp: bool = True
+) -> tuple[float, float, float]:
     """
     Converts a Oklab color to the linear sRGB color space.
     Args:
@@ -69,14 +79,14 @@ def oklab_to_linear_srgb(color: tuple[float, float, float], clamp: bool = True) 
     m_: float = color[0] - 0.1055613458 * color[1] - 0.0638541728 * color[2]
     s_: float = color[0] - 0.0894841775 * color[1] - 1.2914855480 * color[2]
 
-    l: float = l_*l_*l_
-    m: float = m_*m_*m_
-    s: float = s_*s_*s_
+    l: float = l_ * l_ * l_
+    m: float = m_ * m_ * m_
+    s: float = s_ * s_ * s_
 
     rgb: tuple[float, float, float] = (
-		+4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
-		-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
-		-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s,
+        +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+        -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+        -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s,
     )
     if clamp:
         return clamp_color(rgb)
@@ -94,11 +104,12 @@ def linear_to_srgb_color(linear_color: tuple[float, float, float]) -> tuple[floa
     Returns:
         tuple[float, float, float]: sRGB converted color.
     """
+
     def convert_channel(c: float) -> float:
         if c <= 0.0031308:
             return 12.92 * c
         else:
-            return 1.055 * (pow(base=c,exp=(1.0 / 2.4))) - 0.055
+            return 1.055 * (pow(base=c, exp=(1.0 / 2.4))) - 0.055
 
     r = convert_channel(linear_color[0])
     g = convert_channel(linear_color[1])
@@ -122,6 +133,7 @@ def srgb_to_linear_color(srgb_color: tuple[float, float, float]) -> tuple[float,
     Returns:
         tuple[float, float, float]: Linear color.
     """
+
     def convert_channel(c: float) -> float:
         if c <= 0.0404482362771082:
             return c / 12.92
@@ -143,18 +155,25 @@ def srgb_to_linear_color(srgb_color: tuple[float, float, float]) -> tuple[float,
 def get_texture_from_shader(shader: str) -> str | None:
     # Check if the 'color' plug exists and is connected
     if cmds.objExists(f"{shader}.color"):
-        color_inputs = cmds.listConnections(f"{shader}.color", source=True, destination=False, type="file")
+        color_inputs = cmds.listConnections(
+            f"{shader}.color", source=True, destination=False, type="file"
+        )
         if color_inputs:
             return color_inputs[0]
 
     # Check if the 'baseColor' plug exists and is connected (e.g. Arnold or StandardSurface shaders)
     if cmds.objExists(f"{shader}.baseColor"):
-        base_color_inputs = cmds.listConnections(f"{shader}.baseColor", source=True, destination=False, type="file")
+        base_color_inputs = cmds.listConnections(
+            f"{shader}.baseColor", source=True, destination=False, type="file"
+        )
         if base_color_inputs:
             return base_color_inputs[0]
     return None
 
-def sample_from_file_node(file_node: str, uv_list: list[tuple[float, float]]) -> list[tuple[float, float, float]]:
+
+def sample_from_file_node(
+    file_node: str, uv_list: list[tuple[float, float]]
+) -> list[tuple[float, float, float]]:
     """
     Samples a Maya file texture node's color at the given uv positions
 
@@ -165,7 +184,7 @@ def sample_from_file_node(file_node: str, uv_list: list[tuple[float, float]]) ->
     Returns:
         list of (r, g, b) float tuples.
     """
-    
+
     u_list: list[float] = []
     v_list: list[float] = []
 
@@ -173,7 +192,9 @@ def sample_from_file_node(file_node: str, uv_list: list[tuple[float, float]]) ->
         u_list.append(u)
         v_list.append(v)
 
-    flat_color_list: list[float] = cmds.colorAtPoint(file_node, coordU=u_list, coordV=v_list, output="RGB")
+    flat_color_list: list[float] = cmds.colorAtPoint(
+        file_node, coordU=u_list, coordV=v_list, output="RGB"
+    )
     rgb_tuples: list[tuple[float, float, float]] = [
         (flat_color_list[i], flat_color_list[i + 1], flat_color_list[i + 2])
         for i in range(0, len(flat_color_list), 3)
@@ -201,7 +222,7 @@ def face_color_from_texture(mesh: str, anti_alias: bool = False) -> None:
 
     # make sure the target shape can show vertex colors
     cmds.setAttr(f"{shape}.displayColors", 1)
-    cmds.setAttr(f"{shape}.displayColorChannel", "Diffuse", type="string") 
+    cmds.setAttr(f"{shape}.displayColorChannel", "Diffuse", type="string")
 
     # Get shading group(s)
     shading_groups = cmds.listConnections(shape, type="shadingEngine") or []
@@ -209,7 +230,9 @@ def face_color_from_texture(mesh: str, anti_alias: bool = False) -> None:
         raise RuntimeError(f"No shading group connected to {shape}")
 
     # Get surface shader
-    shader_attr = cmds.connectionInfo(f"{shading_groups[0]}.surfaceShader", sourceFromDestination=True)
+    shader_attr = cmds.connectionInfo(
+        f"{shading_groups[0]}.surfaceShader", sourceFromDestination=True
+    )
     if not shader_attr:
         raise RuntimeError(f"No surface shader connected {shape}")
     shader_node = shader_attr.split(".")[0]
@@ -224,7 +247,7 @@ def face_color_from_texture(mesh: str, anti_alias: bool = False) -> None:
     sel.add(shape)
     dag = sel.getDagPath(0)
     fn_mesh: MFnMesh = om2.MFnMesh(dag)
-    
+
     face_count: int = fn_mesh.numPolygons
     face_colors: list[MColor] = []
     face_indices: list[int] = []
@@ -256,7 +279,9 @@ def face_color_from_texture(mesh: str, anti_alias: bool = False) -> None:
             uv_sample_coords.append(uv_average)
             face_uv_indices[face_index] = [len(uv_sample_coords) - 1]
 
-    sampled_colors: list[tuple[float, float, float]] = sample_from_file_node(file_node = texture_node, uv_list=uv_sample_coords) 
+    sampled_colors: list[tuple[float, float, float]] = sample_from_file_node(
+        file_node=texture_node, uv_list=uv_sample_coords
+    )
 
     for face_index, uv_indices in face_uv_indices.items():
         colors = [sampled_colors[i] for i in uv_indices]
