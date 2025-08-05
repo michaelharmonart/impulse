@@ -69,6 +69,9 @@
             }
         },
         "/cleanup": {
+            "child_order": [
+                "enable_undo"
+            ],
             "code": [
                 "# Hide Rig Groups",
                 "cmds.hide(\"${guides_group}\")",
@@ -80,11 +83,18 @@
                 "cmds.setAttr(\"${geo_group}.overrideDisplayType\", 2)"
             ]
         },
+        "/cleanup/enable_undo": {
+            "code": [
+                "cmds.undoInfo(state=True)",
+                "cmds.undoInfo(closeChunk=True)"
+            ]
+        },
         "/setup_file": {
             "child_order": [
                 "load_geo",
                 "load_guides",
-                "create_groups"
+                "create_groups",
+                "disable_undo"
             ],
             "attrs": {
                 "model_path": {
@@ -101,6 +111,13 @@
                 "cmds.group(empty=True, name=\"${controls_group}\", parent=\"${rig_group}\")",
                 "cmds.group(empty=True, name=\"${mch_group}\", parent=\"${rig_group}\")",
                 "cmds.group(empty=True, name=\"${def_group}\", parent=\"${rig_group}\")"
+            ]
+        },
+        "/setup_file/disable_undo": {
+            "code": [
+                "cmds.undoInfo(openChunk=True)",
+                "cmds.undoInfo(state=False)",
+                "cmds.refresh(suspend=True)"
             ]
         },
         "/setup_file/load_geo": {

@@ -124,7 +124,6 @@
         "/main_window/manual_tab/Geometry": {
             "instance": "/panel",
             "child_order": [
-                "texture_to_face_color_quick",
                 "texture_to_face_color"
             ],
             "attrs": {
@@ -145,20 +144,6 @@
                 "selection = cmds.ls(selection=True)",
                 "for object in selection:",
                 "    impulse.utils.color.face_color_from_texture(object, anti_alias=True)"
-            ]
-        },
-        "/main_window/manual_tab/Geometry/texture_to_face_color_quick": {
-            "instance": "/button",
-            "attrs": {
-                "text": {
-                    "type": "raw",
-                    "value": "Quick Bake Face Color of Selected"
-                }
-            },
-            "code": [
-                "selection = cmds.ls(selection=True)",
-                "for object in selection:",
-                "    impulse.utils.color.face_color_from_texture(object, anti_alias=False)"
             ]
         },
         "/main_window/manual_tab/Skinning": {
