@@ -1,9 +1,9 @@
 import math
 from typing import Any
-from maya.api.OpenMaya import MColor, MColorArray, MFnMesh, MSelectionList
+from maya.api.OpenMaya import MColor, MColorArray, MFnDependencyNode, MFnMesh, MPlug, MSelectionList
 import maya.cmds as cmds
 import maya.api.OpenMaya as om2
-
+import maya.OpenMaya as om
 def clamp_color(color: tuple[float, float, float]) -> tuple[float, float, float]:
     """
     Clamps each component of a color to the range [0.0, 1.0].
@@ -84,15 +84,15 @@ def oklab_to_linear_srgb(color: tuple[float, float, float], clamp: bool = True) 
         return rgb
 
 
-def linear_to_srgb_color(linear_color: om2.MColor) -> om2.MColor:
+def linear_to_srgb_color(linear_color: tuple[float, float, float]) -> tuple[float, float, float]:
     """
     Convert a linear MColor to sRGB space.
 
     Args:
-        linear_color (om2.MColor): Linear color with RGBA channels in [0,1].
+        linear_color: Linear color with RGBA channels in [0,1].
 
     Returns:
-        om2.MColor: sRGB converted color.
+        tuple[float, float, float]: sRGB converted color.
     """
     def convert_channel(c: float) -> float:
         if c <= 0.0031308:
@@ -100,29 +100,27 @@ def linear_to_srgb_color(linear_color: om2.MColor) -> om2.MColor:
         else:
             return 1.055 * (pow(base=c,exp=(1.0 / 2.4))) - 0.055
 
-    r = convert_channel(linear_color.r)
-    g = convert_channel(linear_color.g)
-    b = convert_channel(linear_color.b)
-    a = linear_color.a  # alpha usually linear, keep unchanged
+    r = convert_channel(linear_color[0])
+    g = convert_channel(linear_color[1])
+    b = convert_channel(linear_color[2])
 
     # Clamp results between 0 and 1 to avoid out of gamut
-    return om2.MColor([
+    return (
         max(0.0, min(1.0, r)),
         max(0.0, min(1.0, g)),
         max(0.0, min(1.0, b)),
-        a
-    ])
+    )
 
 
-def srgb_to_linear_color(srgb_color: om2.MColor) -> om2.MColor:
+def srgb_to_linear_color(srgb_color: tuple[float, float, float]) -> tuple[float, float, float]:
     """
     Convert an sRGB MColor to linear color space.
 
     Args:
-        srgb_color (om2.MColor): sRGB color with RGBA channels in [0,1].
+        srgb_color: sRGB color with RGBA channels in [0,1].
 
     Returns:
-        om2.MColor: Linear color.
+        tuple[float, float, float]: Linear color.
     """
     def convert_channel(c: float) -> float:
         if c <= 0.0404482362771082:
@@ -130,18 +128,16 @@ def srgb_to_linear_color(srgb_color: om2.MColor) -> om2.MColor:
         else:
             return ((c + 0.055) / 1.055) ** 2.4
 
-    r = convert_channel(srgb_color.r)
-    g = convert_channel(srgb_color.g)
-    b = convert_channel(srgb_color.b)
-    a = srgb_color.a  # alpha usually linear, keep unchanged
+    r = convert_channel(srgb_color[0])
+    g = convert_channel(srgb_color[1])
+    b = convert_channel(srgb_color[2])
 
     # Clamp between 0 and 1
-    return om2.MColor([
+    return (
         max(0.0, min(1.0, r)),
         max(0.0, min(1.0, g)),
         max(0.0, min(1.0, b)),
-        a
-    ])
+    )
 
 
 def get_texture_from_shader(shader: str) -> str | None:
@@ -157,6 +153,32 @@ def get_texture_from_shader(shader: str) -> str | None:
         if base_color_inputs:
             return base_color_inputs[0]
     return None
+
+def sample_from_file_node(file_node: str, uv_list: list[tuple[float, float]]) -> list[tuple[float, float, float]]:
+    """
+    Samples a Maya file texture node's color at the given uv positions
+
+    Args:
+        file_node (str): Name of the file node (e.g. "file1").
+        uv_list (list): List of (u, v) tuples in [0,1].
+
+    Returns:
+        list of (r, g, b) float tuples.
+    """
+    
+    u_list: list[float] = []
+    v_list: list[float] = []
+
+    for u, v in uv_list:
+        u_list.append(u)
+        v_list.append(v)
+
+    flat_color_list: list[float] = cmds.colorAtPoint(file_node, coordU=u_list, coordV=v_list, output="RGB")
+    rgb_tuples: list[tuple[float, float, float]] = [
+        (flat_color_list[i], flat_color_list[i + 1], flat_color_list[i + 2])
+        for i in range(0, len(flat_color_list), 3)
+    ]
+    return rgb_tuples
 
 
 def face_color_from_texture(mesh: str, anti_alias: bool = False) -> None:
@@ -202,44 +224,49 @@ def face_color_from_texture(mesh: str, anti_alias: bool = False) -> None:
     sel.add(shape)
     dag = sel.getDagPath(0)
     fn_mesh: MFnMesh = om2.MFnMesh(dag)
-
     
     face_count: int = fn_mesh.numPolygons
-    # Sample texture at each face
     face_colors: list[MColor] = []
     face_indices: list[int] = []
+    uv_sample_coords: list[tuple[float, float]] = []
+    face_uv_indices: dict[int, list[int]] = {}
     for face_index in range(face_count):
-        
         # Get UVs and vertices
         face_vertices = fn_mesh.getPolygonVertices(face_index)
         u: float = 0
         v: float = 0
-        u_list: list[float] = []
-        v_list: list[float] = []
+        uv_list: list[tuple[float, float]] = []
         num_face_verts: int = 0
         for index, vert_index in enumerate(face_vertices):
             vert_u, vert_v = fn_mesh.getPolygonUV(face_index, index)
             u += vert_u
             v += vert_v
-            u_list.append(vert_u)
-            v_list.append(vert_v)
+            uv_list.append((vert_u, vert_v))
             num_face_verts += 1
         u_average = u / num_face_verts
         v_average = v / num_face_verts
-        # Sample color from shader using UV
+        uv_average: tuple[float, float] = (u_average, v_average)
+
         if anti_alias:
-            rgb_list = cmds.colorAtPoint(texture_node, output='RGB', u=tuple(u_list), v=tuple(v_list))
-            color_list: list[tuple[float, float, float]] = list(zip(rgb_list[0::3], rgb_list[1::3], rgb_list[2::3]))
-            total_colors: int = len(color_list)
-            transposed = zip(*color_list)
-            averaged = tuple(sum(values) / total_colors for values in transposed)
-            r, g, b = averaged
+            start_index = len(uv_sample_coords)
+            uv_sample_coords.extend(uv_list)
+            end_index = len(uv_sample_coords)
+            face_uv_indices[face_index] = list(range(start_index, end_index))
         else:
-            result = cmds.colorAtPoint(texture_node, output='RGB', u=u_average, v=v_average)
-            r, g, b = result
-        
-        color: MColor = om2.MColor([r, g, b, 1.0])
-        color = linear_srgb_to_rec2020(srgb_to_linear_color(color))
+            uv_sample_coords.append(uv_average)
+            face_uv_indices[face_index] = [len(uv_sample_coords) - 1]
+
+    sampled_colors: list[tuple[float, float, float]] = sample_from_file_node(file_node = texture_node, uv_list=uv_sample_coords) 
+
+    for face_index, uv_indices in face_uv_indices.items():
+        colors = [sampled_colors[i] for i in uv_indices]
+        # Average RGB
+        avg_color = tuple(sum(channel) / len(colors) for channel in zip(*colors))
+
+        linear_color = linear_srgb_to_rec2020(srgb_to_linear_color(avg_color))
+
+        color = MColor(linear_color)
         face_colors.append(color)
         face_indices.append(face_index)
+
     fn_mesh.setFaceColors(face_colors, face_indices)
