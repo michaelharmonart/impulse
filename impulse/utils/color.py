@@ -1,10 +1,8 @@
 import math
-from typing import Any
 
 import maya.api.OpenMaya as om2
 import maya.cmds as cmds
-import maya.OpenMaya as om
-from maya.api.OpenMaya import MColor, MColorArray, MFnDependencyNode, MFnMesh, MPlug, MSelectionList
+from maya.api.OpenMaya import MColor, MFnMesh, MSelectionList
 
 
 def clamp_color(color: tuple[float, float, float]) -> tuple[float, float, float]:

@@ -1,5 +1,4 @@
 import colorsys
-import enum
 import os
 from typing import Any
 
@@ -19,7 +18,7 @@ from maya.api.OpenMaya import (
 from ngSkinTools2 import api as ng
 from ngSkinTools2.api import Layers, plugin
 from ngSkinTools2.api.influenceMapping import InfluenceMappingConfig
-from ngSkinTools2.api.layers import Layer, Layers
+from ngSkinTools2.api.layers import Layer
 from ngSkinTools2.api.transfer import VertexTransferMode
 
 from impulse.structs.transform import Vector3 as Vector3
