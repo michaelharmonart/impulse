@@ -60,6 +60,7 @@
         },
         "collapse": {
             "/cleanup": false,
+            "/cleanup/stache_bend": true,
             "/limb/controls/bend": true,
             "/middle/cog": true,
             "/middle/spine": false
@@ -464,13 +465,15 @@
                 "def_lists"
             ]
         },
+        "/skinning": {
+            "attrs": {
+                "skinning_pairs": {
+                    "value": "[(\"shell_joints\", \"Shell_GEO\"), (\"eye_joints\", \"Eyes_GEO\"),\n(\"body_joints\", \"Body_GEO\")]"
+                }
+            }
+        },
         "/skinning/apply_weights": {
-            "enabled": true,
-            "code": [
-                "impulse.utils.skin.apply_ng_skin_weights(\"${body_weights}\", \"${body_geo}\")",
-                "impulse.utils.skin.apply_ng_skin_weights(\"${shell_weights}\", \"${shell_geo}\")",
-                "impulse.utils.skin.apply_ng_skin_weights(\"${eye_weights}\", \"${eye_geo}\")"
-            ]
+            "enabled": true
         }
     }
 }

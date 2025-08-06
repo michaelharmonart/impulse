@@ -117,7 +117,7 @@
             "code": [
                 "cmds.undoInfo(openChunk=True)",
                 "cmds.undoInfo(state=False)",
-                "cmds.refresh(suspend=True)"
+                ""
             ]
         },
         "/setup_file/load_geo": {

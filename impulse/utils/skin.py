@@ -423,7 +423,9 @@ def set_ng_layer_weights(
 ) -> None:
     """
     Applies split weights to a new ngSkinTools2 layer.
-
+    WARNING: This function is EXTREMELY slow for large amounts of influences 
+    (internally calls the Ng API for each influence in loop).
+    
     Args:
         shape (str): Name of the mesh shape (must be bound to a skinCluster with ngSkinTools2).
         new_weights (dict): Vertex weights as {vtx_index: {influence_name: weight}}.

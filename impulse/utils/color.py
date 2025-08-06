@@ -218,6 +218,20 @@ def face_color_from_texture(mesh: str, anti_alias: bool = False) -> None:
         raise RuntimeError(f"No shape node found for {mesh}")
     shape: str = shapes[0]
 
+    # Prepare mesh function set
+    sel: MSelectionList = om2.MSelectionList()
+    sel.add(shape)
+    dag = sel.getDagPath(0)
+    fn_mesh: MFnMesh = om2.MFnMesh(dag)
+
+    # Confirm that UVs are available
+    uv_set_name: str = fn_mesh.currentUVSetName()
+    uv_counts, uv_ids = fn_mesh.getAssignedUVs(uv_set_name)
+
+    # Check if any UVs are assigned at all
+    if not uv_ids or not any(uv_counts):
+        raise RuntimeError(f"No UVs assigned on mesh: {mesh} in UV set: {uv_set_name}")
+
     # make sure the target shape can show vertex colors
     cmds.setAttr(f"{shape}.displayColors", 1)
     cmds.setAttr(f"{shape}.displayColorChannel", "Diffuse", type="string")
@@ -240,11 +254,7 @@ def face_color_from_texture(mesh: str, anti_alias: bool = False) -> None:
     if not texture_node:
         raise RuntimeError(f"No texture connected to shader {shader_node}")
 
-    # Prepare mesh function set
-    sel: MSelectionList = om2.MSelectionList()
-    sel.add(shape)
-    dag = sel.getDagPath(0)
-    fn_mesh: MFnMesh = om2.MFnMesh(dag)
+    
 
     face_count: int = fn_mesh.numPolygons
     face_colors: list[MColor] = []

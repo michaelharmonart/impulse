@@ -186,7 +186,7 @@
             "/SetupFile": false,
             "/SetupFile/node": true,
             "/base": false,
-            "/cleanup": true,
+            "/cleanup": false,
             "/left": false,
             "/left/arms": false,
             "/left/arms/controls": false,
@@ -385,8 +385,13 @@
                 }
             },
             "code": [
+                "import os",
                 "# Read and apply control shapes",
-                "impulse.utils.control.apply_control_file(filepath=\"${control_filepath}\")",
+                "filepath = \"${control_filepath}\"",
+                "if os.path.isfile(filepath):",
+                "    impulse.utils.control.apply_control_file(filepath=filepath)",
+                "else:",
+                "    print(f\"No controls file found at {filepath}, control shapes not applied.\")",
                 ""
             ]
         },
@@ -1086,7 +1091,7 @@
                 },
                 "segments": {
                     "type": "int",
-                    "value": "6"
+                    "value": "4"
                 }
             },
             "code": [
@@ -1810,39 +1815,23 @@
                 "split_weights"
             ],
             "attrs": {
-                "body_geo": {
-                    "type": "raw",
-                    "value": "Body_GEO"
-                },
-                "eye_geo": {
-                    "type": "raw",
-                    "value": "Eyes_GEO"
-                },
-                "shell_geo": {
-                    "type": "raw",
-                    "value": "Shell_GEO"
+                "skinning_pairs": {
+                    "type": "list",
+                    "value": "[(\"shell_joints\", \"Shell_GEO\"), (\"shell_joints\", \"Bandaid_GEO\"), (\"eye_joints\", \"Eyes_GEO\"), (\"body_joints\", \"Body_GEO\")]"
                 }
             }
         },
         "/skinning/apply_weights": {
-            "attrs": {
-                "body_weights": {
-                    "type": "raw",
-                    "value": "${asset_root}/body_weights.json"
-                },
-                "eye_weights": {
-                    "type": "raw",
-                    "value": "${asset_root}/eyes_weights.json"
-                },
-                "shell_weights": {
-                    "type": "raw",
-                    "value": "${asset_root}/shell_weights.json"
-                }
-            },
             "code": [
-                "impulse.utils.skin.apply_ng_skin_weights(\"${body_weights}\", \"${body_geo}\")",
-                "impulse.utils.skin.apply_ng_skin_weights(\"${shell_weights}\", \"${shell_geo}\")",
-                "impulse.utils.skin.apply_ng_skin_weights(\"${eye_weights}\", \"${eye_geo}\")"
+                "import os",
+                "skinning_pairs = ${skinning_pairs}",
+                "for joint_attr, geo_name in skinning_pairs:",
+                "    weights_name = f\"{geo_name.rsplit('_', 1)[0]}\".lower()",
+                "    filename = f\"${asset_root}/{weights_name}_weights.json\"",
+                "    if os.path.isfile(filename):",
+                "        impulse.utils.skin.apply_ng_skin_weights(f\"${asset_root}/{weights_name}_weights.json\", geometry=geo_name)",
+                "    else:",
+                "        print(f\"Weight file not found: {filename}\")"
             ]
         },
         "/skinning/bind_skin": {
@@ -1853,9 +1842,16 @@
                 }
             },
             "code": [
-                "impulse.utils.skin.skin_mesh(STAGE.shell_joints, \"${shell_geo}\", dual_quaternion=${dual_quaternion})",
-                "impulse.utils.skin.skin_mesh(STAGE.eye_joints, \"${eye_geo}\", dual_quaternion=${dual_quaternion})",
-                "impulse.utils.skin.skin_mesh(STAGE.body_joints, \"${body_geo}\", dual_quaternion=${dual_quaternion})"
+                "skinning_pairs = ${skinning_pairs}",
+                "for joint_attr, geo_name in skinning_pairs:",
+                "    joints = getattr(STAGE, joint_attr, None)",
+                "    if joints is None:",
+                "        raise RuntimeError(f\"STAGE does not have an attribute '{joint_attr}'\")",
+                "",
+                "    if not isinstance(joints, list):",
+                "        raise TypeError(f\"{joint_attr} must resolve to a list of joint names, got {type(joints)}\")",
+                "",
+                "    impulse.utils.skin.skin_mesh(joints, geo_name, dual_quaternion=${dual_quaternion})"
             ]
         },
         "/skinning/split_weights": {
@@ -1870,7 +1866,7 @@
                 "        original_joints.append(joint)",
                 "        bend_joint_lists.append(bend_joints)",
                 "    impulse.utils.skin.split_weights(",
-                "        mesh=\"${body_geo}\", ",
+                "        mesh=\"Body_GEO\", ",
                 "        original_joints=original_joints,",
                 "        split_joints=bend_joint_lists,",
                 "        degree=2,",
