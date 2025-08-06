@@ -423,9 +423,9 @@ def set_ng_layer_weights(
 ) -> None:
     """
     Applies split weights to a new ngSkinTools2 layer.
-    WARNING: This function is EXTREMELY slow for large amounts of influences 
+    WARNING: This function is EXTREMELY slow for large amounts of influences
     (internally calls the Ng API for each influence in loop).
-    
+
     Args:
         shape (str): Name of the mesh shape (must be bound to a skinCluster with ngSkinTools2).
         new_weights (dict): Vertex weights as {vtx_index: {influence_name: weight}}.
@@ -500,11 +500,26 @@ def set_ng_layer_weights(
 
 def split_weights(
     mesh: str,
-    original_joints: list[str],
-    split_joints: list[list[str]],
+    joint_split_dict: dict[str, list[str]],
     degree: int = 2,
     add_ng_layer: bool = True,
 ) -> None:
+    """
+    Redistributes skin weights from specified original joints to sets of split joints using spline-based falloff.
+
+    This function is designed to reassign weights from a set of original joints (e.g., proxy drivers)
+    across multiple split joints (e.g., spline-based deformation chains like ribbons or bendy limbs).
+    The redistribution is done by computing falloff weights along a spline built from the split joints'
+    world positions and distributing the original joint's influence accordingly.
+
+    Args:
+        mesh: The transform node of the skinned mesh.
+        joint_split_dict (dict[str, list[str]]): A mapping of original joint names to a list of split joints
+        that will receive the redistributed weights. Each key-value pair is one redistribution group.
+        degree: Degree of the spline used for spatial weight interpolation. Defaults to 2.
+        add_ng_layer: If True, the new weights are added to a new ngSkinTools2 layer
+        called "Split Weights" (Warning!!! This is very slow)
+    """
     # get the shape node
     mesh_shape: str = cmds.listRelatives(mesh, shapes=True)[0]
 
@@ -528,25 +543,29 @@ def split_weights(
             else:
                 weights_by_influence[influence] = {vertex: weight}
 
-    for original_joint, split_joints_list in zip(original_joints, split_joints):
+    # Process each original joint → split joints mapping
+    for original_joint, split_joints_list in joint_split_dict.items():
         vertex_weights: dict[int, float] = {}
         if original_joint in weights_by_influence:
             vertex_weights: dict[int, float] = weights_by_influence[original_joint]
 
-        # Get a list of all vertices that are influenced by the given influence/joint
+        # Filter for vertices actually influenced by this joint (less inputs for the spline weight algorithm)
         influenced_vertex_weights: list[tuple[int, float]] = []
         influenced_vertices: list[int] = []
         for vertex, weight in vertex_weights.items():
             if weight > 0:
                 influenced_vertex_weights.append((vertex, weight))
                 influenced_vertices.append(vertex)
+        
+        # Get spline-based weights for each influenced vertex
         spline_weights: list[list[tuple[Any, float]]] = get_mesh_spline_weights(
             mesh_shape=mesh_shape,
             cv_transforms=split_joints_list,
             degree=degree,
             vertex_indices=influenced_vertices,
         )
-
+        
+        # Redistribute the weights
         for i, (vertex, original_weight) in enumerate(influenced_vertex_weights):
             # Remove original joint weight
             new_weights[vertex][original_joint] = 0.0
