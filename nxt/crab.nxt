@@ -1091,7 +1091,7 @@
                 },
                 "segments": {
                     "type": "int",
-                    "value": "4"
+                    "value": "5"
                 }
             },
             "code": [
@@ -1123,7 +1123,6 @@
                 "    if index < (len(self.pose_joints) - 1):",
                 "        joint_child = joint_children[0]",
                 "        y_translate = cmds.getAttr(f\"{joint_child}.translateY\")",
-                "        ",
                 "        mid_control = impulse.utils.control.make_control(",
                 "            name=f\"{name}_Bend_Mid\", ",
                 "            target_transform=joint, ",
@@ -1148,7 +1147,7 @@
                 "        cmds.move(0, y_translate, 0, end_control.offset_transform, relative=True, objectSpace=True)",
                 "        impulse.utils.transform.match_location(end_control.offset_transform, self.pose_joints[index+1])",
                 "        cmds.parent(end_control.offset_transform, bend_control_group)",
-                "        impulse.utils.transform.matrix_constraint(joint, end_control.offset_transform)  ",
+                "        impulse.utils.transform.matrix_constraint(joint_child, end_control.offset_transform)  ",
                 "        ",
                 "        if index != 0:",
                 "            start_control = prev_start_control",
@@ -1879,7 +1878,7 @@
                 "    impulse.utils.skin.split_weights(",
                 "        mesh=\"Body_GEO\", ",
                 "        joint_split_dict=split_dict,",
-                "        degree=2,",
+                "        degree=3,",
                 "        add_ng_layer=False,",
                 "    )",
                 "if STAGE.apply_bend_joints:",

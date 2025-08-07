@@ -107,7 +107,7 @@ def matrix_constraint(
         use_joint_orient: when true the joint orient is taken into account, otherwise it is set to zero.
     """
     constraint_name: str = constrain_transform.split("|")[-1]
-
+    
     # Create node to multiply matrices, as well as a counter to make sure to input into the right slot.
     mult_index: int = 0
     mult_matrix: str = cmds.createNode("multMatrix", name=f"{constraint_name}_ConstraintMultMatrix")

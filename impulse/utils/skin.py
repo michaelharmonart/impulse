@@ -515,10 +515,10 @@ def split_weights(
     Args:
         mesh: The transform node of the skinned mesh.
         joint_split_dict (dict[str, list[str]]): A mapping of original joint names to a list of split joints
-        that will receive the redistributed weights. Each key-value pair is one redistribution group.
+            that will receive the redistributed weights. Each key-value pair is one redistribution group.
         degree: Degree of the spline used for spatial weight interpolation. Defaults to 2.
-        add_ng_layer: If True, the new weights are added to a new ngSkinTools2 layer
-        called "Split Weights" (Warning!!! This is very slow)
+        add_ng_layer: If True, the new weights are added to a new ngSkinTools2 layer called "Split Weights" 
+            (Warning!!! This is very slow)
     """
     # get the shape node
     mesh_shape: str = cmds.listRelatives(mesh, shapes=True)[0]
