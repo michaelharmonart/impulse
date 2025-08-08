@@ -354,7 +354,7 @@ def set_weights(
     influences_to_add: list[str] = sorted(all_influences_in_data - existing_influences)
     cmds.skinCluster(skin_cluster, edit=True, addInfluence=influences_to_add, weight=0.0)
 
-    # Get a the actual MFnSkinCluster to apply weights with
+    # Get the actual MFnSkinCluster to apply weights with
     sel: MSelectionList = om2.MSelectionList()
     sel.add(shape)
     sel.add(skin_cluster)
@@ -386,19 +386,18 @@ def set_weights(
     vtx_components = fn_comp.create(om2.MFn.kMeshVertComponent)
     fn_comp.addElements(list(range(num_verts)))
 
-    # Create a flat weight list and list of influence indices used
-    weights_array: MDoubleArray = om2.MDoubleArray()
-    weights_array.setLength(num_verts * num_influences)
+   
+    # Allocate list for weights
+    weights_flat: list[float] = [0.0] * (num_verts * num_influences)
 
-    for vtx_id in range(num_verts):
-        vtx_weights: dict[str, float] = {}
-        if vtx_id in new_weights:
-            vtx_weights = new_weights[vtx_id]
-        for influence_name, influence_index in influence_indices.items():
-            weight: float = 0.0
-            if influence_name in vtx_weights:
-                weight = vtx_weights[influence_name]
-            weights_array[vtx_id * num_influences + influence_index] = weight
+    # Fill weights list from new_weights dict
+    for vtx_id, vtx_weights in new_weights.items():
+        base_index = vtx_id * num_influences
+        for influence_name, weight in vtx_weights.items():
+            influence_index = influence_indices[influence_name]
+            weights_flat[base_index + influence_index] = weight
+
+    weights_array = om2.MDoubleArray(weights_flat)
 
     if not mfn_skin_cluster.object().hasFn(om2.MFn.kSkinClusterFilter):
         raise RuntimeError(f"Selected node {skin_cluster} is not a skinCluster")
