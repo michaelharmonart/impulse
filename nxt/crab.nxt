@@ -1142,8 +1142,7 @@
                 "impulse.utils.control.connect_control(shell_main, shell_main_joint)",
                 "                        ",
                 "STAGE.shell_joints.extend(bend_joints)",
-                "STAGE.body_joints.extend(bend_joints)",
-                "STAGE.shell_bend_dict[shell_main_joint] = bend_joints"
+                "STAGE.body_joints.extend(bend_joints)"
             ]
         },
         "/middle/spine": {
