@@ -95,6 +95,7 @@ def matrix_constraint(
     keep_offset: bool = True,
     local_space: bool = True,
     use_joint_orient: bool = False,
+    translate: bool = True,
 ) -> None:
     """
     Constrain a transform to another
@@ -105,6 +106,7 @@ def matrix_constraint(
         keep_offset: keep the offset of the constrained transform to the source at time of constraint generation.
         local_space: if False the constrained transform will have inheritsTransform turned off.
         use_joint_orient: when true the joint orient is taken into account, otherwise it is set to zero.
+        translate: whether to constrain translation.
     """
     constraint_name: str = constrain_transform.split("|")[-1]
     
@@ -261,7 +263,8 @@ def matrix_constraint(
             cmds.setAttr(f"{constrain_transform}.jointOrient", 0, 0, 0, type="float3")
     cmds.setAttr(f"{constrain_transform}.rotateAxis", 0, 0, 0, type="float3")
     cmds.connectAttr(rotate_attr, f"{constrain_transform}.rotate")
-    cmds.connectAttr(f"{decompose_matrix}.outputTranslate", f"{constrain_transform}.translate")
+    if translate:
+        cmds.connectAttr(f"{decompose_matrix}.outputTranslate", f"{constrain_transform}.translate")
     cmds.connectAttr(f"{decompose_matrix}.outputScale", f"{constrain_transform}.scale")
     cmds.connectAttr(f"{decompose_matrix}.outputShear", f"{constrain_transform}.shear")
 

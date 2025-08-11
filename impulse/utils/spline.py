@@ -1006,6 +1006,7 @@ def matrix_spline_from_transforms(
     spline_group: str | None = None,
     ctl_group: str | None = None,
     def_group: str | None = None,
+    def_chain: bool = False,
 ) -> MatrixSpline:
     """
     Takes a set of transforms (cvs) and creates a matrix spline with controls and deformation joints.
@@ -1028,6 +1029,7 @@ def matrix_spline_from_transforms(
         spline_group: The container group for all the generated subcontrols and joints.
         ctl_group: The container for the generated sub-controls.
         def_group: The container for the generated deformation joints.
+        def_chain: When true, each of the generated deformation joints will be parented as a chain. 
     Returns:
         matrix_spline: The resulting matrix spline.
     """
@@ -1083,6 +1085,7 @@ def matrix_spline_from_transforms(
         arc_length=arc_length,
     )
 
+    prev_segment: str | None = None
     for i in range(segments):
         segment_name = f"{matrix_spline.name}_matrixSpline_Segment{i + 1}"
         parameter = segment_parameters[i]
@@ -1095,7 +1098,12 @@ def matrix_spline_from_transforms(
             parent=ctl_group,
         )
         segment_transform: str = cmds.joint(name=segment_name, scaleCompensate=False)
-        cmds.parent(segment_transform, def_group, absolute=False)
+        if def_chain and prev_segment:
+            cmds.parent(segment_transform, prev_segment, absolute=False)
+        else:
+            cmds.parent(segment_transform, def_group, absolute=False)
+            
+        prev_segment = segment_transform
         connect_control(control=segment_ctl, driven_name=segment_transform)
         pin_to_matrix_spline(
             matrix_spline=matrix_spline,
