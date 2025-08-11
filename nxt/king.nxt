@@ -398,12 +398,18 @@
             ]
         },
         "/limb/controls": {
+            "child_order": [
+                "bend"
+            ],
             "attrs": {
                 "control_size": {
                     "type": "float",
                     "value": "0.3"
                 }
             }
+        },
+        "/limb/controls/bend": {
+            "enabled": true
         },
         "/middle": {
             "child_order": [
@@ -460,6 +466,9 @@
             ]
         },
         "/middle/shell": {
+            "child_order": [
+                "ring"
+            ],
             "attrs": {
                 "control_size": {
                     "type": "float",
@@ -468,7 +477,113 @@
                 "segments": {
                     "value": "5"
                 }
-            }
+            },
+            "code": [
+                "shell_main = impulse.utils.control.make_control(",
+                "            name=\"${main_control}\", ",
+                "            target_transform=\"${main_control}\",",
+                "            size=${main_size}, ",
+                "            control_shape=impulse.utils.control.ControlShape.CIRCLE,",
+                "            parent=\"${cog_guide}_CTL\",",
+                "            offset=2,",
+                ")",
+                "",
+                "part_group = cmds.group(empty=True, name=\"${spline_name}\", parent=shell_main.control_transform)",
+                "def_group = cmds.group(empty=True, name=\"${part_name}_DEF\", parent=\"${def_group}\")",
+                "ctl_group = cmds.group(empty=True, name=\"${part_name}_CTLS\", parent=part_group)",
+                "tweak_group = cmds.group(empty=True, name=\"${part_name}_Tweak_CTLS\", parent=part_group)",
+                "",
+                "control_panel: str = cmds.createNode(\"network\", name=\"${part_name}_ControlPanel\")",
+                "tweak_attr_long = \"tweakVisibility\"",
+                "tweak_attr_nice = \"Tweak Control Visibility\"",
+                "cmds.addAttr(",
+                "            control_panel,",
+                "            longName=tweak_attr_long, ",
+                "            niceName=tweak_attr_nice, ",
+                "            attributeType=\"bool\",",
+                "            )",
+                "tweak_attr = f\"{control_panel}.{tweak_attr_long}\"",
+                "cmds.setAttr(tweak_attr, channelBox=True)           ",
+                "",
+                "",
+                " ",
+                "",
+                "",
+                "guides = ${guides} ",
+                "controls = []",
+                "for i, guide in enumerate(guides):",
+                "    control = impulse.utils.control.make_control(",
+                "            name=guide, ",
+                "            size=${control_size}, ",
+                "            target_transform=guide,",
+                "            control_shape=impulse.utils.control.ControlShape.SPHERE,",
+                "            parent=ctl_group,  ",
+                "    )",
+                "    controls.append(control.control_transform)",
+                "    impulse.utils.control.draw_on_top(control)",
+                "",
+                "impulse.utils.spline.matrix_spline_from_transforms(",
+                "    name=\"${spline_name}\",",
+                "    transforms=controls, ",
+                "    degree=2,",
+                "    segments=${segments}, ",
+                "    control_size=${tweak_size},",
+                "    control_shape=impulse.utils.control.ControlShape.CUBE,",
+                "    control_height=0.1,",
+                "    parent=part_group,",
+                "    spline_group=part_group,",
+                "    def_group=def_group,",
+                "    ctl_group=tweak_group,",
+                ")",
+                "",
+                "cmds.connectAttr(tweak_attr, f\"{tweak_group}.visibility\") ",
+                "",
+                "controls.append(shell_main.control_transform)",
+                "",
+                "for control in controls:",
+                "    cmds.addAttr(",
+                "        control,",
+                "        longName=f\"${part_name}_{tweak_attr_long}\", ",
+                "        niceName=f\"{self.part_name.replace('_', ' ')} {tweak_attr_nice}\", ",
+                "        proxy=f\"{control_panel}.{tweak_attr_long}\")",
+                "",
+                "bend_joints = cmds.listRelatives(def_group, type=\"joint\", allDescendents=True)",
+                "        ",
+                "shell_main_joint = cmds.duplicate(\"${main_control}\", parentOnly=True, name=\"${main_control}_DEF\")[0]",
+                "cmds.parent(shell_main_joint, def_group)",
+                "impulse.utils.control.connect_control(shell_main, shell_main_joint)",
+                "                        ",
+                "STAGE.shell_joints.extend(bend_joints)",
+                "STAGE.body_joints.extend(bend_joints)"
+            ]
+        },
+        "/middle/shell/ring": {
+            "attrs": {
+                "ring_control": {
+                    "type": "raw",
+                    "value": "Ring"
+                },
+                "ring_geo": {
+                    "type": "raw",
+                    "value": "Ring_GEO"
+                },
+                "ring_size": {
+                    "type": "float",
+                    "value": "0.8"
+                }
+            },
+            "code": [
+                "ring_control = impulse.utils.control.make_control(",
+                "            name=\"${ring_control}\", ",
+                "            target_transform=\"${ring_control}\",",
+                "            size=${ring_size}, ",
+                "            control_shape=impulse.utils.control.ControlShape.CIRCLE,",
+                "            parent=\"${main_control}_CTL\",",
+                "            offset=0,",
+                ")",
+                "",
+                "impulse.utils.transform.matrix_constraint(ring_control.control_transform, \"${ring_geo}\")"
+            ]
         },
         "/middle/spine": {
             "attrs": {
