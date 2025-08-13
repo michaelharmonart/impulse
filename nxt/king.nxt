@@ -98,10 +98,11 @@
             "/cleanup": false,
             "/cleanup/stache_bend": true,
             "/limb": false,
-            "/limb/controls/bend": true,
+            "/limb/controls/bend": false,
             "/limb2": false,
             "/middle/cog": true,
-            "/middle/spine": false
+            "/middle/spine": false,
+            "/setup_file/bend_joints/enable_bend_joints": true
         },
         "colors": {
             "./crab.nxt": "#bc422a",
@@ -614,6 +615,9 @@
                 "create_groups",
                 "def_lists"
             ]
+        },
+        "/setup_file/bend_joints/enable_bend_joints": {
+            "enabled": true
         },
         "/skinning": {
             "child_order": [

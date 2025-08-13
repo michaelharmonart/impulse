@@ -133,7 +133,6 @@ def ik_from_guides(
             cmds.connectAttr(f"{joint}.matrix", f"{temp_distance_node}.inMatrix2")
             rest_length += cmds.getAttr(f"{temp_distance_node}.distance")
             cmds.disconnectAttr(f"{joint}.matrix", f"{temp_distance_node}.inMatrix2")
-        # rest_distance = cmds.getAttr(f"{distance_node}.distance")
         normalize_node: str = cmds.createNode("divide", name=f"{name}_dist_norm")
         cmds.connectAttr(f"{distance_node}.distance", f"{normalize_node}.input1")
         cmds.setAttr(f"{normalize_node}.input2", rest_length)
@@ -147,12 +146,6 @@ def ik_from_guides(
         scale_factor_attr = f"{condition_node}.outColorR"
 
         for joint in ik_joints[0:-1]:
-            # Get the rest Y position, multiply by the scale factor, and pump it into the Y position.
-            # joint_y_adjust = cmds.createNode("multDoubleLinear", name=f"{joint}_yAdjust")
-            # cmds.connectAttr(scale_factor_attr, f"{joint_y_adjust}.input1")
-            # rest_y = cmds.getAttr(f"{joint}.translate.translateY")
-            # cmds.setAttr(f"{joint_y_adjust}.input2", rest_y)
-            # cmds.connectAttr(f"{joint_y_adjust}.output", f"{joint}.translate.translateY")
             cmds.connectAttr(scale_factor_attr, f"{joint}.scale.scaleY")
 
     return IkChain(

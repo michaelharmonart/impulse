@@ -7,7 +7,6 @@ from typing import Any
 
 import maya.cmds as cmds
 import numpy as np
-from scipy.interpolate import BSpline
 
 from impulse.structs.transform import Vector3 as Vector3
 from impulse.utils.control import Control, ControlShape, connect_control, make_control
@@ -291,15 +290,20 @@ def get_weights_along_spline(
     parameters: list[float],
     degree: int = 3,
     knots: list[float] | None = None,
+    sample_points: int = 128,
 ) -> list[list[tuple[Any, float]]]:
     """
     Evaluates B-spline basis weights for a given list of parameters.
-    Faster than point_on_spline_weights
+    Faster than calling point_on_spline_weights in a loop as this function uses a
+        lookup table and interpolation. Will be much faster when passing
+        a large number of parameter values such as when splitting skin weights on a dense mesh.
     Args:
         cvs(list): A list of cvs, these are used for the return value.
         parameters(list): List of parameters.
         degree: Degree of the B-spline.
         knots(list): Knot vector of the B-spline.
+        sample_points: Number of samples to take for Lookup Table Interpolation,
+            more samples will be more accurate but slower. Default value of 128 should be plenty.
 
     Returns:
         A (len(parameters), n_basis) matrix of spline weights.
@@ -307,26 +311,52 @@ def get_weights_along_spline(
     if not knots:
         knots = generate_knots(len(cvs), degree=degree)
 
-    # Convert inputs to numpy arrays
-    parameter_array = np.asarray(parameters, dtype=np.float64)
-    knots_array = np.asarray(knots, dtype=np.float64)
-
-    n_basis = len(knots_array) - degree - 1
-    identity_coeffs = np.eye(n_basis)
-
-    # Build a B-spline with identity coefficients to evaluate all basis functions
-    spline: BSpline = BSpline(knots_array, identity_coeffs, degree)
-
-    # Evaluate weights for all input parameters
-    weight_matrix: np.ndarray = spline(parameter_array)  # shape: (len(u), n_basis)
-
     result: list[list[tuple[Any, float]]] = []
-    for weights in weight_matrix:
-        row = []
-        for i, weight in enumerate(weights):
-            if weight != 0.0:
-                row.append((cvs[i], float(weight)))
-        result.append(row)
+    # If we have less points than samples don't bother using a lookup table
+    if len(parameters) <= sample_points:
+        for parameter in parameters:
+            weights: list[tuple[Any, float]] = point_on_spline_weights(
+                cvs=cvs, t=parameter, degree=degree, knots=knots, normalize=False
+            )
+            result.append(weights)
+        return result
+
+    # Precompute lookup table
+    parameter_array = np.array(parameters, dtype=float)
+    min_t, max_t = min(parameters), max(parameters)
+    t_range = max_t - min_t
+    if t_range == 0:
+        # All parameters are the same, just calculate the one weight
+        weights = point_on_spline_weights(
+            cvs=cvs, t=min_t, degree=degree, knots=knots, normalize=False
+        )
+        return [weights for _ in parameters]
+
+    # Get evenly spaced points from the minimum to maximum t value
+    sample_params = np.linspace(min_t, max_t, sample_points, dtype=float)
+    lut_weights = np.zeros((sample_points, len(cvs)), dtype=float)
+    for sample_index, sample_parameter in enumerate(sample_params):
+        weights: list[tuple[Any, float]] = point_on_spline_weights(
+            cvs=cvs, t=sample_parameter, degree=degree, knots=knots, normalize=False
+        )
+        weight_dict = {cv: w for cv, w in weights}
+        # Take the weights and put them into the correct row in the array
+        lut_weights[sample_index, :] = [weight_dict.get(cv, 0.0) for cv in cvs]
+
+    # Map each parameter to LUT index positions
+    normalized_positions = (parameter_array - min_t) / t_range * (sample_points - 1)
+    lower_indices = np.floor(normalized_positions).astype(int)
+    upper_indices = np.clip(lower_indices + 1, 0, sample_points - 1)
+    interpolation_alphas = (normalized_positions - lower_indices)[:, None]
+
+    # Interpolate weights for all parameters in bulk
+    interpolated_weight_array = (1 - interpolation_alphas) * lut_weights[
+        lower_indices, :
+    ] + interpolation_alphas * lut_weights[upper_indices, :]
+
+    # Reattach CV references to each interpolated weight row
+    for weight_row in interpolated_weight_array:
+        result.append(list(zip(cvs, weight_row.tolist())))
     return result
 
 
@@ -1029,7 +1059,7 @@ def matrix_spline_from_transforms(
         spline_group: The container group for all the generated subcontrols and joints.
         ctl_group: The container for the generated sub-controls.
         def_group: The container for the generated deformation joints.
-        def_chain: When true, each of the generated deformation joints will be parented as a chain. 
+        def_chain: When true, each of the generated deformation joints will be parented as a chain.
     Returns:
         matrix_spline: The resulting matrix spline.
     """
@@ -1102,7 +1132,7 @@ def matrix_spline_from_transforms(
             cmds.parent(segment_transform, prev_segment, absolute=False)
         else:
             cmds.parent(segment_transform, def_group, absolute=False)
-            
+
         prev_segment = segment_transform
         connect_control(control=segment_ctl, driven_name=segment_transform)
         pin_to_matrix_spline(

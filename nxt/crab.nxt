@@ -1189,11 +1189,28 @@
                 "load_geo",
                 "load_guides",
                 "def_lists",
-                "enable_bend_joints"
+                "bend_joints"
             ],
             "code": [
                 "cmds.file(force=True, newFile=True)",
                 "cmds.group(empty=True, name=\"${rig_group}\")"
+            ]
+        },
+        "/setup_file/bend_joints": {
+            "child_order": [
+                "enable_bend_joints"
+            ],
+            "enabled": true,
+            "code": [
+                "STAGE.bend_dict = {}",
+                "STAGE.apply_bend_joints = False",
+                "STAGE.bend_joints = []"
+            ]
+        },
+        "/setup_file/bend_joints/enable_bend_joints": {
+            "code": [
+                "STAGE.apply_bend_joints = True",
+                ""
             ]
         },
         "/setup_file/def_lists": {
@@ -1202,15 +1219,6 @@
                 "STAGE.limb_joints = []",
                 "STAGE.shell_joints = []",
                 "STAGE.eye_joints = []"
-            ]
-        },
-        "/setup_file/enable_bend_joints": {
-            "enabled": true,
-            "code": [
-                "STAGE.bend_dict = {}",
-                "STAGE.shell_bend_dict = {}",
-                "STAGE.apply_bend_joints = True",
-                "STAGE.bend_joints = []"
             ]
         },
         "/setup_file/load_geo": {},
@@ -1266,7 +1274,9 @@
             "code": [
                 "import cProfile",
                 "import pstats",
-                "def profile_function():",
+                "import os",
+                "",
+                "def split_weights():",
                 "    split_dict = getattr(STAGE, \"bend_dict\", {})",
                 "    shell_split_dict = getattr(STAGE, \"shell_bend_dict\", {})",
                 "    impulse.utils.skin.split_weights(",
@@ -1275,6 +1285,21 @@
                 "        degree=3,",
                 "        add_ng_layer=False,",
                 "    )",
+                "",
+                "def profile_function():",
+                "    profiler = cProfile.Profile()",
+                "    profiler.enable()",
+                "",
+                "    split_weights()  # run your NXT rig build",
+                "",
+                "    profiler.disable()",
+                "    stats_path = os.path.expanduser(\"~/nxt_build_profile.txt\")",
+                "    with open(stats_path, \"w\") as f:",
+                "        ps = pstats.Stats(profiler, stream=f).sort_stats(\"cumtime\")",
+                "        ps.print_stats()",
+                "",
+                "    print(f\"Profile written to {stats_path}\")",
+                "",
                 "if STAGE.apply_bend_joints:",
                 "    profile_function()",
                 "    #profiler = cProfile.Profile()",
