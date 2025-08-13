@@ -21,7 +21,6 @@ from ngSkinTools2.api.influenceMapping import InfluenceMappingConfig
 from ngSkinTools2.api.layers import Layer
 from ngSkinTools2.api.transfer import VertexTransferMode
 
-from impulse.structs.transform import Vector3 as Vector3
 from impulse.utils import spline as spline
 from impulse.utils.color import linear_srgb_to_oklab, oklab_to_linear_srgb
 
