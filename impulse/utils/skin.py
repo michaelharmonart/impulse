@@ -148,9 +148,18 @@ def skin_mesh(
     """
     if not name:
         name: str = f"{geometry}_SC"
-    skin_cluster = cmds.skinCluster(
-        bind_joints, geometry, skinMethod=1 if dual_quaternion else 0, name=name
+
+    shape_list: list[str] = cmds.listRelatives(
+        geometry, shapes=True, noIntermediate=True, children=True
     )
+    if shape_list:
+        shape = shape_list[0]
+        skin_cluster = cmds.skinCluster(
+        bind_joints, shape, skinMethod=1 if dual_quaternion else 0, name=name
+    )
+    else:
+        raise RuntimeError(f"{geometry} has no shape node!")
+
     return skin_cluster
 
 

@@ -7,3 +7,4 @@ from . import skin as skin
 from . import ik as ik
 from . import naming as naming
 from . import color as color
+from . import deformer as deformer
