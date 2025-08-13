@@ -295,8 +295,9 @@ def get_weights_along_spline(
     """
     Evaluates B-spline basis weights for a given list of parameters.
     Faster than calling point_on_spline_weights in a loop as this function uses a
-        lookup table and interpolation. Will be much faster when passing
-        a large number of parameter values such as when splitting skin weights on a dense mesh.
+    lookup table and interpolation. Will be much faster when passing a large number 
+    of parameter values such as when splitting skin weights on a dense mesh.
+
     Args:
         cvs(list): A list of cvs, these are used for the return value.
         parameters(list): List of parameters.
@@ -324,7 +325,7 @@ def get_weights_along_spline(
     # Precompute lookup table
     parameter_array = np.array(parameters, dtype=float)
     min_t, max_t = min(parameters), max(parameters)
-    t_range = max_t - min_t
+    t_range: float = max_t - min_t
     if t_range == 0:
         # All parameters are the same, just calculate the one weight
         weights = point_on_spline_weights(
