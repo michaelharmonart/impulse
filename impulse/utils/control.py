@@ -29,6 +29,7 @@ class ControlShape(Enum):
         """returns the filename of the json file representing the control shape."""
         return self.value
 
+
 class Direction(Enum):
     """Enum for available control directions"""
 
@@ -278,6 +279,58 @@ def combine_curves(main_curve: str | None = None, other_curves: list[str] | None
         cmds.parent(shape, main_curve, shape=True, relative=True)
         if not cmds.listRelatives(transform, allDescendents=True):
             cmds.delete(transform)
+
+
+def change_control_shape(control: str, control_shape: ControlShape) -> None:
+    """
+    Replaces all shape nodes under a given control transform with a new curve shape.
+
+    Args:
+        control (str): The name of the transform node whose shapes will be replaced.
+        control_shape (ControlShape): The control shape definition used to generate the new curve.
+    """
+    # Get and remove the shapes under the target transform
+    target_shapes: list[str] = get_shapes(transform=control)
+    for shape in target_shapes:
+        cmds.delete(shape)
+
+    new_curve: str = create_curve(control_shape)
+    new_shapes: list[str] = get_shapes(transform=new_curve)
+
+    for index, new_shape in enumerate(new_shapes):
+        cmds.parent(new_shape, control, shape=True, relative=True)
+        cmds.rename(new_shape, f"{control}Shape{index}")
+
+
+def transfer_control_shapes(source: str, target: str) -> None:
+    """
+    Duplicates and reparents the shape nodes from a source transform to a target transform.
+
+    Warning:
+        This method duplicates the entire source transform hierarchy, so if
+        the source has a large number of children, this operation may be slow.
+
+    Args:
+        source (str): The name of the source transform containing shapes to copy.
+        target (str): The name of the target transform to receive the shapes.
+    """
+    # Get and remove the shapes under the target transform
+    target_shapes: list[str] = get_shapes(transform=target)
+    for shape in target_shapes:
+        cmds.delete(shape)
+
+    # Duplicate the source transform and reparent the shapes to the target
+    # TODO: find a more elegant way of duplicating shapes
+    # (this duplicates the whole hierarchy of the source transform which could be very slow in a big rig)
+    duplicate = cmds.duplicate(source, name=f"{source}_ShapeDuplicate", renameChildren=True)[0]
+    duplicate_shapes: list[str] = get_shapes(duplicate)
+
+    for index, duplicate_shape in enumerate(duplicate_shapes):
+        cmds.parent(duplicate_shape, target, shape=True, relative=True)
+        cmds.rename(duplicate_shape, f"{target}Shape{index}")
+
+    # Cleanup duplicated transform
+    cmds.delete(duplicate)
 
 
 def get_tagged_controls(side: str | None = None) -> list[str]:

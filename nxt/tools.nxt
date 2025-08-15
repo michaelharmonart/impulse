@@ -246,7 +246,27 @@
                 "combine_curve",
                 "write_curve",
                 "size_selector",
-                "control_selector"
+                "control_selector",
+                "transfer_shape",
+                "change_control_shape"
+            ]
+        },
+        "/main_window/manual_tab/curve/grid/change_control_shape": {
+            "instance": "/button",
+            "attrs": {
+                "control_shape": {
+                    "type": "raw",
+                    "value": "${../control_selector.menu_value}"
+                },
+                "text": {
+                    "type": "raw",
+                    "value": "Change Control Shape"
+                }
+            },
+            "code": [
+                "selection = cmds.ls(selection=True)",
+                "for object in selection:",
+                "    impulse.utils.control.change_control_shape(object, control_shape=\"${control_shape}\")"
             ]
         },
         "/main_window/manual_tab/curve/grid/combine_curve": {
@@ -306,6 +326,18 @@
                     "value": "Control Shape"
                 }
             }
+        },
+        "/main_window/manual_tab/curve/grid/transfer_shape": {
+            "instance": "/button",
+            "attrs": {
+                "text": {
+                    "value": "Transfer Control Shapes"
+                }
+            },
+            "code": [
+                "selected = cmds.ls(selection=True)",
+                "impulse.utils.control.transfer_control_shapes(selected[0], selected[1])"
+            ]
         },
         "/main_window/manual_tab/curve/grid/write_controls_file": {
             "instance": "/button",
