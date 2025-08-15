@@ -299,7 +299,10 @@ def change_control_shape(control: str, control_shape: ControlShape) -> None:
 
     for index, new_shape in enumerate(new_shapes):
         cmds.parent(new_shape, control, shape=True, relative=True)
-        cmds.rename(new_shape, f"{control}Shape{index}")
+        if index == 0:
+            cmds.rename(new_shape, f"{control}Shape")
+        else:
+            cmds.rename(new_shape, f"{control}Shape{index}")
 
 
 def transfer_control_shapes(source: str, target: str) -> None:
@@ -327,7 +330,10 @@ def transfer_control_shapes(source: str, target: str) -> None:
 
     for index, duplicate_shape in enumerate(duplicate_shapes):
         cmds.parent(duplicate_shape, target, shape=True, relative=True)
-        cmds.rename(duplicate_shape, f"{target}Shape{index}")
+        if index == 0:
+            cmds.rename(duplicate_shape, f"{target}Shape")
+        else:
+            cmds.rename(duplicate_shape, f"{target}Shape{index}")
 
     # Cleanup duplicated transform
     cmds.delete(duplicate)
