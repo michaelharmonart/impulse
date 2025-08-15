@@ -1,8 +1,9 @@
 import json
 import os
 from enum import Enum
-from typing import Literal
+from typing import Any, Literal
 
+from maya.api.OpenMaya import MDoubleArray, MFnNurbsCurve, MItGeometry, MPoint, MPointArray, MSelectionList, MSpace
 import maya.cmds as cmds
 
 from impulse.utils import math as math
@@ -58,12 +59,14 @@ def get_cv_positions(curve_shape: str) -> list[tuple[float, float, float]]:
     Returns:
         list: A list of CV positions as tuples
     """
-    curve_info = cmds.createNode("curveInfo", name="temp_curveInfo")
-    cmds.connectAttr(f"{curve_shape}.local", f"{curve_info}.inputCurve")
-    cv_list: list[tuple[float, float, float]] = cmds.getAttr(f"{curve_info}.controlPoints[*]")
-    cmds.delete(curve_info)
-    position_list = [(position[0], position[1], position[2]) for position in cv_list]
-    return position_list
+    sel: MSelectionList = MSelectionList()
+    sel.add(curve_shape)
+    curve_obj = sel.getDependNode(0)
+    fn_curve: MFnNurbsCurve = MFnNurbsCurve(curve_obj)
+
+    cv_positions: MPointArray = fn_curve.cvPositions(space=MSpace.kObject)
+    positions: list[tuple[float, float, float]] = [(point.x, point.y, point.z) for point in cv_positions]
+    return positions
 
 
 def get_cv_weights(curve_shape: str) -> list[float]:
@@ -74,11 +77,35 @@ def get_cv_weights(curve_shape: str) -> list[float]:
     Returns:
         list: A list of CV weight values.
     """
-    curve_info = cmds.createNode("curveInfo", name="temp_curveInfo")
-    cmds.connectAttr(f"{curve_shape}.local", f"{curve_info}.inputCurve")
-    weights: list[float] = cmds.getAttr(f"{curve_info}.weights[*]")
-    cmds.delete(curve_info)
+    sel: MSelectionList = MSelectionList()
+    sel.add(curve_shape)
+    curve_obj = sel.getDependNode(0)
+    fn_curve: MFnNurbsCurve = MFnNurbsCurve(curve_obj)
+
+    cv_positions: MPointArray = fn_curve.cvPositions(space=MSpace.kObject)
+    weights: list[float] = [point.w for point in cv_positions]
     return weights
+
+def get_cv_data(curve_shape: str) -> tuple[list[tuple[float, float, float]], list[float]]:
+    """
+    Gets both the positions and weights of all CVs for a given curve shape.
+    Args:
+        curve_shape (str): Name of curve shape node.
+    Returns:
+        tuple: (positions, weights)
+            positions (list[tuple[float, float, float]]): List of CV positions
+            weights (list[float]): List of CV weights
+    """
+    sel: MSelectionList = MSelectionList()
+    sel.add(curve_shape)
+    curve_obj = sel.getDependNode(0)
+    fn_curve: MFnNurbsCurve = MFnNurbsCurve(curve_obj)
+
+    cv_positions: MPointArray = fn_curve.cvPositions(space=MSpace.kObject)
+    positions: list[tuple[float, float, float]] = [(point.x, point.y, point.z) for point in cv_positions]
+    weights: list[float] = [point.w for point in cv_positions]
+
+    return positions, weights
 
 
 def get_knots(curve_shape: str) -> list[float]:
@@ -89,10 +116,13 @@ def get_knots(curve_shape: str) -> list[float]:
     Returns:
         list: A list of knot values. (aka knot vector)
     """
-    curve_info = cmds.createNode("curveInfo", name="temp_curveInfo")
-    cmds.connectAttr(f"{curve_shape}.local", f"{curve_info}.inputCurve")
-    knots: list[float] = cmds.getAttr(f"{curve_info}.knots[*]")
-    cmds.delete(curve_info)
+    sel: MSelectionList = MSelectionList()
+    sel.add(curve_shape)
+    curve_obj = sel.getDependNode(0)
+    fn_curve: MFnNurbsCurve = MFnNurbsCurve(curve_obj)
+
+    knots_array: MDoubleArray = fn_curve.knots()
+    knots: list[float] = [knot for knot in knots_array]
     return knots
 
 
@@ -101,8 +131,9 @@ def get_curve_info(curve: str):
     for curve in get_shapes(transform=curve):
         degree = cmds.getAttr(curve + ".degree")
         form = cmds.getAttr(curve + ".form")
-        cv_positions: list[tuple[float, float, float]] = get_cv_positions(curve_shape=curve)
-        cv_weights: list[float] = get_cv_weights(curve_shape=curve)
+        cv_positions: list[tuple[float, float, float]]
+        cv_weights: list[float]
+        cv_positions, cv_weights = get_cv_data(curve_shape=curve)
         knots: list[float] = get_knots(curve_shape=curve)
         draw_on_top: bool = cmds.getAttr(f"{curve}.alwaysDrawOnTop")
         curve_info = {
