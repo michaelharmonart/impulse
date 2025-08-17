@@ -155,8 +155,8 @@ def skin_mesh(
     if shape_list:
         shape = shape_list[0]
         skin_cluster = cmds.skinCluster(
-        bind_joints, shape, skinMethod=1 if dual_quaternion else 0, name=name
-    )
+            bind_joints, shape, skinMethod=1 if dual_quaternion else 0, name=name
+        )
     else:
         raise RuntimeError(f"{geometry} has no shape node!")
 
@@ -181,6 +181,7 @@ def get_mesh_spline_weights(
     mesh_shape: str,
     cv_transforms: list[str],
     degree: int = 2,
+    periodic: bool = False,
     vertex_indices: list[int] | None = None,
 ) -> list[list[tuple[Any, float]]]:
     """
@@ -195,21 +196,37 @@ def get_mesh_spline_weights(
         mesh_shape (str): The name of the mesh shape node (not the transform).
         cv_transforms (list[str]): A list of transform names representing the CVs of the curve.
         degree (int, optional): Degree of the spline curve. Defaults to 2.
+        periodic: If True will generate a periodic curve for getting spline weights.
         vertex_indices: A list of vertex indices to output weights for.
     Returns:
         list[list[tuple[Any, float]]]: A list of weights per vertex. Each entry is a list of tuples,
         where each tuple contains a CV transform and its corresponding influence weight on the vertex.
     """
     # Create a curve for checking the closest point
-    cv_positions: list[list[float, float, float]] = []
+    cv_positions: list[tuple[float, float, float]] = []
     for transform in cv_transforms:
-        position: list[float, float, float] = cmds.xform(
+        position: tuple[float, float, float] = cmds.xform(
             transform, query=True, worldSpace=True, translation=True
         )
         position_tuple: tuple[float, float, float] = tuple(position)
         cv_positions.append(position)
+
+    if periodic:
+        extended_cv_positions = list(cv_positions) + cv_positions[:degree]
+        extended_cv_transforms = list(cv_transforms) + cv_transforms[:degree]
+    else:
+        extended_cv_positions = list(cv_positions)
+        extended_cv_transforms = list(cv_transforms)
+
+    knots: list[float] = spline.generate_knots(
+        len(extended_cv_positions), degree=degree, periodic=periodic
+    )[1:-1]
     curve_transform: str = cmds.curve(
-        name=f"{mesh_shape}_SplineWeightsTempCurve", point=cv_positions, degree=degree
+        name=f"{mesh_shape}_SplineWeightsTempCurve",
+        point=extended_cv_positions,
+        periodic=periodic,
+        knot=knots,
+        degree=degree,
     )
 
     # Get curve shape
@@ -238,7 +255,7 @@ def get_mesh_spline_weights(
         parameter: float = fn_curve.closestPoint(point, space=om2.MSpace.kWorld)[1]
         parameters.append(parameter)
     spline_weights_per_vertex: list[list[tuple[Any, float]]] = spline.get_weights_along_spline(
-        cvs=cv_transforms, parameters=parameters, degree=degree, knots=knots
+        cvs=extended_cv_transforms, parameters=parameters, degree=degree, knots=knots
     )
     cmds.delete(curve_transform)
     return spline_weights_per_vertex
@@ -394,7 +411,6 @@ def set_weights(
     vtx_components = fn_comp.create(om2.MFn.kMeshVertComponent)
     fn_comp.addElements(list(range(num_verts)))
 
-   
     # Allocate list for weights
     weights_flat: list[float] = [0.0] * (num_verts * num_influences)
 
@@ -509,6 +525,7 @@ def split_weights(
     mesh: str,
     joint_split_dict: dict[str, list[str]],
     degree: int = 2,
+    periodic: bool = False,
     add_ng_layer: bool = True,
 ) -> None:
     """
@@ -524,7 +541,8 @@ def split_weights(
         joint_split_dict (dict[str, list[str]]): A mapping of original joint names to a list of split joints
             that will receive the redistributed weights. Each key-value pair is one redistribution group.
         degree: Degree of the spline used for spatial weight interpolation. Defaults to 2.
-        add_ng_layer: If True, the new weights are added to a new ngSkinTools2 layer called "Split Weights" 
+        periodic: If True the curve generated to split the weights will be a periodic one.
+        add_ng_layer: If True, the new weights are added to a new ngSkinTools2 layer called "Split Weights"
             (Warning!!! This is very slow)
     """
     # get the shape node
@@ -563,15 +581,16 @@ def split_weights(
             if weight > 0:
                 influenced_vertex_weights.append((vertex, weight))
                 influenced_vertices.append(vertex)
-        
+
         # Get spline-based weights for each influenced vertex
         spline_weights: list[list[tuple[Any, float]]] = get_mesh_spline_weights(
             mesh_shape=mesh_shape,
             cv_transforms=split_joints_list,
             degree=degree,
+            periodic=periodic,
             vertex_indices=influenced_vertices,
         )
-        
+
         # Redistribute the weights
         for i, (vertex, original_weight) in enumerate(influenced_vertex_weights):
             # Remove original joint weight

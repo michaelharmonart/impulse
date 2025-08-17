@@ -341,7 +341,7 @@ def transfer_control_shapes(source: str, target: str) -> None:
     Duplicates and reparents the shape nodes from a source transform to a target transform.
 
     Warning:
-        This method duplicates the entire source transform hierarchy, so if
+        This function duplicates the entire source transform hierarchy, so if
         the source has a large number of children, this operation may be slow.
 
     Args:

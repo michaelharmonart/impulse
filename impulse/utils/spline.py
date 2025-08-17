@@ -13,24 +13,24 @@ from impulse.utils.control import Control, ControlShape, connect_control, make_c
 from impulse.utils.transform import matrix_constraint
 
 
-def generate_knots(count: int, degree: int = 3) -> list[float]:
-    # Algorithm and code originally from Cole O'Brien
-    # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
-    # https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
+def generate_knots(count: int, degree: int = 3, periodic=False) -> list[float]:
     """
     Gets a default knot vector for a given number of cvs and degrees.
     Args:
         count(int): The number of cvs.
         degree(int): The curve degree.
+        periodic: If true the knot vector will be for a periodic curve.
     Returns:
         list: A list of knot values. (aka knot vector)
     """
-    knots = [0 for i in range(degree)] + [
-        i for i in range(count - degree + 1)
-    ]  # put degree number of 0s at the beginning
-    knots += [
-        count - degree for i in range(degree)
-    ]  # put degree number of the last knot value at the end
+
+    if periodic:
+        knots = [i for i in range(count + degree + 1)]
+    else:
+        clamp_start = [0] * degree
+        clamp_end = [count - degree] * degree
+        knots = clamp_start + [i for i in range(count - degree + 1)] + clamp_end
+
     return [float(knot) for knot in knots]
 
 
@@ -295,7 +295,7 @@ def get_weights_along_spline(
     """
     Evaluates B-spline basis weights for a given list of parameters.
     Faster than calling point_on_spline_weights in a loop as this function uses a
-    lookup table and interpolation. Will be much faster when passing a large number 
+    lookup table and interpolation. Will be much faster when passing a large number
     of parameter values such as when splitting skin weights on a dense mesh.
 
     Args:
@@ -538,6 +538,7 @@ def resample(
     degree: int = 3,
     knots: list[float] | None = None,
     weights: list[float] | None = None,
+    periodic=False,
     padded: bool = True,
     arc_length: bool = True,
     sample_points: int = 256,
@@ -550,20 +551,30 @@ def resample(
         degree: Degree of the spline CVs
         knots(list): A list of knot values.
         weights(list): A list of CV weight values.
-        padded(bool): When True, the points are returned such that the end points have half a segment of spacing from the ends of the curve.
+        periodic(bool): When True, the samples will be spaced evenly on the curve assuming it is periodic
+        padded(bool): When True, the points are returned such that the end points have half a segment
+            of spacing from the ends of the curve. Ignored if periodic.
         arc_length(bool): When True, the points are returned with even spacing according to arc length.
-        sample_points: The number of points to sample along the curve to find even arc-length segments. More points will be more accurate/evenly spaced.
+        sample_points: The number of points to sample along the curve to find even arc-length segments.
+            More points will be more accurate/evenly spaced.
     Returns:
         list: List of the parameter values of the picked points along the curve.
     """
 
-    if not arc_length:
-        point_parameters: list[float] = []
-        for i in range(number_of_points):
+    def get_target_u(index: int) -> float:
+        if periodic:
+            u = i / (number_of_points)
+        else:
             if padded:
                 u = (i + 0.5) / number_of_points
             else:
                 u = i / (number_of_points - 1)
+        return u
+
+    if not arc_length:
+        point_parameters: list[float] = []
+        for i in range(number_of_points):
+            u = get_target_u(i)
             point_parameters.append(u)
         return point_parameters
 
@@ -590,10 +601,7 @@ def resample(
     total_length: float = arc_lengths[len(arc_lengths) - 1]
     point_parameters: list[float] = []
     for i in range(number_of_points):
-        if padded:
-            u: float = (i + 0.5) / (number_of_points)
-        else:
-            u: float = i / (number_of_points - 1)
+        u = get_target_u(i)
         mapped_t: float = u
         target_length: float = u * total_length
 
@@ -617,10 +625,7 @@ def resample(
         if length_before == target_length:
             mapped_t = index / len(arc_lengths)
         elif i == number_of_points - 1:
-            if padded:
-                mapped_t = 1 - (0.5 / number_of_points)
-            else:
-                mapped_t = 1
+            u = get_target_u(number_of_points)
         else:
             sample_distance = arc_lengths[index + 1] - arc_lengths[index]
             sample_fraction = (
@@ -993,6 +998,7 @@ def matrix_spline_from_curve(
         number_of_points=segments,
         degree=degree,
         knots=knots,
+        periodic=periodic,
         padded=padded,
         arc_length=arc_length,
     )
@@ -1064,7 +1070,12 @@ def matrix_spline_from_transforms(
     Returns:
         matrix_spline: The resulting matrix spline.
     """
-
+    num_cvs: int = len(transforms)
+    if not knots:
+        if periodic:
+            knots = generate_knots(num_cvs + degree, degree=degree, periodic=True)
+        else:
+            knots = generate_knots(num_cvs, degree=degree)
     cv_positions: list[Vector3] = []
 
     for transform in transforms:
@@ -1107,11 +1118,18 @@ def matrix_spline_from_transforms(
         cv_transforms=cv_transforms, degree=degree, periodic=periodic, name=name, knots=knots
     )
 
+    extended_cv_positions: list[Vector3] = list(cv_positions)
+
+    if periodic:
+        for i in range(degree):
+            extended_cv_positions.append(cv_positions[i])
+
     segment_parameters: list[float] = resample(
-        cv_positions=cv_positions,
+        cv_positions=extended_cv_positions,
         number_of_points=segments,
         degree=degree,
         knots=knots,
+        periodic=periodic,
         padded=padded,
         arc_length=arc_length,
     )
