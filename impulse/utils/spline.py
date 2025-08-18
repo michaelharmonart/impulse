@@ -5,6 +5,7 @@ Functions for working with splines.
 
 from typing import Any
 
+from maya.api.OpenMaya import MDoubleArray, MFnNurbsCurve, MPointArray, MSelectionList, MSpace
 import maya.cmds as cmds
 import numpy as np
 
@@ -39,18 +40,24 @@ def get_knots(curve_shape: str) -> list[float]:
     # The above only works with uniform knots, so this is generalized to higher order and non-uniform knots
     # based on info found here https://developer.rhino3d.com/guides/opennurbs/periodic-curves-and-surfaces/
     """
-    Gets the knot vector for a given curve shape.
+    Gets the standard knot vector for a given curve shape (not the Maya format).
     Args:
         curve_shape(str): Name of curve shape node.
     Returns:
         list: A list of knot values. (aka knot vector)
     """
-    curve_info = cmds.createNode("curveInfo", name="temp_curveInfo")
-    cmds.connectAttr(f"{curve_shape}.worldSpace", f"{curve_info}.inputCurve")
-    knots: list[float] = cmds.getAttr(f"{curve_info}.knots[*]")
-    cmds.delete(curve_info)
+
+    sel: MSelectionList = MSelectionList()
+    sel.add(curve_shape)
+    curve_obj = sel.getDependNode(0)
+    fn_curve: MFnNurbsCurve = MFnNurbsCurve(curve_obj)
+
+    knots_array: MDoubleArray = fn_curve.knots()
+    knots: list[float] = [knot for knot in knots_array]
+
+    # Now convert the knot vector from the Maya form to the standard form by filling out the missing values.
     degree: int = cmds.getAttr(f"{curve_shape}.degree")
-    periodic_indices = (degree * 2) - 1
+    periodic_indices: int = (degree * 2) - 1
     knots.insert(0, 0)
     knots.append(0)
     if cmds.getAttr(f"{curve_shape}.form") == 2:
@@ -59,7 +66,6 @@ def get_knots(curve_shape: str) -> list[float]:
     else:
         knots[0] = knots[1]
         knots[-1] = knots[-2]
-
     return knots
 
 
@@ -71,12 +77,14 @@ def get_cvs(curve_shape: str) -> list[Vector3]:
     Returns:
         list: A list of CV positions as Vector3s
     """
-    curve_info = cmds.createNode("curveInfo", name="temp_curveInfo")
-    cmds.connectAttr(f"{curve_shape}.worldSpace", f"{curve_info}.inputCurve")
-    cv_list: list[tuple[float, float, float]] = cmds.getAttr(f"{curve_info}.controlPoints[*]")
-    cmds.delete(curve_info)
-    position_list = [Vector3(position[0], position[1], position[2]) for position in cv_list]
-    return position_list
+    sel: MSelectionList = MSelectionList()
+    sel.add(curve_shape)
+    dag_path = sel.getDagPath(0)
+    fn_curve: MFnNurbsCurve = MFnNurbsCurve(dag_path)
+
+    cv_positions: MPointArray = fn_curve.cvPositions(space=MSpace.kWorld)
+    positions: list[Vector3]= [Vector3(point.x, point.y, point.z) for point in cv_positions]
+    return positions
 
 
 def get_cv_weights(curve_shape: str) -> list[float]:
@@ -87,10 +95,13 @@ def get_cv_weights(curve_shape: str) -> list[float]:
     Returns:
         list: A list of CV weight values.
     """
-    curve_info = cmds.createNode("curveInfo", name="temp_curveInfo")
-    cmds.connectAttr(f"{curve_shape}.worldSpace", f"{curve_info}.inputCurve")
-    weights: list[float] = cmds.getAttr(f"{curve_info}.weights[*]")
-    cmds.delete(curve_info)
+    sel: MSelectionList = MSelectionList()
+    sel.add(curve_shape)
+    dag_path = sel.getDagPath(0)
+    fn_curve: MFnNurbsCurve = MFnNurbsCurve(dag_path)
+
+    cv_positions: MPointArray = fn_curve.cvPositions(space=MSpace.kWorld)
+    weights: list[float] = [point.w for point in cv_positions]
     return weights
 
 
@@ -100,7 +111,6 @@ def is_periodic_knot_vector(knots: list[float], degree: int = 3) -> bool:
     # Although there is a typo in the above doc, k[(cv_count)+i] should be k[(cv_count - 1)+i]
     # Don't ask how long it took me to find that out
     cv_count = len(knots) - (degree + 1)
-    num_knots = len(knots)
     for i in range(-degree + 1, degree):
         if (
             knots[(degree - 1) + i + 1] - knots[(degree - 1) + i]
