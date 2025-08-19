@@ -17,6 +17,18 @@
                 -561.0634368138753,
                 262.58071849679055
             ],
+            "/button": [
+                -1546.5086114281228,
+                -1156.5895034585628
+            ],
+            "/chain": [
+                31.931383111138757,
+                -68.50991913267622
+            ],
+            "/checkbox": [
+                -1546.5086114281228,
+                -1096.5895034585628
+            ],
             "/cleanup": [
                 1687.3167035285953,
                 -422.4650308958204
@@ -24,6 +36,10 @@
             "/controls2": [
                 -1038.913685788848,
                 180.7575926085712
+            ],
+            "/dropDownMenu": [
+                -1546.5086114281228,
+                -1036.5895034585628
             ],
             "/fk2": [
                 -813.9485723829988,
@@ -33,9 +49,17 @@
                 280,
                 20
             ],
+            "/gridLayout": [
+                -1546.5086114281228,
+                -1216.5895034585628
+            ],
             "/ik2": [
                 -1054.2939491635707,
                 207.19678384735445
+            ],
+            "/itemSelector": [
+                -1546.5086114281228,
+                -916.5895034585628
             ],
             "/left": [
                 431.1859783995095,
@@ -53,6 +77,14 @@
                 -754.9466399200481,
                 336.7860519863287
             ],
+            "/main_window": [
+                -833.7483097122089,
+                -1907.4514700511402
+            ],
+            "/menuItem": [
+                -1546.5086114281228,
+                -976.5895034585628
+            ],
             "/middle": [
                 15.412847326339971,
                 -416.06084309831596
@@ -60,6 +92,10 @@
             "/middle/spine": [
                 0.0,
                 0.0
+            ],
+            "/panel": [
+                -1546.5086114281228,
+                -1276.5895034585628
             ],
             "/right": [
                 840.6948966738189,
@@ -92,6 +128,14 @@
             "/stache": [
                 398.17103527830375,
                 503.602236391896
+            ],
+            "/tab": [
+                -1546.5086114281228,
+                -1336.5895034585628
+            ],
+            "/window": [
+                -1546.5086114281228,
+                -1396.5895034585628
             ]
         },
         "collapse": {
@@ -416,6 +460,7 @@
             "child_order": [
                 "cog",
                 "spine",
+                "necklace",
                 "head",
                 "shell"
             ]
@@ -466,9 +511,46 @@
                 "STAGE.body_joints.extend(cmds.listRelatives(def_group, type=\"joint\", allDescendents=True))"
             ]
         },
+        "/middle/necklace": {
+            "attrs": {
+                "control_size": {
+                    "type": "float",
+                    "value": "0.9"
+                },
+                "geo": {
+                    "type": "raw",
+                    "value": "Necklace_GEO"
+                },
+                "guide": {
+                    "type": "raw",
+                    "value": "Necklace"
+                },
+                "parent": {
+                    "type": "raw",
+                    "value": "Head_M_CTL"
+                },
+                "socket": {
+                    "type": "raw",
+                    "value": "Spine_M_matrixSpline_Segment6_CTL"
+                }
+            },
+            "code": [
+                "ring_control = impulse.utils.control.make_control(",
+                "            name=\"${guide}\", ",
+                "            target_transform=\"${guide}\",",
+                "            size=${control_size}, ",
+                "            control_shape=impulse.utils.control.ControlShape.CIRCLE,",
+                "            parent=\"${parent}\",",
+                "            offset=0,",
+                ")",
+                "impulse.utils.transform.matrix_constraint(\"${socket}\", ring_control.offset_transform)",
+                "impulse.utils.transform.matrix_constraint(ring_control.control_transform, \"${geo}\")"
+            ]
+        },
         "/middle/shell": {
             "child_order": [
-                "ring"
+                "ring",
+                "chain"
             ],
             "attrs": {
                 "control_size": {
@@ -558,6 +640,109 @@
                 "STAGE.body_joints.extend(bend_joints)"
             ]
         },
+        "/middle/shell/chain": {
+            "enabled": true,
+            "attrs": {
+                "main_control": {
+                    "type": "raw",
+                    "value": "${part_name}_Main"
+                },
+                "main_control_size": {
+                    "type": "float",
+                    "value": "2.25"
+                },
+                "num_guides": {
+                    "type": "int",
+                    "value": "14"
+                },
+                "parent": {
+                    "type": "raw",
+                    "value": "Shell_M_Main_CTL"
+                },
+                "part_name": {
+                    "type": "raw",
+                    "value": "${prefix}${side}"
+                },
+                "prefix": {
+                    "type": "raw",
+                    "value": "Chain_"
+                },
+                "segments": {
+                    "type": "int",
+                    "value": "32"
+                },
+                "socket": {
+                    "type": "raw",
+                    "value": "Shell_M_Main_CTL"
+                },
+                "swing_control": {
+                    "type": "raw",
+                    "value": "${part_name}_Swing"
+                },
+                "tweak_control_size": {
+                    "type": "float",
+                    "value": "0.1"
+                }
+            },
+            "code": [
+                "part_group = cmds.group(empty=True, name=\"${part_name}_MCH\", parent=\"${mch_group}\")",
+                "def_group = cmds.group(empty=True, name=\"${part_name}_DEF\", parent=\"${def_group}\")",
+                "ctl_group = cmds.group(empty=True, name=\"${part_name}_CTLS\", parent=\"${parent}\")",
+                "controls = []",
+                "",
+                "guides = [f\"${part_name}_Point{i+1}\" for i in range(${num_guides})] ",
+                "    ",
+                "guide = \"${main_control}\"     ",
+                "def_joint = cmds.duplicate(guide, name=f\"{guide}_DEF\", parentOnly=True)[0]",
+                "cmds.parent(def_joint, def_group)",
+                "",
+                "swing_guide = \"${swing_control}\"",
+                "swing_control = impulse.utils.control.make_control(",
+                "        name=swing_guide, ",
+                "        size=1, ",
+                "        target_transform=swing_guide,",
+                "        control_shape=impulse.utils.control.ControlShape.CIRCLE,",
+                "        parent=ctl_group,  ",
+                "    )",
+                "",
+                "STAGE.chain_joints.append(def_joint)",
+                "driver_transforms = []",
+                "for index, guide in enumerate(guides):",
+                "    control = impulse.utils.control.make_control(",
+                "        name=guide, ",
+                "        size=${tweak_control_size}, ",
+                "        target_transform=guide,",
+                "        control_shape=impulse.utils.control.ControlShape.CUBE,",
+                "        parent=ctl_group,  ",
+                "    )",
+                "    if 7 <= index <= 9:",
+                "        impulse.utils.transform.matrix_constraint(swing_control.control_transform, control.offset_transform)",
+                "    control_transform = control.control_transform",
+                "    driver_transforms.append(control_transform)",
+                "    ",
+                "section_def_group = cmds.group(empty=True, name=f\"${part_name}_Bend_DEF\", parent=def_group)",
+                "section_spline_group = cmds.group(empty=True, name=f\"${part_name}_Bend_Spline\", parent=part_group)",
+                "if STAGE.apply_bend_joints:",
+                "    impulse.utils.spline.matrix_spline_from_transforms(",
+                "        name=\"${part_name}_Bend\",",
+                "        transforms=driver_transforms, ",
+                "        degree=3,",
+                "        segments=${segments}, ",
+                "        padded=False,",
+                "        control_size=${tweak_control_size},",
+                "        control_shape=impulse.utils.control.ControlShape.CUBE,",
+                "        control_height=1,",
+                "        parent=part_group,",
+                "        spline_group=section_spline_group,",
+                "        def_group=section_def_group,",
+                "        periodic=True",
+                "    )",
+                "    impulse.utils.transform.matrix_constraint(\"${parent}\", section_spline_group)",
+                "    section_def_joints = cmds.listRelatives(section_def_group, type=\"joint\", allDescendents=True)",
+                "    STAGE.chain_bend_dict[def_joint] = section_def_joints",
+                ""
+            ]
+        },
         "/middle/shell/ring": {
             "attrs": {
                 "ring_control": {
@@ -613,24 +798,97 @@
                 "load_geo",
                 "load_guides",
                 "create_groups",
-                "def_lists"
+                "def_lists",
+                "bend_joints"
+            ]
+        },
+        "/setup_file/bend_joints": {
+            "child_order": [
+                "enable_bend_joints"
+            ],
+            "code": [
+                "STAGE.bend_dict = {}",
+                "STAGE.chain_bend_dict = {}",
+                "STAGE.apply_bend_joints = False",
+                "STAGE.bend_joints = []"
             ]
         },
         "/setup_file/bend_joints/enable_bend_joints": {
             "enabled": true
         },
+        "/setup_file/def_lists": {
+            "code": [
+                "STAGE.body_joints = []",
+                "STAGE.limb_joints = []",
+                "STAGE.shell_joints = []",
+                "STAGE.chain_joints = []",
+                "STAGE.eye_joints = []"
+            ]
+        },
         "/skinning": {
             "child_order": [
-                "apply_weights"
+                "apply_weights",
+                "split_weights"
             ],
             "attrs": {
                 "skinning_pairs": {
-                    "value": "[(\"shell_joints\", \"Shell_GEO\"), (\"eye_joints\", \"Eyes_GEO\"),\n(\"body_joints\", \"Body_GEO\")]"
+                    "type": "list",
+                    "value": "[(\"shell_joints\", \"Shell_GEO\"), (\"eye_joints\", \"Eyes_GEO\"),\n(\"body_joints\", \"Body_GEO\"), (\"chain_joints\", \"Chain_GEO\")]"
                 }
             }
         },
         "/skinning/apply_weights": {
             "enabled": true
+        },
+        "/skinning/split_weights": {
+            "code": [
+                "import cProfile",
+                "import pstats",
+                "import os",
+                "",
+                "def split_weights():",
+                "    split_dict = getattr(STAGE, \"bend_dict\", {})",
+                "    shell_split_dict = getattr(STAGE, \"shell_bend_dict\", {})",
+                "    impulse.utils.skin.split_weights(",
+                "        mesh=\"Body_GEO\", ",
+                "        joint_split_dict=split_dict,",
+                "        degree=3,",
+                "        add_ng_layer=False,",
+                "    )",
+                "    chain_split_dict = getattr(STAGE, \"chain_bend_dict\", {})",
+                "    impulse.utils.skin.split_weights(",
+                "        mesh=\"Chain_GEO\", ",
+                "        joint_split_dict=chain_split_dict,",
+                "        degree=3,",
+                "        add_ng_layer=False,",
+                "        periodic=True",
+                "    )",
+                "",
+                "def profile_function():",
+                "    profiler = cProfile.Profile()",
+                "    profiler.enable()",
+                "",
+                "    split_weights()  # run your NXT rig build",
+                "",
+                "    profiler.disable()",
+                "    stats_path = os.path.expanduser(\"~/nxt_build_profile.txt\")",
+                "    with open(stats_path, \"w\") as f:",
+                "        ps = pstats.Stats(profiler, stream=f).sort_stats(\"cumtime\")",
+                "        ps.print_stats()",
+                "",
+                "    print(f\"Profile written to {stats_path}\")",
+                "",
+                "if STAGE.apply_bend_joints:",
+                "    profile_function()",
+                "    #profiler = cProfile.Profile()",
+                "    #profiler.runcall(profile_function)",
+                "    #profiler.dump_stats('profile_output')",
+                "    # Read the stats",
+                "    #stats = pstats.Stats('profile_output')",
+                "    #stats.strip_dirs().sort_stats('cumtime').print_stats(20)",
+                "        ",
+                ""
+            ]
         }
     }
 }

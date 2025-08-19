@@ -261,12 +261,12 @@ def point_on_spline_weights(
     While all cvs are required, only the cvs with non-zero weights will be returned.
     This function is based on de Boor's algorithm for evaluating splines and has been modified to consolidate weights.
     Args:
-        cvs(list): A list of cvs, these are used for the return value.
-        t(float): A parameter value.
-        degree(int): The curve dimensions.
-        knots(list): A list of knot values.
-        weights(list): A list of CV weight values.
-        normalize(bool): When true, the curve is parameter is normalized from 0-1
+        cvs: A list of cvs, these are used for the return value.
+        t: A parameter value.
+        degree: The curve dimensions.
+        knots: A list of knot values.
+        weights: A list of CV weight values.
+        normalize: When true, the curve is parameter is normalized from 0-1
     Returns:
         list: A list of control point, weight pairs.
     """
