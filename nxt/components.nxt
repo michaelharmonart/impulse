@@ -18,6 +18,10 @@
                 300.0,
                 40.0
             ],
+            "/fk_copy": [
+                -247.3179125904502,
+                370.9768688856753
+            ],
             "/ik2": [
                 300.0,
                 40.0
@@ -37,6 +41,131 @@
         }
     },
     "nodes": {
+        "/fk_copy": {
+            "enabled": true,
+            "attrs": {
+                "control_size": {
+                    "value": "1"
+                },
+                "def_list": {},
+                "def_parent": {
+                    "type": "raw",
+                    "value": "${def_group}"
+                },
+                "guide_group": {
+                    "type": "raw",
+                    "value": "${part_name}"
+                },
+                "parent": {
+                    "type": "raw",
+                    "value": "Spine_M_Segment3_CTL"
+                },
+                "part_ctls": {
+                    "type": "raw",
+                    "value": "${part_name}_CTLS"
+                },
+                "part_def": {
+                    "type": "raw",
+                    "value": "${part_name}_DEF"
+                },
+                "part_group": {
+                    "type": "raw",
+                    "value": "${part_name}_MCH"
+                },
+                "part_name": {
+                    "type": "raw",
+                    "value": "${prefix}${side}"
+                },
+                "prefix": {
+                    "type": "raw"
+                },
+                "socket": {
+                    "type": "raw",
+                    "value": "Spine_M_matrixSpline_Segment5_CTL"
+                }
+            },
+            "code": [
+                "part_group = cmds.group(empty=True, name=\"${part_group}\", parent=\"${mch_group}\")",
+                "part_controls = cmds.group(empty=True, name=\"${part_ctls}\", parent=\"${parent}\")",
+                "part_def = cmds.group(empty=True, name=\"${part_def}\", parent=\"${def_parent}\")",
+                "impulse.utils.transform.matrix_constraint(\"${socket}\", part_controls, keep_offset=False)",
+                "",
+                "guide_control_map = {}",
+                "parent_map = {}",
+                "guide_def_map = {}",
+                "controls = []",
+                "def_joints = []",
+                "",
+                "def get_joint_children(joint: str) -> list[str] | None:",
+                "    joint_children = cmds.listRelatives(joint, children=True, type=\"joint\") or []",
+                "    if len(joint_children) > 0:",
+                "        for joint_child in joint_children:",
+                "            parent_map[joint_child] = joint",
+                "        return joint_children",
+                "    else:",
+                "        children = cmds.listRelatives(joint, children=True) or []",
+                "        if len(children) > 0:",
+                "            for child in children:",
+                "                sub_joint_children = get_joint_children(child)",
+                "                if sub_joint_children:",
+                "                    joint_children.extend(sub_joint_children)",
+                "            for child in joint_children:",
+                "                parent_map[child] = joint",
+                "            if len(joint_children ) > 0:",
+                "                return joint_children",
+                "            else:",
+                "                return None",
+                "        else:",
+                "            return None",
+                "",
+                "def iterate_guides(guide: str) -> None:",
+                "    parents = cmds.listRelatives(guide, parent=True, type=\"joint\")",
+                "    if parents:",
+                "        parent = parents[0]",
+                "    elif guide in parent_map:",
+                "        parent = parent_map[guide]",
+                "    else:",
+                "        parent = None ",
+                "",
+                "    control_parent = part_controls  ",
+                "    if parent in guide_control_map:",
+                "        control_parent = guide_control_map[parent].control_transform",
+                "        ",
+                "    def_parent = part_def  ",
+                "    if parent in guide_def_map:",
+                "        def_parent = guide_def_map[parent]",
+                "    ",
+                "",
+                "",
+                "    control = impulse.utils.control.make_control(",
+                "        name=guide, ",
+                "        target_transform=guide, ",
+                "        size=${control_size}, ",
+                "        control_shape=impulse.utils.control.ControlShape.CIRCLE,",
+                "    )",
+                "        ",
+                "    guide_control_map[guide] = control",
+                "    cmds.parent(control.offset_transform, control_parent)",
+                "    ",
+                "    def_joint = cmds.duplicate(guide, name=f\"{guide}_DEF\", parentOnly=True)[0]",
+                "    cmds.parent(def_joint, def_parent)",
+                "    guide_def_map[guide] = def_joint",
+                "    STAGE.${def_list}.append(def_joint)",
+                "    ",
+                "    impulse.utils.control.connect_control(control, def_joint)",
+                "    controls.append(control)",
+                "    ",
+                "    guide_children = get_joint_children(guide)",
+                "    if guide_children:",
+                "        for child in guide_children:",
+                "            iterate_guides(child)",
+                "    ",
+                "                      ",
+                "guide_children = cmds.listRelatives(\"${guide_group}\", children=True) or []   ",
+                "for child in guide_children:",
+                "    iterate_guides(child)"
+            ]
+        },
         "/limb": {
             "child_order": [
                 "controls"
