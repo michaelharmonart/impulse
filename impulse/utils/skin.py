@@ -186,7 +186,7 @@ def get_mesh_spline_weights(
     degree: int = 2,
     periodic: bool = False,
     vertex_indices: list[int] | None = None,
-    debug_curve: bool = True,
+    debug_curve: bool = False,
 ) -> list[list[tuple[Any, float]]]:
     """
     Calculates spline-based weights for each vertex on a mesh relative to a temporary NURBS curve
