@@ -24,6 +24,7 @@ class ControlShape(Enum):
     LOCATOR = "locator"
     DIAMOND = "diamond"
     TRIANGLE = "triangle"
+    HEXAGON = "hexagon" 
 
     @property
     def filename(self) -> str:
