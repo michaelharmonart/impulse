@@ -5,7 +5,16 @@ Functions for working with splines.
 
 from typing import Any
 
-from maya.api.OpenMaya import MDoubleArray, MFnNurbsCurve, MPointArray, MSelectionList, MSpace
+from maya.api.OpenMaya import (
+    MDoubleArray,
+    MFnNurbsCurve,
+    MFnNurbsCurveData,
+    MObject,
+    MPoint,
+    MPointArray,
+    MSelectionList,
+    MSpace,
+)
 import maya.cmds as cmds
 import numpy as np
 
@@ -687,17 +696,18 @@ class MatrixSpline:
         periodic: bool = False,
         name: str | None = None,
     ) -> None:
-        self.periodic = periodic
-        self.degree = degree
+        self.periodic: bool = periodic
+        self.degree: int = degree
+        self.cv_transforms: list[str] = cv_transforms
         number_of_cvs: int = len(cv_transforms) + (periodic * degree)
         if knots:
-            self.knots = knots
+            self.knots: list[float] = knots
         else:
-            self.knots = generate_knots(count=number_of_cvs, degree=degree)
+            self.knots: list[float] = generate_knots(count=number_of_cvs, degree=degree)
         if name:
-            self.name = name
+            self.name: str = name
         else:
-            self.name = "MatrixSpline"
+            self.name: str = "MatrixSpline"
 
         cv_matrices: list[str] = []
         for index, cv_transform in enumerate(cv_transforms):
@@ -757,8 +767,58 @@ class MatrixSpline:
         self.cv_matrices = cv_matrices
 
 
+def closest_point_on_matrix_spline(
+    matrix_spline: MatrixSpline, position: list[float, float, float]
+) -> float:
+    """
+    Finds the closest parameter value on a spline (defined by a MatrixSpline) to a given 3D position.
+
+    Args:
+        matrix_spline: Spline definition object.
+        position: The world-space point to project onto the spline.
+
+    Returns:
+        float: The curve parameter value (in knot space) at the closest point to the input position.
+    """
+    knots: list[float] = matrix_spline.knots
+    degree: int = matrix_spline.degree
+    periodic: bool = matrix_spline.periodic
+    cv_transforms: list[str] = matrix_spline.cv_transforms
+    cv_positions: MPointArray = []
+    for transform in cv_transforms:
+        cv_position: tuple[float, float, float] = cmds.xform(
+            transform, query=True, worldSpace=True, translation=True
+        )
+        position_tuple: tuple[float, float, float] = tuple(cv_position)
+        cv_positions.append(MPoint(*position_tuple))
+    maya_knots: list[float] = knots[1:-1]
+
+    fn_data: MFnNurbsCurveData = MFnNurbsCurveData()
+    data_obj: MObject = fn_data.create()
+    fn_curve: MFnNurbsCurve = MFnNurbsCurve()
+    curve_obj: MFnNurbsCurve = fn_curve.create(
+        cv_positions,
+        MDoubleArray(maya_knots),
+        degree,
+        MFnNurbsCurve.kOpen if not periodic else MFnNurbsCurve.kPeriodic,
+        False,  # create2D
+        False,  # not rational
+        data_obj,
+    )
+
+    parameter: float = fn_curve.closestPoint(
+        MPoint(position[0], position[1], position[2]), space=MSpace.kObject
+    )[1]
+
+    return parameter
+
+
 def pin_to_matrix_spline(
-    matrix_spline: MatrixSpline, pinned_transform: str, parameter: float, stretch: bool = True
+    matrix_spline: MatrixSpline,
+    pinned_transform: str,
+    parameter: float,
+    normalize_parameter: bool = True,
+    stretch: bool = True,
 ) -> None:
     """
     Pins a transform to a matrix spline at a given parameter along the curve.
@@ -780,7 +840,7 @@ def pin_to_matrix_spline(
     # Create node that blends the matrices based on the calculated DeBoor weights.
     blended_matrix = cmds.createNode("wtAddMatrix", name=f"{segment_name}_BaseMatrix")
     point_weights = point_on_spline_weights(
-        cvs=cv_matrices, t=parameter, degree=degree, knots=knots
+        cvs=cv_matrices, t=parameter, degree=degree, knots=knots, normalize=normalize_parameter
     )
     for index, point_weight in enumerate(point_weights):
         cmds.setAttr(f"{blended_matrix}.wtMatrix[{index}].weightIn", point_weight[1])
@@ -788,7 +848,7 @@ def pin_to_matrix_spline(
 
     blended_tangent_matrix = cmds.createNode("wtAddMatrix", name=f"{segment_name}_TangentMatrix")
     tangent_weights = tangent_on_spline_weights(
-        cvs=cv_matrices, t=parameter, degree=degree, knots=knots
+        cvs=cv_matrices, t=parameter, degree=degree, knots=knots, normalize=normalize_parameter
     )
     for index, tangent_weight in enumerate(tangent_weights):
         cmds.setAttr(
