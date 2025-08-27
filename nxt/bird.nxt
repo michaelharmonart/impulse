@@ -661,6 +661,7 @@
             },
             "code": [
                 "part_group = cmds.group(empty=True, name=\"${part_name}_MCH\", parent=\"${mch_group}\")",
+                "impulse.utils.transform.matrix_constraint(\"${controls_parent}\", part_group)",
                 "part_controls = cmds.group(empty=True, name=\"${part_name}_CTLS\", parent=\"${parent}\")",
                 "part_def = cmds.group(empty=True, name=\"${part_name}_DEF\", parent=\"${def_parent}\")",
                 "impulse.utils.transform.matrix_constraint(\"${socket}\", part_controls, keep_offset=False)",
@@ -1643,6 +1644,7 @@
             "code": [
                 "driver_mesh = \"Body_GEO\"",
                 "target_mesh = \"Body_Feathers_GEO\"",
+                "impulse.utils.transform.matrix_constraint(\"${controls_parent}\", target_mesh)",
                 "impulse.utils.deformer.apply_proximity_wrap(driver_mesh, target_mesh)"
             ]
         },

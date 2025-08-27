@@ -22,7 +22,7 @@ from ngSkinTools2.api.layers import Layer
 from ngSkinTools2.api.transfer import VertexTransferMode
 
 from impulse.utils import spline as spline
-from impulse.utils.color import linear_srgb_to_oklab, oklab_to_linear_srgb
+from impulse.utils.color import lch_to_lab, linear_srgb_to_oklab, oklab_to_linear_srgb
 
 
 def get_skin_cluster(mesh: str) -> str | None:
@@ -168,7 +168,7 @@ def get_mesh_points(
 ) -> om2.MPointArray:
     if vertex_indices is None:
         mesh_points: om2.MPointArray = fn_mesh.getPoints(space=om2.MSpace.kWorld)
-        vertex_indices = list(range(mesh_points.length()))
+        vertex_indices = list(range(len(mesh_points)))
     else:
         mesh_points: om2.MPointArray = om2.MPointArray()
         all_points: om2.MPointArray = fn_mesh.getPoints(space=om2.MSpace.kWorld)
@@ -227,6 +227,7 @@ def get_mesh_spline_weights(
         periodic=periodic,
         knot=knots,
         degree=degree,
+        worldSpace=True,
     )
 
     # Get curve shape
@@ -254,6 +255,7 @@ def get_mesh_spline_weights(
     for i, point in enumerate(mesh_points):
         parameter: float = fn_curve.closestPoint(point, space=om2.MSpace.kWorld)[1]
         parameters.append(parameter)
+
     spline_weights_per_vertex: list[list[tuple[Any, float]]] = spline.get_weights_along_spline(
         cvs=extended_cv_transforms, parameters=parameters, degree=degree, knots=knots
     )
@@ -638,7 +640,8 @@ def visualize_split_weights(mesh: str, cv_transforms: list[str], degree: int = 2
     mesh_shape: str = cmds.listRelatives(mesh, shapes=True)[0]
     cv_positions: list[list[float, float, float]] = []
     cv_colors: dict[str, om2.MColor] = {}
-    for transform in cv_transforms:
+    color_spread: float = 30
+    for index, transform in enumerate(cv_transforms):
         position: list[float, float, float] = cmds.xform(
             transform, query=True, worldSpace=True, translation=True
         )
@@ -646,13 +649,7 @@ def visualize_split_weights(mesh: str, cv_transforms: list[str], degree: int = 2
         position_tuple: tuple[float, float, float] = tuple(position)
 
         lab_color: om2.MColor = om2.MColor(
-            linear_srgb_to_oklab(
-                colorsys.hsv_to_rgb(
-                    (hash(position_tuple) % 128) / 128,
-                    0.8,
-                    0.9,
-                )
-            )
+            lch_to_lab(color=(0.7, 0.2, (index*color_spread)%360)) 
         )
         cv_colors[transform] = lab_color
 

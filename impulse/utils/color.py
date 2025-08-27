@@ -92,7 +92,51 @@ def oklab_to_linear_srgb(
         return rgb
 
 
+def lab_to_lch(color: tuple[float, float, float]) -> tuple[float, float, float]:
+    """
+    Converts a Lab color to the LCh color space.
+
+    Args:
+        color: The input color in Lab space (L, a, b).
+
+    Returns:
+        color: The corresponding color in LCh space (L, C, H). Hue is measured in degrees.
+    """
+    
+    l: float = color[0]
+    a: float = color[1]
+    b: float = color[2]
+
+    c: float = math.sqrt(a * a + b * b)
+    h: float = math.degrees(math.atan2(b, a))
+    if h < 0:
+        h += 360.0
+    return (l, c, h)
+
+def lch_to_lab(color: tuple[float, float, float]) -> tuple[float, float, float]:
+    """
+    Converts an LCh color to the Lab color space.
+
+    Args:
+        color (tuple[float, float, float]): The input color in LCh space (L, C, H).
+            Hue is measured in degrees.
+
+    Returns:
+        tuple[float, float, float]: The corresponding color in Lab space (L, a, b).
+    """
+    l: float = color[0]
+    c: float = color[1]
+    h: float =  math.radians(color[2])
+
+    a: float = c * math.cos(h)
+    b: float = c * math.sin(h)
+
+    return (l, a, b)
+
+
+
 def linear_to_srgb_color(linear_color: tuple[float, float, float]) -> tuple[float, float, float]:
+
     """
     Convert a linear MColor to sRGB space.
 
