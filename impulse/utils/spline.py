@@ -35,6 +35,40 @@ def generate_knots(count: int, degree: int = 3, periodic=False) -> list[float]:
     return [float(knot) for knot in knots]
 
 
+def maya_to_standard_knots(
+    knots: list[float], degree: int = 3, periodic: bool = False
+) -> list[float]:
+    """
+    Convert Maya-style knot vector to a 'standard' knot vector.
+
+    Args:
+        knots (list[float]): Input knot sequence from Maya.
+        degree (int, optional): Degree of the curve. Defaults to 3.
+        periodic (bool, optional): Whether the curve is periodic. Defaults to False.
+
+    Returns:
+        list[float]: Adjusted knot sequence.
+    """
+    new_knots: list[float] = knots.copy()
+    periodic_indices: int = (degree * 2) - 1
+
+    # add placeholders for first/last values
+    new_knots.insert(0, 0.0)
+    new_knots.append(0.0)
+
+    if periodic:
+        new_knots[0] = new_knots[1] - (
+            new_knots[-(periodic_indices - 1)] - new_knots[-periodic_indices]
+        )
+        new_knots[-1] = new_knots[-2] + (
+            new_knots[periodic_indices] - new_knots[periodic_indices - 1]
+        )
+    else:
+        new_knots[0] = new_knots[1]
+        new_knots[-1] = new_knots[-2]
+    return new_knots
+
+
 def get_knots(curve_shape: str) -> list[float]:
     # Refer to https://openusd.org/dev/api/class_usd_geom_nurbs_curves.html#details
     # The above only works with uniform knots, so this is generalized to higher order and non-uniform knots
@@ -57,15 +91,11 @@ def get_knots(curve_shape: str) -> list[float]:
 
     # Now convert the knot vector from the Maya form to the standard form by filling out the missing values.
     degree: int = cmds.getAttr(f"{curve_shape}.degree")
-    periodic_indices: int = (degree * 2) - 1
-    knots.insert(0, 0)
-    knots.append(0)
     if cmds.getAttr(f"{curve_shape}.form") == 2:
-        knots[0] = knots[1] - (knots[-(periodic_indices - 1)] - knots[-(periodic_indices)])
-        knots[-1] = knots[-2] + (knots[periodic_indices] - knots[periodic_indices - 1])
+        periodic: bool = True
     else:
-        knots[0] = knots[1]
-        knots[-1] = knots[-2]
+        periodic: bool = False
+    knots: list[float] = maya_to_standard_knots(knots=knots, degree=degree, periodic=periodic)
     return knots
 
 
@@ -83,7 +113,7 @@ def get_cvs(curve_shape: str) -> list[Vector3]:
     fn_curve: MFnNurbsCurve = MFnNurbsCurve(dag_path)
 
     cv_positions: MPointArray = fn_curve.cvPositions(space=MSpace.kWorld)
-    positions: list[Vector3]= [Vector3(point.x, point.y, point.z) for point in cv_positions]
+    positions: list[Vector3] = [Vector3(point.x, point.y, point.z) for point in cv_positions]
     return positions
 
 

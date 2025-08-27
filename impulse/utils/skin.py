@@ -9,9 +9,12 @@ from maya.api.OpenMaya import (
     MDagPath,
     MDagPathArray,
     MDoubleArray,
+    MFnNurbsCurve,
+    MFnNurbsCurveData,
     MFnSingleIndexedComponent,
     MIntArray,
     MObject,
+    MPoint,
     MPointArray,
     MSelectionList,
 )
@@ -183,6 +186,7 @@ def get_mesh_spline_weights(
     degree: int = 2,
     periodic: bool = False,
     vertex_indices: list[int] | None = None,
+    debug_curve: bool = True,
 ) -> list[list[tuple[Any, float]]]:
     """
     Calculates spline-based weights for each vertex on a mesh relative to a temporary NURBS curve
@@ -198,68 +202,79 @@ def get_mesh_spline_weights(
         degree (int, optional): Degree of the spline curve. Defaults to 2.
         periodic: If True will generate a periodic curve for getting spline weights.
         vertex_indices: A list of vertex indices to output weights for.
+        debug_curve: If True a curve node will be created for debug purposes.
     Returns:
         list[list[tuple[Any, float]]]: A list of weights per vertex. Each entry is a list of tuples,
         where each tuple contains a CV transform and its corresponding influence weight on the vertex.
     """
     # Create a curve for checking the closest point
-    cv_positions: list[tuple[float, float, float]] = []
+    cv_positions: MPointArray = []
     for transform in cv_transforms:
         position: tuple[float, float, float] = cmds.xform(
             transform, query=True, worldSpace=True, translation=True
         )
         position_tuple: tuple[float, float, float] = tuple(position)
-        cv_positions.append(position)
+        cv_positions.append(MPoint(*position_tuple))
 
     if periodic:
-        extended_cv_positions = list(cv_positions) + cv_positions[:degree]
-        extended_cv_transforms = list(cv_transforms) + cv_transforms[:degree]
+        extended_cv_positions: MPointArray = MPointArray(cv_positions) + cv_positions[:degree]
+        extended_cv_transforms: list[str] = list(cv_transforms) + cv_transforms[:degree]
     else:
-        extended_cv_positions = list(cv_positions)
-        extended_cv_transforms = list(cv_transforms)
-
+        extended_cv_positions: MPointArray = MPointArray(cv_positions)
+        extended_cv_transforms: list[str] = list(cv_transforms)
     knots: list[float] = spline.generate_knots(
         len(extended_cv_positions), degree=degree, periodic=periodic
-    )[1:-1]
-    curve_transform: str = cmds.curve(
-        name=f"{mesh_shape}_SplineWeightsTempCurve",
-        point=extended_cv_positions,
-        periodic=periodic,
-        knot=knots,
-        degree=degree,
-        worldSpace=True,
+    )
+    maya_knots: list[float] = knots[1:-1]
+
+    fn_data: MFnNurbsCurveData = om2.MFnNurbsCurveData()
+    data_obj: MObject = fn_data.create()
+    fn_curve: MFnNurbsCurve = om2.MFnNurbsCurve()
+    curve_obj: MFnNurbsCurve = fn_curve.create(
+        extended_cv_positions,
+        om2.MDoubleArray(maya_knots),
+        degree,
+        om2.MFnNurbsCurve.kOpen if not periodic else om2.MFnNurbsCurve.kPeriodic,
+        False,  # create2D
+        False,  # not rational
+        data_obj,
     )
 
-    # Get curve shape
-    curve_shape: str = cmds.listRelatives(curve_transform, shapes=True)[0]
+    if debug_curve:
+        curve_transform: str = cmds.curve(
+            name=f"{mesh_shape}_SplineWeightsDebugCurve",
+            point=[
+                (cv_position.x, cv_position.y, cv_position.z)
+                for cv_position in extended_cv_positions
+            ],
+            periodic=periodic,
+            knot=maya_knots,
+            degree=degree,
+            worldSpace=True,
+        )
 
     # get the MDagPaths
     msel: om2.MSelectionList = om2.MSelectionList()
     msel.add(mesh_shape)
-    msel.add(curve_shape)
     mesh_dag: om2.MDagPath = msel.getDagPath(0)
-    curve_dag: om2.MDagPath = msel.getDagPath(1)
 
     # make the function set and get the points
     fn_mesh: om2.MFnMesh = om2.MFnMesh(mesh_dag)
-    fn_curve: om2.MFnNurbsCurve = om2.MFnNurbsCurve(curve_dag)
 
     # get the points in world space
 
     mesh_points: MPointArray = get_mesh_points(fn_mesh=fn_mesh, vertex_indices=vertex_indices)
 
-    knots = spline.get_knots(curve_shape=curve_shape)
-
     # iterate over the points and get the closest parameter
     parameters: list[float] = []
     for i, point in enumerate(mesh_points):
-        parameter: float = fn_curve.closestPoint(point, space=om2.MSpace.kWorld)[1]
+        parameter: float = fn_curve.closestPoint(point, space=om2.MSpace.kObject)[1]
         parameters.append(parameter)
 
     spline_weights_per_vertex: list[list[tuple[Any, float]]] = spline.get_weights_along_spline(
         cvs=extended_cv_transforms, parameters=parameters, degree=degree, knots=knots
     )
-    cmds.delete(curve_transform)
+
     return spline_weights_per_vertex
 
 
@@ -649,7 +664,7 @@ def visualize_split_weights(mesh: str, cv_transforms: list[str], degree: int = 2
         position_tuple: tuple[float, float, float] = tuple(position)
 
         lab_color: om2.MColor = om2.MColor(
-            lch_to_lab(color=(0.7, 0.2, (index*color_spread)%360)) 
+            lch_to_lab(color=(0.7, 0.2, (index * color_spread) % 360))
         )
         cv_colors[transform] = lab_color
 
