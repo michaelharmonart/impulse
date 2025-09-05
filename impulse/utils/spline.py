@@ -821,8 +821,8 @@ def pin_to_matrix_spline(
     parameter: float,
     normalize_parameter: bool = True,
     stretch: bool = True,
-    primary_axis: tuple[int, int, int] = (0, 1, 0),
-    secondary_axis: tuple[int, int, int] = (0, 0, 1),
+    primary_axis: tuple[int, int, int] | None = (0, 1, 0),
+    secondary_axis: tuple[int, int, int] | None = (0, 0, 1),
 ) -> None:
     """
     Pins a transform to a matrix spline at a given parameter along the curve.
@@ -843,7 +843,16 @@ def pin_to_matrix_spline(
     Returns:
         None
     """
+    if not primary_axis:
+        primary_axis = (0, 1, 0)
+    if not secondary_axis:
+        secondary_axis = (0, 0, 1)
 
+    CARDINALS = {(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)}
+    if tuple(primary_axis) not in CARDINALS or tuple(secondary_axis) not in CARDINALS:
+        raise ValueError(
+            "primary_axis and secondary_axis must be one of the cardinal axes (±X, ±Y, ±Z)."
+        )
 
     cv_matrices: list[str] = matrix_spline.cv_matrices
     degree: int = matrix_spline.degree
@@ -872,7 +881,9 @@ def pin_to_matrix_spline(
             f"{tangent_weight[0]}",
             f"{blended_tangent_matrix}.wtMatrix[{index}].matrixIn",
         )
-    tangent_vector_node: PointMatrixMultiplyNode = node.PointMatrixMultiplyNode(name=f"{blended_tangent_matrix}_TangentVector")
+    tangent_vector_node: PointMatrixMultiplyNode = node.PointMatrixMultiplyNode(
+        name=f"{blended_tangent_matrix}_TangentVector"
+    )
 
     cmds.connectAttr(f"{blended_tangent_matrix}.matrixSum", tangent_vector_node.input_matrix)
 
@@ -900,18 +911,24 @@ def pin_to_matrix_spline(
     cmds.connectAttr(tangent_vector_node.output, f"{aim_matrix}.primary.primaryTargetVector")
 
     axis_to_row: dict[tuple[int, int, int], str] = {
-        (1,0,0): blended_matrix_row1,
-        (0,1,0): blended_matrix_row2,
-        (0,0,1): blended_matrix_row3,
-        (-1,0,0): blended_matrix_row1,  # flipped
-        (0,-1,0): blended_matrix_row2,
-        (0,0,-1): blended_matrix_row3,
+        (1, 0, 0): blended_matrix_row1,
+        (0, 1, 0): blended_matrix_row2,
+        (0, 0, 1): blended_matrix_row3,
+        (-1, 0, 0): blended_matrix_row1,  # flipped
+        (0, -1, 0): blended_matrix_row2,
+        (0, 0, -1): blended_matrix_row3,
     }
     secondary_row: str | None = axis_to_row.get(tuple(secondary_axis))
     if secondary_row:
-        cmds.connectAttr(f"{secondary_row}.outputX", f"{aim_matrix}.secondary.secondaryTargetVectorX")
-        cmds.connectAttr(f"{secondary_row}.outputY", f"{aim_matrix}.secondary.secondaryTargetVectorY")
-        cmds.connectAttr(f"{secondary_row}.outputZ", f"{aim_matrix}.secondary.secondaryTargetVectorZ")
+        cmds.connectAttr(
+            f"{secondary_row}.outputX", f"{aim_matrix}.secondary.secondaryTargetVectorX"
+        )
+        cmds.connectAttr(
+            f"{secondary_row}.outputY", f"{aim_matrix}.secondary.secondaryTargetVectorY"
+        )
+        cmds.connectAttr(
+            f"{secondary_row}.outputZ", f"{aim_matrix}.secondary.secondaryTargetVectorZ"
+        )
 
     # Create nodes to access the values of the aim matrix node.
     deconstruct_matrix_attribute = f"{aim_matrix}.outputMatrix"
@@ -945,25 +962,51 @@ def pin_to_matrix_spline(
                 f"{pinned_transform} had a tangent magnitude of 0 and wasn't able to be pinned with stretching enabled."
             )
         tangent_vector_length_scaled.set_input(input_number=2, value=1 / tangent_length)
-
-        # Feed normalized length into scale rows
         tangent_scale_attr: str = tangent_vector_length_scaled.output
 
-    def scale_vector(vector_attr: str, scale_attr: str, node_name: str) -> str:
+    def is_same_axis(axis1: tuple[int, int, int], axis2: tuple[int, int, int]) -> bool:
+        # Compare absolute values to handle flips: (0,1,0) == (0,-1,0)
+        return tuple(abs(v) for v in axis1) == tuple(abs(v) for v in axis2)
+
+    def scale_vector(
+        vector_attr: str, scale_attr: str, node_name: str, axis: tuple[int, int, int]
+    ) -> str:
         scale_node = cmds.createNode("multiplyDivide", name=node_name)
         cmds.connectAttr(f"{vector_attr}.outputX", f"{scale_node}.input1X")
         cmds.connectAttr(f"{vector_attr}.outputY", f"{scale_node}.input1Y")
         cmds.connectAttr(f"{vector_attr}.outputZ", f"{scale_node}.input1Z")
-
-        cmds.connectAttr(scale_attr, f"{scale_node}.input2X")
-        cmds.connectAttr(scale_attr, f"{scale_node}.input2Y")
-        cmds.connectAttr(scale_attr, f"{scale_node}.input2Z")
+        if stretch and tangent_scale_attr is not None and is_same_axis(axis, primary_axis):
+            scalar_to_connect: str = tangent_scale_attr
+        else:
+            scalar_to_connect: str = scale_attr
+        cmds.connectAttr(scalar_to_connect, f"{scale_node}.input2X")
+        cmds.connectAttr(scalar_to_connect, f"{scale_node}.input2Y")
+        cmds.connectAttr(scalar_to_connect, f"{scale_node}.input2Z")
         return scale_node
 
     # Create Nodes to re-apply scale
-    x_scaled: str = scale_vector(node_name=f"{segment_name}_xScale", vector_attr=f"{aim_matrix_row1}", scale_attr=f"{blended_matrix_row1}.outputW")
-    y_scaled: str = scale_vector(node_name=f"{segment_name}_yScale", vector_attr=f"{aim_matrix_row2}", scale_attr=f"{blended_matrix_row2}.outputW")
-    z_scaled: str = scale_vector(node_name=f"{segment_name}_zScale", vector_attr=f"{aim_matrix_row3}", scale_attr=f"{blended_matrix_row3}.outputW")
+    X_AXIS = (1, 0, 0)
+    Y_AXIS = (0, 1, 0)
+    Z_AXIS = (0, 0, 1)
+
+    x_scaled: str = scale_vector(
+        node_name=f"{segment_name}_xScale",
+        vector_attr=f"{aim_matrix_row1}",
+        scale_attr=f"{blended_matrix_row1}.outputW",
+        axis=X_AXIS,
+    )
+    y_scaled: str = scale_vector(
+        node_name=f"{segment_name}_yScale",
+        vector_attr=f"{aim_matrix_row2}",
+        scale_attr=f"{blended_matrix_row2}.outputW",
+        axis=Y_AXIS,
+    )
+    z_scaled: str = scale_vector(
+        node_name=f"{segment_name}_zScale",
+        vector_attr=f"{aim_matrix_row3}",
+        scale_attr=f"{blended_matrix_row3}.outputW",
+        axis=Z_AXIS,
+    )
 
     # Rebuild the matrix
     output_matrix = cmds.createNode("fourByFourMatrix", name=f"{segment_name}_OutputMatrix")
@@ -999,6 +1042,8 @@ def matrix_spline_from_curve(
     parent: str | None = None,
     stretch: bool = True,
     arc_length: bool = True,
+    primary_axis: tuple[int, int, int] | None = (0, 1, 0),
+    secondary_axis: tuple[int, int, int] | None = (0, 0, 1),
 ) -> MatrixSpline:
     """
     Takes a curve shape and creates a matrix spline with controls and deformation joints.
@@ -1015,6 +1060,14 @@ def matrix_spline_from_curve(
         parent: Parent for the newly created matrix spline group.
         stretch: Whether to apply automatic scaling along the spline tangent.
         arc_length: When True, the parameters for the spline will be even according to arc length.
+        primary_axis (tuple[int, int, int], optional): Local axis of the pinned
+            transform that should aim down the spline tangent. Must be one of
+            the cardinal axes (±X, ±Y, ±Z). Defaults to (0, 1, 0) (the +Y axis).
+        secondary_axis (tuple[int, int, int], optional): Local axis of the pinned
+            transform that should be aligned to a secondary reference direction
+            from the spline. Used to resolve orientation. Must be one of the
+            cardinal axes (±X, ±Y, ±Z) and orthogonal to ``primary_axis``.
+            Defaults to (0, 0, 1) (the +Z axis).
 
     Returns:
         matrix_spline: The resulting matrix spline.
@@ -1114,6 +1167,8 @@ def matrix_spline_from_curve(
             pinned_transform=segment_ctl.offset_transform,
             parameter=parameter,
             stretch=stretch,
+            primary_axis=primary_axis,
+            secondary_axis=secondary_axis,
         )
     return matrix_spline
 
@@ -1136,6 +1191,8 @@ def matrix_spline_from_transforms(
     ctl_group: str | None = None,
     def_group: str | None = None,
     def_chain: bool = False,
+    primary_axis: tuple[int, int, int] | None = (0, 1, 0),
+    secondary_axis: tuple[int, int, int] | None = (0, 0, 1),
 ) -> MatrixSpline:
     """
     Takes a set of transforms (cvs) and creates a matrix spline with controls and deformation joints.
@@ -1159,6 +1216,14 @@ def matrix_spline_from_transforms(
         ctl_group: The container for the generated sub-controls.
         def_group: The container for the generated deformation joints.
         def_chain: When true, each of the generated deformation joints will be parented as a chain.
+        primary_axis (tuple[int, int, int], optional): Local axis of the pinned
+            transform that should aim down the spline tangent. Must be one of
+            the cardinal axes (±X, ±Y, ±Z). Defaults to (0, 1, 0) (the +Y axis).
+        secondary_axis (tuple[int, int, int], optional): Local axis of the pinned
+            transform that should be aligned to a secondary reference direction
+            from the spline. Used to resolve orientation. Must be one of the
+            cardinal axes (±X, ±Y, ±Z) and orthogonal to ``primary_axis``.
+            Defaults to (0, 0, 1) (the +Z axis).
     Returns:
         matrix_spline: The resulting matrix spline.
     """
@@ -1251,5 +1316,7 @@ def matrix_spline_from_transforms(
             pinned_transform=segment_ctl.offset_transform,
             parameter=parameter,
             stretch=stretch,
+            primary_axis=primary_axis,
+            secondary_axis=secondary_axis,
         )
     return matrix_spline
