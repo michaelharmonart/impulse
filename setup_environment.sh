@@ -12,7 +12,7 @@ export PYTHONPATH="${PYTHONPATH}:${venv_site_packages}:${PWD}"
 
 #export QT_FONT_DPI=$MAYA_FONT_DPI
 # Launch Maya
-exec /usr/autodesk/maya2025/bin/maya &
+exec /usr/autodesk/maya/bin/maya &
 
 # Launch NXT in the background
 #nxt ui &

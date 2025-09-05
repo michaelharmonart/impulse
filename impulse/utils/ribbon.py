@@ -9,6 +9,8 @@ This module provides functions to:
 It leverages custom control curves from the control_gen module.
 """
 
+from impulse.maya_api.node import PointMatrixMultiplyNode
+from impulse.maya_api import node
 import maya.cmds as cmds
 
 from impulse.utils import pin as pin
@@ -208,13 +210,14 @@ def generate_ribbon(
                 cp_input = ".inputSurface"
             else:
                 cmds.error(f"Unsupported surface type: {surface_type}")
+            world_position_node: PointMatrixMultiplyNode = node.PointMatrixMultiplyNode(name=f"{pin_point}_worldPosition")
 
-            world_position = cmds.createNode("pointMatrixMult", name=f"{pin_point}_worldPosition")
-            cmds.connectAttr(f"{pin_point}.parentMatrix", f"{world_position}.inMatrix")
-            cmds.connectAttr(f"{pin_point}.translate", f"{world_position}.inPoint")
+
+            cmds.connectAttr(f"{pin_point}.parentMatrix", world_position_node.input_matrix)
+            cmds.connectAttr(f"{pin_point}.translate", world_position_node.input_point)
             cp_node = cmds.createNode(cp_node_type, name=f"{pin_point}_closestPoint")
             cmds.connectAttr(f"{shape}{attr_world}", f"{cp_node}{cp_input}")
-            cmds.connectAttr(f"{world_position}.output", f"{cp_node}.inPosition")
+            cmds.connectAttr(world_position_node.output, f"{cp_node}.inPosition")
 
             ctl_name = make_surface_control(
                 name=f"{ribbon_object}_point{idx + 1}",
@@ -383,34 +386,35 @@ def ribbon_interpolate(
 
     for joint_idx in range(total_joints):
         # Create nodes to get world-space positions for primary joint.
-        primary_pos_node = cmds.createNode(
-            "pointMatrixMult",
-            name=primary_joints[joint_idx].replace(interpolation_joint_suffix, "Position"),
+        
+        primary_pos_node: PointMatrixMultiplyNode = node.PointMatrixMultiplyNode(
+            name=primary_joints[joint_idx].replace(interpolation_joint_suffix, "Position")
         )
         cmds.connectAttr(
-            f"{primary_joints[joint_idx]}.parentMatrix", f"{primary_pos_node}.inMatrix"
+            f"{primary_joints[joint_idx]}.parentMatrix", primary_pos_node.input_matrix
         )
-        cmds.connectAttr(f"{primary_joints[joint_idx]}.translate", f"{primary_pos_node}.inPoint")
+        cmds.connectAttr(f"{primary_joints[joint_idx]}.translate", primary_pos_node.input_point)
 
         primary_cp_node = cmds.createNode(
             cp_node_type,
             name=primary_joints[joint_idx].replace(interpolation_joint_suffix, "ClosestPoint"),
         )
         cmds.connectAttr(f"{shape}{attr_world}", f"{primary_cp_node}{cp_input}")
-        cmds.connectAttr(f"{primary_pos_node}.output", f"{primary_cp_node}.inPosition")
+        cmds.connectAttr(primary_pos_node.output, f"{primary_cp_node}.inPosition")
         if surface_type == "mesh":
             cmds.connectAttr(f"{shape}.worldMatrix[0]", f"{primary_cp_node}.inputMatrix")
 
         # Create nodes for the secondary joint.
-        secondary_pos_node = cmds.createNode(
-            "pointMatrixMult",
-            name=secondary_joints[joint_idx].replace(interpolation_joint_suffix, "Position"),
+
+        secondary_pos_node: PointMatrixMultiplyNode = node.PointMatrixMultiplyNode(
+            name=secondary_joints[joint_idx].replace(interpolation_joint_suffix, "Position")
+        )
+
+        cmds.connectAttr(
+            f"{secondary_joints[joint_idx]}.parentMatrix", secondary_pos_node.input_matrix
         )
         cmds.connectAttr(
-            f"{secondary_joints[joint_idx]}.parentMatrix", f"{secondary_pos_node}.inMatrix"
-        )
-        cmds.connectAttr(
-            f"{secondary_joints[joint_idx]}.translate", f"{secondary_pos_node}.inPoint"
+            f"{secondary_joints[joint_idx]}.translate", secondary_pos_node.input_point
         )
 
         secondary_cp_node = cmds.createNode(
@@ -418,7 +422,7 @@ def ribbon_interpolate(
             name=secondary_joints[joint_idx].replace(interpolation_joint_suffix, "ClosestPoint"),
         )
         cmds.connectAttr(f"{shape}{attr_world}", f"{secondary_cp_node}{cp_input}")
-        cmds.connectAttr(f"{secondary_pos_node}.output", f"{secondary_cp_node}.inPosition")
+        cmds.connectAttr(secondary_pos_node.output, f"{secondary_cp_node}.inPosition")
         if surface_type == "mesh":
             cmds.connectAttr(f"{shape}.worldMatrix[0]", f"{secondary_cp_node}.inputMatrix")
 

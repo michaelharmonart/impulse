@@ -1,3 +1,5 @@
+from impulse.maya_api.node import MultiplyNode
+from impulse.maya_api import node
 import maya.cmds as cmds
 
 
@@ -387,17 +389,16 @@ def make_matrix_pin(
         cross_volume = cmds.createNode("divide", name=f"{object_to_pin}_Volume")
         cmds.setAttr(f"{cross_volume}.input1", 1)
         cmds.connectAttr(f"{cross_length}.output", f"{cross_volume}.input2")
-
-        norm_volume = cmds.createNode("multDoubleLinear", name=f"{object_to_pin}_NormalizedVolume")
-        cmds.connectAttr(f"{cross_volume}.output", f"{norm_volume}.input1")
-        cmds.connectAttr(f"{orig_cross_length}.output", f"{norm_volume}.input2")
+        norm_volume_node: MultiplyNode = node.MultiplyNode(name=f"{object_to_pin}_NormalizedVolume")
+        norm_volume_node.connect_input(input_attr=f"{cross_volume}.output", input_number=1)
+        norm_volume_node.connect_input(input_attr=f"{orig_cross_length}.output", input_number=2)
 
         n_norm = cmds.createNode("multiplyDivide", name=f"{object_to_pin}_normalizedNorm")
         cmds.setAttr(f"{n_norm}.operation", 1)
         cmds.connectAttr(f"{surface_info}.normalizedNormal", f"{n_norm}.input1")
-        cmds.connectAttr(f"{norm_volume}.output", f"{n_norm}.input2X")
-        cmds.connectAttr(f"{norm_volume}.output", f"{n_norm}.input2Y")
-        cmds.connectAttr(f"{norm_volume}.output", f"{n_norm}.input2Z")
+        cmds.connectAttr(norm_volume_node.output, f"{n_norm}.input2X")
+        cmds.connectAttr(norm_volume_node.output, f"{n_norm}.input2Y")
+        cmds.connectAttr(norm_volume_node.output, f"{n_norm}.input2Z")
 
         n_norm_attr = f"{n_norm}.output"
 
