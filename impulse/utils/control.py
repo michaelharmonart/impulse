@@ -19,6 +19,7 @@ class ControlShape(Enum):
 
     CIRCLE = "circle"
     SQUARE = "square"
+    ROUND_SQUARE = "round_square"
     CUBE = "cube"
     SPHERE = "sphere"
     LOCATOR = "locator"
