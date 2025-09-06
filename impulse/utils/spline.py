@@ -22,7 +22,7 @@ import numpy as np
 
 from impulse.structs.transform import Vector3 as Vector3
 from impulse.utils.control import Control, ControlShape, connect_control, make_control
-from impulse.utils.transform import matrix_constraint
+from impulse.utils.transform import clean_parent, matrix_constraint
 
 
 def generate_knots(count: int, degree: int = 3, periodic=False) -> list[float]:
@@ -1160,7 +1160,7 @@ def matrix_spline_from_curve(
             parent=ctl_group,
         )
         segment_transform: str = cmds.joint(name=segment_name, scaleCompensate=False)
-        cmds.parent(segment_transform, def_group, absolute=False)
+        clean_parent(segment_transform, def_group)
         connect_control(control=segment_ctl, driven_name=segment_transform)
         pin_to_matrix_spline(
             matrix_spline=matrix_spline,
@@ -1305,9 +1305,9 @@ def matrix_spline_from_transforms(
         )
         segment_transform: str = cmds.joint(name=segment_name, scaleCompensate=False)
         if def_chain and prev_segment:
-            cmds.parent(segment_transform, prev_segment, absolute=False)
+            clean_parent(segment_transform, prev_segment)
         else:
-            cmds.parent(segment_transform, def_group, absolute=False)
+            clean_parent(segment_transform, def_group)
 
         prev_segment = segment_transform
         connect_control(control=segment_ctl, driven_name=segment_transform)

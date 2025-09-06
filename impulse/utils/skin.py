@@ -18,11 +18,15 @@ from maya.api.OpenMaya import (
     MPointArray,
     MSelectionList,
 )
-from ngSkinTools2 import api as ng
-from ngSkinTools2.api import Layers, plugin
-from ngSkinTools2.api.influenceMapping import InfluenceMappingConfig
-from ngSkinTools2.api.layers import Layer
-from ngSkinTools2.api.transfer import VertexTransferMode
+
+try:
+    from ngSkinTools2 import api as ng
+    from ngSkinTools2.api import Layers, plugin
+    from ngSkinTools2.api.influenceMapping import InfluenceMappingConfig
+    from ngSkinTools2.api.layers import Layer
+    from ngSkinTools2.api.transfer import VertexTransferMode
+except ImportError:
+    pass
 
 from impulse.utils import spline as spline
 from impulse.utils.color import lch_to_lab, linear_srgb_to_oklab, oklab_to_linear_srgb

@@ -39,15 +39,19 @@ def mmatrix_to_list(matrix: MMatrix) -> list[float]:
     return [matrix.getElement(row, col) for row in range(4) for col in range(4)]
 
 
-def get_world_matrix(node: str) -> MMatrix:
+def get_world_matrix(transform: str) -> MMatrix:
     """
     Returns the full world matrix of a transform, including rotateAxis, jointOrient, etc.
     Equivalent to Maya's internal world matrix.
     """
     selection = MSelectionList()
-    selection.add(node)
+    selection.add(transform)
     dag_path: MDagPath = selection.getDagPath(0)
     return dag_path.inclusiveMatrix()
+
+
+def set_world_matrix(transform: str, matrix: MMatrix) -> None:
+    cmds.xform(transform, worldSpace=True, matrix=mmatrix_to_list(matrix))
 
 
 def match_transform(transform: str, target_transform: str) -> None:
@@ -88,6 +92,11 @@ def zero_rotate_axis(transform: str) -> None:
         match_transform(transform, temp_transform)
         cmds.delete(temp_transform)
 
+
+def clean_parent(transform: str, parent: str) -> None:
+    object_world_matrix = get_world_matrix(transform)
+    cmds.parent(transform, parent, relative=True)
+    set_world_matrix(transform, object_world_matrix)
 
 def matrix_constraint(
     source_transform: str,
