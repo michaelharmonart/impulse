@@ -93,10 +93,34 @@ def zero_rotate_axis(transform: str) -> None:
         cmds.delete(temp_transform)
 
 
-def clean_parent(transform: str, parent: str) -> None:
+def clean_parent(transform: str, parent: str, joint_orient: bool = True) -> None:
+    """
+    Parent a node while preserving its world transform without creating
+    Maya's intermediate "compensation" transforms.
+
+    - For transforms: world matrix is preserved.
+    - For joints (if joint_orient=True): rotation is baked into jointOrient
+      and rotate is zeroed, keeping the joint clean for IK/FK.
+
+    Args:
+        transform: Node to reparent.
+        parent: New parent node.
+        joint_orient: If True, bake rotation into jointOrient for joints.
+    """
     object_world_matrix = get_world_matrix(transform)
+    node_type = cmds.nodeType(transform)
     cmds.parent(transform, parent, relative=True)
-    set_world_matrix(transform, object_world_matrix)
+    if node_type == "joint" and joint_orient:
+        cmds.setAttr(f"{transform}.jointOrient", 0, 0, 0)
+        set_world_matrix(transform, object_world_matrix)
+        # Grab the rotation (which now matches the required orient)
+        rotation = cmds.getAttr(f"{transform}.rotate")[0]
+        cmds.setAttr(f"{transform}.jointOrient", *rotation)
+        # Zero the rotate channel
+        cmds.setAttr(f"{transform}.rotate", 0, 0, 0)
+    else:
+        set_world_matrix(transform, object_world_matrix)
+
 
 def matrix_constraint(
     source_transform: str,
@@ -118,7 +142,7 @@ def matrix_constraint(
         translate: whether to constrain translation.
     """
     constraint_name: str = constrain_transform.split("|")[-1]
-    
+
     # Create node to multiply matrices, as well as a counter to make sure to input into the right slot.
     mult_index: int = 0
     mult_matrix: str = cmds.createNode("multMatrix", name=f"{constraint_name}_ConstraintMultMatrix")
