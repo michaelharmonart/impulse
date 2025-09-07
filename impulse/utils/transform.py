@@ -116,7 +116,7 @@ def clean_parent(transform: str, parent: str, joint_orient: bool = True) -> None
         # Get current rotation info
         rotate_order = cmds.getAttr(f"{transform}.rotateOrder")
         rotation = cmds.getAttr(f"{transform}.rotate")[0]
-        # Convert rotation to matrix using the joint's rotation order
+        # Convert rotation XYZ rotate order for replacing the joint orient
         euler: MEulerRotation = MEulerRotation(
             MAngle(rotation[0], MAngle.kDegrees).asRadians(),
             MAngle(rotation[1], MAngle.kDegrees).asRadians(),
