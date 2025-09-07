@@ -1,4 +1,4 @@
-from maya.api.OpenMaya import MAngle, MDagPath, MEulerRotation, MMatrix, MSelectionList
+from maya.api.OpenMaya import MAngle, MDagPath, MEulerRotation, MMatrix, MSelectionList, MSpace, MTransformationMatrix
 import maya.cmds as cmds
 from enum import Enum
 
@@ -50,8 +50,60 @@ def get_world_matrix(transform: str) -> MMatrix:
     return dag_path.inclusiveMatrix()
 
 
-def set_world_matrix(transform: str, matrix: MMatrix) -> None:
-    cmds.xform(transform, worldSpace=True, matrix=mmatrix_to_list(matrix))
+def set_world_matrix(transform: str, matrix: MMatrix, fallback=False) -> None:
+    """
+    Set the world matrix of a transform by decomposing it into local components.
+    
+    Args:
+        transform: Maya transform node name.
+        matrix: Target world space matrix.
+        fallback: If True, use cmds.xform instead of manual decomposition.
+    """
+    if fallback:
+        cmds.xform(transform, worldSpace=True, matrix=mmatrix_to_list(matrix))
+    else:
+        # Get parent and calculate local matrix
+        parents: list[str] = cmds.listRelatives(transform, parent=True)
+        parent: str | None = parents[0] if parents else None
+        if parent:
+            # Has parent - calculate local matrix relative to parent
+            parent_world_matrix = get_world_matrix(parent)
+            inverse_matrix: MMatrix = parent_world_matrix.inverse()
+            local_matrix: MMatrix = matrix * inverse_matrix
+        else:
+            # No parent - world matrix IS the local matrix
+            local_matrix: MMatrix = matrix
+        
+        # Apply local matrix using transformation matrix
+        transform_matrix: MTransformationMatrix = MTransformationMatrix(local_matrix)
+        # Set translation
+        translation = transform_matrix.translation(MSpace.kTransform)
+        cmds.setAttr(f"{transform}.translate", translation.x, translation.y, translation.z)
+        node_type = cmds.nodeType(transform)
+
+        rotate_order = cmds.getAttr(f"{transform}.rotateOrder")
+        transform_matrix.reorderRotation(rotate_order + 1)
+        rotation = transform_matrix.rotation()
+        cmds.setAttr(
+            f"{transform}.rotate",
+            MAngle(rotation.x).asDegrees(),
+            MAngle(rotation.y).asDegrees(),
+            MAngle(rotation.z).asDegrees(),
+        )
+
+        if node_type == "joint":
+            # Zero the rotate channel
+            cmds.setAttr(f"{transform}.jointOrient", 0, 0, 0)
+
+        # Set scale
+        scale = transform_matrix.scale(MSpace.kTransform)
+        cmds.setAttr(f"{transform}.scale", scale[0], scale[1], scale[2])
+
+        # Set shear
+        shear = transform_matrix.shear(MSpace.kTransform)
+        cmds.setAttr(f"{transform}.shear", shear[0], shear[1], shear[2])
+        
+
 
 
 def match_transform(transform: str, target_transform: str) -> None:
@@ -62,8 +114,8 @@ def match_transform(transform: str, target_transform: str) -> None:
         transform: Object to be moved to the specified transform.
         target_transform: Name of the transform to match to.
     """
-    source_matrix: MMatrix = get_world_matrix(target_transform)
-    cmds.xform(transform, worldSpace=True, matrix=mmatrix_to_list(source_matrix))
+    source_matrix: MMatrix = get_world_matrix(transform=target_transform)
+    set_world_matrix(transform=transform, matrix=source_matrix)
 
 
 def match_location(transform: str, target_transform: str) -> None:
@@ -107,9 +159,10 @@ def clean_parent(transform: str, parent: str, joint_orient: bool = True) -> None
         parent: New parent node.
         joint_orient: If True, bake rotation into jointOrient for joints.
     """
-    object_world_matrix = get_world_matrix(transform)
+    object_world_matrix: MMatrix = get_world_matrix(transform)
     node_type = cmds.nodeType(transform)
     cmds.parent(transform, parent, relative=True)
+
     if node_type == "joint" and joint_orient:
         cmds.setAttr(f"{transform}.jointOrient", 0, 0, 0)
         set_world_matrix(transform, object_world_matrix)
