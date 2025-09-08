@@ -507,7 +507,7 @@
                 "controls = []",
                 "ik_group = cmds.group(empty=True, name=\"${part_name}_IK_CTLS\", parent=\"${part_ctls}\")",
                 "ik_joints = self.ik_joints",
-                "ik_switch_reverse = cmds.createNode(\"subtract\", name=f\"${part_name}_IkSwitchReverse\")",
+                "ik_switch_reverse = cmds.createNode(\"subtractDL\", name=f\"${part_name}_IkSwitchReverse\")",
                 "cmds.setAttr(f\"{ik_switch_reverse}.input1\", 1)",
                 "cmds.connectAttr(\"${ik_switch}\", f\"{ik_switch_reverse}.input2\")",
                 "cmds.connectAttr(f\"{ik_switch_reverse}.output\", f\"{ik_group}.visibility\")",

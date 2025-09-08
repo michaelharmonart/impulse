@@ -3,7 +3,7 @@ Functions for working with splines.
 
 """
 
-from impulse.maya_api.node import MultiplyNode, PointMatrixMultiplyNode
+from impulse.maya_api.node import MultiplyNode, PointMatrixMultiplyNode, RowFromMatrixNode
 from typing import Any
 
 from impulse.maya_api import node
@@ -723,41 +723,41 @@ class MatrixSpline:
             # Add nodes to connect individual values from the matrix,
             # I don't know why maya makes us do this instead of just connecting directly
             deconstruct_matrix_attribute = f"{pick_matrix}.outputMatrix"
-            row1 = cmds.createNode("rowFromMatrix", name=f"{cv_transform}_row1")
-            cmds.connectAttr(deconstruct_matrix_attribute, f"{row1}.matrix")
-            cmds.setAttr(f"{row1}.input", 0)
-            row2 = cmds.createNode("rowFromMatrix", name=f"{cv_transform}_row2")
-            cmds.connectAttr(deconstruct_matrix_attribute, f"{row2}.matrix")
-            cmds.setAttr(f"{row2}.input", 1)
-            row3 = cmds.createNode("rowFromMatrix", name=f"{cv_transform}_row3")
-            cmds.setAttr(f"{row3}.input", 2)
-            cmds.connectAttr(deconstruct_matrix_attribute, f"{row3}.matrix")
-            row4 = cmds.createNode("rowFromMatrix", name=f"{cv_transform}_row4")
-            cmds.connectAttr(deconstruct_matrix_attribute, f"{row4}.matrix")
-            cmds.setAttr(f"{row4}.input", 3)
+            row1 = node.RowFromMatrixNode(name=f"{cv_transform}_row1")
+            cmds.connectAttr(deconstruct_matrix_attribute, row1.matrix)
+            cmds.setAttr(row1.input, 0)
+            row2 = node.RowFromMatrixNode(name=f"{cv_transform}_row2")
+            cmds.connectAttr(deconstruct_matrix_attribute, row2.matrix)
+            cmds.setAttr(row2.input, 1)
+            row3 = node.RowFromMatrixNode(name=f"{cv_transform}_row3")
+            cmds.setAttr(row3.input, 2)
+            cmds.connectAttr(deconstruct_matrix_attribute, row3.matrix)
+            row4 = node.RowFromMatrixNode(name=f"{cv_transform}_row4")
+            cmds.connectAttr(deconstruct_matrix_attribute, row4.matrix)
+            cmds.setAttr(row4.input, 3)
 
             # Rebuild the matrix but encode the scale into the empty values in the matrix
             # (this needs to be extracted after the weighted matrix sum)
             cv_matrix = cmds.createNode("fourByFourMatrix", name=f"{cv_transform}_CvMatrix")
-            cmds.connectAttr(f"{row1}.outputX", f"{cv_matrix}.in00")
-            cmds.connectAttr(f"{row1}.outputY", f"{cv_matrix}.in01")
-            cmds.connectAttr(f"{row1}.outputZ", f"{cv_matrix}.in02")
+            cmds.connectAttr(f"{row1.output}X", f"{cv_matrix}.in00")
+            cmds.connectAttr(f"{row1.output}Y", f"{cv_matrix}.in01")
+            cmds.connectAttr(f"{row1.output}Z", f"{cv_matrix}.in02")
             cmds.connectAttr(f"{cv_transform}.scaleX", f"{cv_matrix}.in03")
 
-            cmds.connectAttr(f"{row2}.outputX", f"{cv_matrix}.in10")
-            cmds.connectAttr(f"{row2}.outputY", f"{cv_matrix}.in11")
-            cmds.connectAttr(f"{row2}.outputZ", f"{cv_matrix}.in12")
+            cmds.connectAttr(f"{row2.output}X", f"{cv_matrix}.in10")
+            cmds.connectAttr(f"{row2.output}Y", f"{cv_matrix}.in11")
+            cmds.connectAttr(f"{row2.output}Z", f"{cv_matrix}.in12")
             cmds.connectAttr(f"{cv_transform}.scaleY", f"{cv_matrix}.in13")
 
-            cmds.connectAttr(f"{row3}.outputX", f"{cv_matrix}.in20")
-            cmds.connectAttr(f"{row3}.outputY", f"{cv_matrix}.in21")
-            cmds.connectAttr(f"{row3}.outputZ", f"{cv_matrix}.in22")
+            cmds.connectAttr(f"{row3.output}X", f"{cv_matrix}.in20")
+            cmds.connectAttr(f"{row3.output}Y", f"{cv_matrix}.in21")
+            cmds.connectAttr(f"{row3.output}Z", f"{cv_matrix}.in22")
             cmds.connectAttr(f"{cv_transform}.scaleZ", f"{cv_matrix}.in23")
 
-            cmds.connectAttr(f"{row4}.outputX", f"{cv_matrix}.in30")
-            cmds.connectAttr(f"{row4}.outputY", f"{cv_matrix}.in31")
-            cmds.connectAttr(f"{row4}.outputZ", f"{cv_matrix}.in32")
-            cmds.connectAttr(f"{row4}.outputW", f"{cv_matrix}.in33")
+            cmds.connectAttr(f"{row4.output}X", f"{cv_matrix}.in30")
+            cmds.connectAttr(f"{row4.output}Y", f"{cv_matrix}.in31")
+            cmds.connectAttr(f"{row4.output}Z", f"{cv_matrix}.in32")
+            cmds.connectAttr(f"{row4.output}W", f"{cv_matrix}.in33")
 
             cv_matrices.append(f"{cv_matrix}.output")
 
@@ -889,18 +889,18 @@ def pin_to_matrix_spline(
 
     # Create nodes to access the values of the blended matrix node.
     deconstruct_matrix_attribute = f"{blended_matrix}.matrixSum"
-    blended_matrix_row1 = cmds.createNode("rowFromMatrix", name=f"{blended_matrix}_row1")
-    cmds.setAttr(f"{blended_matrix_row1}.input", 0)
-    cmds.connectAttr(deconstruct_matrix_attribute, f"{blended_matrix_row1}.matrix")
-    blended_matrix_row2 = cmds.createNode("rowFromMatrix", name=f"{blended_matrix}_row2")
-    cmds.connectAttr(deconstruct_matrix_attribute, f"{blended_matrix_row2}.matrix")
-    cmds.setAttr(f"{blended_matrix_row2}.input", 1)
-    blended_matrix_row3 = cmds.createNode("rowFromMatrix", name=f"{blended_matrix}_row3")
-    cmds.connectAttr(deconstruct_matrix_attribute, f"{blended_matrix_row3}.matrix")
-    cmds.setAttr(f"{blended_matrix_row3}.input", 2)
-    blended_matrix_row4 = cmds.createNode("rowFromMatrix", name=f"{blended_matrix}_row4")
-    cmds.connectAttr(deconstruct_matrix_attribute, f"{blended_matrix_row4}.matrix")
-    cmds.setAttr(f"{blended_matrix_row4}.input", 3)
+    blended_matrix_row1 = node.RowFromMatrixNode(name=f"{blended_matrix}_row1")
+    cmds.setAttr(blended_matrix_row1.input, 0)
+    cmds.connectAttr(deconstruct_matrix_attribute, blended_matrix_row1.matrix)
+    blended_matrix_row2 = node.RowFromMatrixNode(name=f"{blended_matrix}_row2")
+    cmds.connectAttr(deconstruct_matrix_attribute, blended_matrix_row2.matrix)
+    cmds.setAttr(blended_matrix_row2.input, 1)
+    blended_matrix_row3 = node.RowFromMatrixNode(name=f"{blended_matrix}_row3")
+    cmds.connectAttr(deconstruct_matrix_attribute, blended_matrix_row3.matrix)
+    cmds.setAttr(blended_matrix_row3.input, 2)
+    blended_matrix_row4 = node.RowFromMatrixNode(name=f"{blended_matrix}_row4")
+    cmds.connectAttr(deconstruct_matrix_attribute, blended_matrix_row4.matrix)
+    cmds.setAttr(blended_matrix_row4.input, 3)
 
     # Create aim matrix node.
     aim_matrix = cmds.createNode("aimMatrix", name=f"{segment_name}_AimMatrix")
@@ -910,7 +910,7 @@ def pin_to_matrix_spline(
     cmds.setAttr(f"{aim_matrix}.secondaryInputAxis", *secondary_axis)
     cmds.connectAttr(tangent_vector_node.output, f"{aim_matrix}.primary.primaryTargetVector")
 
-    axis_to_row: dict[tuple[int, int, int], str] = {
+    axis_to_row: dict[tuple[int, int, int], RowFromMatrixNode] = {
         (1, 0, 0): blended_matrix_row1,
         (0, 1, 0): blended_matrix_row2,
         (0, 0, 1): blended_matrix_row3,
@@ -918,41 +918,39 @@ def pin_to_matrix_spline(
         (0, -1, 0): blended_matrix_row2,
         (0, 0, -1): blended_matrix_row3,
     }
-    secondary_row: str | None = axis_to_row.get(tuple(secondary_axis))
+    secondary_row: RowFromMatrixNode | None = axis_to_row.get(tuple(secondary_axis))
     if secondary_row:
         cmds.connectAttr(
-            f"{secondary_row}.outputX", f"{aim_matrix}.secondary.secondaryTargetVectorX"
+            f"{secondary_row.output}X", f"{aim_matrix}.secondary.secondaryTargetVectorX"
         )
         cmds.connectAttr(
-            f"{secondary_row}.outputY", f"{aim_matrix}.secondary.secondaryTargetVectorY"
+            f"{secondary_row.output}Y", f"{aim_matrix}.secondary.secondaryTargetVectorY"
         )
         cmds.connectAttr(
-            f"{secondary_row}.outputZ", f"{aim_matrix}.secondary.secondaryTargetVectorZ"
+            f"{secondary_row.output}Z", f"{aim_matrix}.secondary.secondaryTargetVectorZ"
         )
 
     # Create nodes to access the values of the aim matrix node.
     deconstruct_matrix_attribute = f"{aim_matrix}.outputMatrix"
-    aim_matrix_row1 = cmds.createNode("rowFromMatrix", name=f"{aim_matrix}_row1")
-    cmds.connectAttr(deconstruct_matrix_attribute, f"{aim_matrix_row1}.matrix")
-    cmds.setAttr(f"{aim_matrix_row1}.input", 0)
-    aim_matrix_row2 = cmds.createNode("rowFromMatrix", name=f"{aim_matrix}_row2")
-    cmds.connectAttr(deconstruct_matrix_attribute, f"{aim_matrix_row2}.matrix")
-    cmds.setAttr(f"{aim_matrix_row2}.input", 1)
-    aim_matrix_row3 = cmds.createNode("rowFromMatrix", name=f"{aim_matrix}_row3")
-    cmds.connectAttr(deconstruct_matrix_attribute, f"{aim_matrix_row3}.matrix")
-    cmds.setAttr(f"{aim_matrix_row3}.input", 2)
+    aim_matrix_row1 = node.RowFromMatrixNode(name=f"{aim_matrix}_row1")
+    cmds.connectAttr(deconstruct_matrix_attribute, aim_matrix_row1.matrix)
+    cmds.setAttr(aim_matrix_row1.input, 0)
+    aim_matrix_row2 = node.RowFromMatrixNode(name=f"{aim_matrix}_row2")
+    cmds.connectAttr(deconstruct_matrix_attribute, aim_matrix_row2.matrix)
+    cmds.setAttr(aim_matrix_row2.input, 1)
+    aim_matrix_row3 = node.RowFromMatrixNode(name=f"{aim_matrix}_row3")
+    cmds.connectAttr(deconstruct_matrix_attribute, aim_matrix_row3.matrix)
+    cmds.setAttr(aim_matrix_row3.input, 2)
 
     if stretch:
         # Get tangent vector magnitude
-        tangent_vector_length = cmds.createNode(
-            "length", name=f"{segment_name}_tangentVectorLength"
-        )
-        cmds.connectAttr(tangent_vector_node.output, f"{tangent_vector_length}.input")
+        tangent_vector_length = node.LengthNode(name=f"{segment_name}_tangentVectorLength")
+        cmds.connectAttr(tangent_vector_node.output, tangent_vector_length.input)
         tangent_vector_length_scaled: MultiplyNode = node.MultiplyNode(
             name=f"{segment_name}_tangentVectorLengthScaled"
         )
         tangent_vector_length_scaled.connect_input(
-            input_attr=f"{tangent_vector_length}.output", input_number=1
+            input_attr=tangent_vector_length.output, input_number=1
         )
 
         tangent_sample = cmds.getAttr(tangent_vector_node.output)[0]
@@ -972,9 +970,9 @@ def pin_to_matrix_spline(
         vector_attr: str, scale_attr: str, node_name: str, axis: tuple[int, int, int]
     ) -> str:
         scale_node = cmds.createNode("multiplyDivide", name=node_name)
-        cmds.connectAttr(f"{vector_attr}.outputX", f"{scale_node}.input1X")
-        cmds.connectAttr(f"{vector_attr}.outputY", f"{scale_node}.input1Y")
-        cmds.connectAttr(f"{vector_attr}.outputZ", f"{scale_node}.input1Z")
+        cmds.connectAttr(f"{vector_attr}X", f"{scale_node}.input1X")
+        cmds.connectAttr(f"{vector_attr}Y", f"{scale_node}.input1Y")
+        cmds.connectAttr(f"{vector_attr}Z", f"{scale_node}.input1Z")
         if stretch and tangent_scale_attr is not None and is_same_axis(axis, primary_axis):
             scalar_to_connect: str = tangent_scale_attr
         else:
@@ -991,20 +989,20 @@ def pin_to_matrix_spline(
 
     x_scaled: str = scale_vector(
         node_name=f"{segment_name}_xScale",
-        vector_attr=f"{aim_matrix_row1}",
-        scale_attr=f"{blended_matrix_row1}.outputW",
+        vector_attr=aim_matrix_row1.output,
+        scale_attr=f"{blended_matrix_row1.output}W",
         axis=X_AXIS,
     )
     y_scaled: str = scale_vector(
         node_name=f"{segment_name}_yScale",
-        vector_attr=f"{aim_matrix_row2}",
-        scale_attr=f"{blended_matrix_row2}.outputW",
+        vector_attr=aim_matrix_row2.output,
+        scale_attr=f"{blended_matrix_row2.output}W",
         axis=Y_AXIS,
     )
     z_scaled: str = scale_vector(
         node_name=f"{segment_name}_zScale",
-        vector_attr=f"{aim_matrix_row3}",
-        scale_attr=f"{blended_matrix_row3}.outputW",
+        vector_attr=aim_matrix_row3.output,
+        scale_attr=f"{blended_matrix_row3.output}W",
         axis=Z_AXIS,
     )
 
@@ -1022,9 +1020,9 @@ def pin_to_matrix_spline(
     cmds.connectAttr(f"{z_scaled}.outputY", f"{output_matrix}.in21")
     cmds.connectAttr(f"{z_scaled}.outputZ", f"{output_matrix}.in22")
 
-    cmds.connectAttr(f"{blended_matrix_row4}.outputX", f"{output_matrix}.in30")
-    cmds.connectAttr(f"{blended_matrix_row4}.outputY", f"{output_matrix}.in31")
-    cmds.connectAttr(f"{blended_matrix_row4}.outputZ", f"{output_matrix}.in32")
+    cmds.connectAttr(f"{blended_matrix_row4.output}X", f"{output_matrix}.in30")
+    cmds.connectAttr(f"{blended_matrix_row4.output}Y", f"{output_matrix}.in31")
+    cmds.connectAttr(f"{blended_matrix_row4.output}Z", f"{output_matrix}.in32")
 
     cmds.connectAttr(f"{output_matrix}.output", f"{pinned_transform}.offsetParentMatrix")
 

@@ -3,6 +3,7 @@ import os
 from enum import Enum
 from typing import Any, Literal
 
+from impulse.maya_api import node
 from maya.api.OpenMaya import MDoubleArray, MFnNurbsCurve, MItGeometry, MPoint, MPointArray, MSelectionList, MSpace
 import maya.cmds as cmds
 
@@ -806,30 +807,30 @@ def make_surface_control(
     cmds.connectAttr(z_attribute, f"{multiplier}.input1.input1Z")
     cmds.setAttr(f"{multiplier}.input2.input2X", control_sensitivity[0] * u_range)
     cmds.setAttr(f"{multiplier}.input2.input2Z", -control_sensitivity[1] * v_range * uv_ratio)
-    u_adder = cmds.createNode("addDoubleLinear", name=f"{name}_uOffsetAdd")
-    v_adder = cmds.createNode("addDoubleLinear", name=f"{name}_vOffsetAdd")
-    cmds.connectAttr(f"{multiplier}.output.outputX", f"{u_adder}.input1")
-    cmds.connectAttr(f"{multiplier}.output.outputZ", f"{v_adder}.input1")
+    u_adder = node.SumNode(name=f"{name}_uOffsetAdd")
+    v_adder = node.SumNode(name=f"{name}_vOffsetAdd")
+    cmds.connectAttr(f"{multiplier}.output.outputX", f"{u_adder.input}[0]")
+    cmds.connectAttr(f"{multiplier}.output.outputZ", f"{v_adder.input}[0]")
     if u_attribute:
-        cmds.connectAttr(u_attribute, f"{u_adder}.input2")
+        cmds.connectAttr(u_attribute, f"{u_adder.input}[1]")
     else:
         cmds.setAttr(f"{u_adder}.input2", default_u)
     if v_attribute:
-        cmds.connectAttr(v_attribute, f"{v_adder}.input2")
+        cmds.connectAttr(v_attribute, f"{v_adder.input}[1]")
     else:
-        cmds.setAttr(f"{v_adder}.input2", default_v)
+        cmds.setAttr(f"{v_adder.input}[1]", default_v)
+    u_clamp = node.ClampRangeNode(name=f"{name}_uClamp")
+    v_clamp = node.ClampRangeNode(name=f"{name}_vClamp")
 
-    u_clamp = cmds.createNode("clampRange", name=f"{name}_uClamp")
-    v_clamp = cmds.createNode("clampRange", name=f"{name}_vClamp")
-    cmds.connectAttr(f"{u_adder}.output", f"{u_clamp}.input")
-    cmds.connectAttr(f"{v_adder}.output", f"{v_clamp}.input")
-    cmds.setAttr(f"{u_clamp}.minimum", min_max_u[0])
-    cmds.setAttr(f"{u_clamp}.maximum", min_max_u[1])
-    cmds.setAttr(f"{v_clamp}.minimum", min_max_v[0])
-    cmds.setAttr(f"{v_clamp}.maximum", min_max_v[1])
+    cmds.connectAttr(f"{u_adder}.output", u_clamp.input)
+    cmds.connectAttr(f"{v_adder}.output", v_clamp.input)
+    cmds.setAttr(u_clamp.minimum, min_max_u[0])
+    cmds.setAttr(u_clamp.maximum, min_max_u[1])
+    cmds.setAttr(v_clamp.minimum, min_max_v[0])
+    cmds.setAttr(v_clamp.maximum, min_max_v[1])
 
-    cmds.connectAttr(f"{u_clamp}.output", f"{uv_pin_node}.coordinate[0].coordinateU")
-    cmds.connectAttr(f"{v_clamp}.output", f"{uv_pin_node}.coordinate[0].coordinateV")
+    cmds.connectAttr(u_clamp.output, f"{uv_pin_node}.coordinate[0].coordinateU")
+    cmds.connectAttr(v_clamp.output, f"{uv_pin_node}.coordinate[0].coordinateV")
 
     if parent:
         cmds.parent(offset_transform, parent, relative=False)

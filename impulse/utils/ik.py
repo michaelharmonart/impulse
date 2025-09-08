@@ -1,3 +1,4 @@
+from impulse.maya_api import node
 import maya.cmds as cmds
 
 from impulse.utils.transform import match_transform, matrix_constraint
@@ -120,29 +121,30 @@ def ik_from_guides(
         handle_local: str = cmds.group(empty=True, name=f"{ik_handle}_LOCAL", parent=ik_group)
         matrix_constraint(ik_handle, handle_local, keep_offset=False)
 
-        distance_node: str = cmds.createNode("distanceBetween", name=f"{name}_dist")
-        cmds.connectAttr(f"{socket_local}.matrix", f"{distance_node}.inMatrix1")
-        cmds.connectAttr(f"{handle_local}.matrix", f"{distance_node}.inMatrix2")
+        distance_node = node.DistanceBetweenNode(name=f"{name}_dist")
+        cmds.connectAttr(f"{socket_local}.matrix", distance_node.input_matrix1)
+        cmds.connectAttr(f"{handle_local}.matrix", distance_node.input_matrix2)
 
         # Get rest length and a normalized distance multiplier that tells us how much longer or shorter the limb is.
         rest_length: float = 0
-        temp_distance_node: str = cmds.createNode("distanceBetween", name=f"{name}_temp_dist")
+        temp_distance_node = node.DistanceBetweenNode(name=f"{name}_temp_dist")
         for index, joint in enumerate(ik_joints):
             if index == 0:
                 continue
-            cmds.connectAttr(f"{joint}.matrix", f"{temp_distance_node}.inMatrix2")
-            rest_length += cmds.getAttr(f"{temp_distance_node}.distance")
-            cmds.disconnectAttr(f"{joint}.matrix", f"{temp_distance_node}.inMatrix2")
-        normalize_node: str = cmds.createNode("divide", name=f"{name}_dist_norm")
-        cmds.connectAttr(f"{distance_node}.distance", f"{normalize_node}.input1")
-        cmds.setAttr(f"{normalize_node}.input2", rest_length)
+            cmds.connectAttr(f"{joint}.matrix", temp_distance_node.input_matrix2)
+            rest_length += cmds.getAttr(temp_distance_node.distance)
+            cmds.disconnectAttr(f"{joint}.matrix", temp_distance_node.input_matrix2)
+
+        normalize_node = node.DivideNode(name=f"{name}_dist_norm")    
+        cmds.connectAttr(distance_node.distance, normalize_node.input1)
+        cmds.setAttr(normalize_node.input2, rest_length)
 
         # Only stretch, dont shrink the limb.
         condition_node: str = cmds.createNode("condition", name=f"{name}_dist_cond")
         cmds.setAttr(f"{condition_node}.operation", 2)  # Greater than
         cmds.setAttr(f"{condition_node}.secondTerm", 1)
-        cmds.connectAttr(f"{normalize_node}.output", f"{condition_node}.firstTerm")
-        cmds.connectAttr(f"{normalize_node}.output", f"{condition_node}.colorIfTrueR")
+        cmds.connectAttr(normalize_node.output, f"{condition_node}.firstTerm")
+        cmds.connectAttr(normalize_node.output, f"{condition_node}.colorIfTrueR")
         scale_factor_attr = f"{condition_node}.outColorR"
 
         for joint in ik_joints[0:-1]:
