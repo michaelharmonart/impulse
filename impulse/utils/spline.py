@@ -3,7 +3,7 @@ Functions for working with splines.
 
 """
 
-from impulse.maya_api.node import MultiplyNode, PointMatrixMultiplyNode, RowFromMatrixNode
+from impulse.maya_api.node import MultiplyNode, MultiplyPointByMatrixNode, RowFromMatrixNode
 from typing import Any
 
 from impulse.maya_api import node
@@ -881,7 +881,7 @@ def pin_to_matrix_spline(
             f"{tangent_weight[0]}",
             f"{blended_tangent_matrix}.wtMatrix[{index}].matrixIn",
         )
-    tangent_vector_node: PointMatrixMultiplyNode = node.PointMatrixMultiplyNode(
+    tangent_vector_node: MultiplyPointByMatrixNode = node.MultiplyPointByMatrixNode(
         name=f"{blended_tangent_matrix}_TangentVector"
     )
 
@@ -949,9 +949,7 @@ def pin_to_matrix_spline(
         tangent_vector_length_scaled: MultiplyNode = node.MultiplyNode(
             name=f"{segment_name}_tangentVectorLengthScaled"
         )
-        tangent_vector_length_scaled.connect_input(
-            input_attr=tangent_vector_length.output, input_number=1
-        )
+        cmds.connectAttr(tangent_vector_length.output, tangent_vector_length_scaled.input[0])
 
         tangent_sample = cmds.getAttr(tangent_vector_node.output)[0]
         tangent_length = Vector3(tangent_sample[0], tangent_sample[1], tangent_sample[2]).length()
@@ -959,7 +957,7 @@ def pin_to_matrix_spline(
             raise RuntimeError(
                 f"{pinned_transform} had a tangent magnitude of 0 and wasn't able to be pinned with stretching enabled."
             )
-        tangent_vector_length_scaled.set_input(input_number=2, value=1 / tangent_length)
+        cmds.setAttr(tangent_vector_length_scaled.input[1], 1 / tangent_length)
         tangent_scale_attr: str = tangent_vector_length_scaled.output
 
     def is_same_axis(axis1: tuple[int, int, int], axis2: tuple[int, int, int]) -> bool:

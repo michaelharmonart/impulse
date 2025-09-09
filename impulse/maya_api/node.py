@@ -1,134 +1,192 @@
 from typing import Final
+
 import maya.cmds as cmds
+
+from impulse.maya_api.attribute import (
+    Attribute,
+    IndexableAttribute,
+    IntegerAttribute,
+    MatrixAttribute,
+    ScalarAttribute,
+    Vector3Attribute,
+    Vector4Attribute,
+)
 
 API_VERSION: Final[int] = cmds.about(apiVersion=True)
 TARGET_API_VERSION = 20242000
 
+
 def is_maya2026_or_newer() -> bool:
     return API_VERSION >= 20260000
 
-def is_target_2026_or_newer()-> bool:
+
+def is_target_2026_or_newer() -> bool:
     return TARGET_API_VERSION >= 20260000
 
+
 class Node:
-    def __init__(self) -> None:
-        pass
+    """Base class for all Maya nodes."""
 
+    NODE_TYPES: dict[str, dict[str, str]] = {
+        "multiply": {"standard": "multiply", "DL": "multiplyDL"},
+        "sum": {"standard": "sum", "DL": "sumDL"},
+        "divide": {"standard": "divide", "DL": "divideDL"},
+        "clampRange": {"standard": "clampRange", "DL": "clampRangeDL"},
+        "distanceBetween": {"standard": "distanceBetween", "DL": "distanceBetweenDL"},
+        "crossProduct": {"standard": "crossProduct", "DL": "crossProductDL"},
+        "length": {"standard": "length", "DL": "lengthDL"},
+        "rowFromMatrix": {"standard": "rowFromMatrix", "DL": "rowFromMatrixDL"},
+        "multiplyPointByMatrix": {
+            "standard": "multiplyPointByMatrix",
+            "DL": "multiplyPointByMatrixDL",
+        },
+    }
 
-class RowFromMatrixNode:
-    def __init__(self, name: str = "rowFromMatrix") -> None:
-        if is_maya2026_or_newer() and not is_target_2026_or_newer():
-            node_name: str = cmds.createNode("rowFromMatrixDL", name=name)
-        else:
-            node_name: str = cmds.createNode("rowFromMatrix", name=name)
-        self.input: str = f"{node_name}.input"
-        self.name: str = node_name
-        self.matrix: str = f"{node_name}.matrix"
-        self.output: str = f"{node_name}.output"
-
-class MultiplyNode(Node):
-    def __init__(self, name: str = "multiply") -> None:
-        if is_maya2026_or_newer() and not is_target_2026_or_newer():
-            node_name: str = cmds.createNode("multiplyDL", name=name)
-        else:
-            node_name: str = cmds.createNode("multiply", name=name)
-        self.name: str = node_name
-        self.input: str = f"{self.name}.input"
-        self.output: str = f"{self.name}.output"
-
-    def connect_input(self, input_attr: str, input_number: int) -> None:
+    def __init__(self, node_type: str, name: str | None = None) -> None:
         """
-        Connects an attribute to this node's input, handling the difference
-        between Maya <2026 (input1/input2) and Maya 2026+ (multi input array).
+        Initialize a Maya node with version compatibility.
 
         Args:
-            input_attr (str): Attribute to connect (e.g. "ctrl.tx").
-            input_number (int): Input index (1–2 pre-2026, 1+ in 2026+).
+            node_type: The base Maya node type (e.g., "multiply", "sum")
+            name: Optional custom name for the node
         """
-        if input_number < 1:
-            raise RuntimeError("Input number starts at 1 not 0")
-        cmds.connectAttr(input_attr, f"{self.name}.input[{input_number - 1}]")
+        self.node_type: str = node_type
+        self.name: str = self._create_node(node_type, name=name or node_type)
+        self._setup_attributes()
 
-    def set_input(self, input_number: int, value: float) -> None:
-        if input_number < 1:
-            raise RuntimeError("Input number starts at 1 not 0")
-        cmds.setAttr(f"{self.name}.input[{input_number - 1}]", value)
-
-
-class PointMatrixMultiplyNode:
-    def __init__(self, name: str = "multiplyPointByMatrix") -> None:
-        if is_maya2026_or_newer() and not is_target_2026_or_newer():
-            node_name: str = cmds.createNode("multiplyPointByMatrixDL", name=name)
+    def _create_node(self, node_type: str, name: str) -> str:
+        """Create the Maya node with appropriate version handling."""
+        if node_type in self.NODE_TYPES:
+            types = self.NODE_TYPES[node_type]
+            if is_maya2026_or_newer() and not is_target_2026_or_newer():
+                maya_node_type = types["DL"]
+            else:
+                maya_node_type = types["standard"]
         else:
-            node_name: str = cmds.createNode("multiplyPointByMatrix", name=name)
-        self.input_point: str = f"{node_name}.input"
-        self.name: str = node_name
-        self.input_matrix: str = f"{node_name}.matrix"
-        self.output: str = f"{node_name}.output"
+            maya_node_type = node_type
 
-class SumNode:
-    def __init__(self, name: str = "sum") -> None:
-        if is_maya2026_or_newer() and not is_target_2026_or_newer():
-            node_name: str = cmds.createNode("sumDL", name=name)
-        else:
-            node_name: str = cmds.createNode("sum", name=name)
-        self.name: str = node_name    
-        self.input: str = f"{node_name}.input"
-        self.output: str = f"{node_name}.output"
+        return cmds.createNode(maya_node_type, name=name)
 
-class ClampRangeNode:
+    def _setup_attributes(self) -> None:
+        """Override in subclasses to define node-specific attributes."""
+        pass
+
+    def delete(self) -> None:
+        """Delete this node."""
+        if cmds.objExists(self.name):
+            cmds.delete(self.name)
+
+    def exists(self) -> bool:
+        """Check if this node exists in Maya."""
+        return cmds.objExists(self.name)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(name='{self.name}')"
+
+
+class ClampRangeNode(Node):
+    """Maya clampRange node with enhanced interface."""
+
     def __init__(self, name: str = "clampRange") -> None:
-        if is_maya2026_or_newer() and not is_target_2026_or_newer():
-            node_name: str = cmds.createNode("clampRangeDL", name=name)
-        else:
-            node_name: str = cmds.createNode("clampRange", name=name)
-        self.name: str = node_name    
-        self.input: str = f"{node_name}.input"
-        self.maximum: str = f"{node_name}.maximum"
-        self.minimum: str = f"{node_name}.minimum"
-        self.output: str = f"{node_name}.output"
+        super().__init__("clampRange", name)
 
-class DistanceBetweenNode:
-    def __init__(self, name: str = "distanceBetween") -> None:
-        if is_maya2026_or_newer() and not is_target_2026_or_newer():
-            node_name: str = cmds.createNode("distanceBetweenDL", name=name)
-        else:
-            node_name: str = cmds.createNode("distanceBetween", name=name)
-        self.name: str = node_name    
-        self.input_point1: str = f"{node_name}.point1"
-        self.input_point2: str = f"{node_name}.point2"
-        self.input_matrix1: str = f"{node_name}.inMatrix1"
-        self.input_matrix2: str = f"{node_name}.inMatrix2"
-        self.distance: str = f"{node_name}.distance"
+    def _setup_attributes(self) -> None:
+        self.input = ScalarAttribute(f"{self.name}.input")
+        self.minimum = ScalarAttribute(f"{self.name}.minimum")
+        self.maximum = ScalarAttribute(f"{self.name}.maximum")
+        self.output = ScalarAttribute(f"{self.name}.output")
 
-class DivideNode:
-    def __init__(self, name: str = "divide") -> None:
-        if is_maya2026_or_newer() and not is_target_2026_or_newer():
-            node_name: str = cmds.createNode("divideDL", name=name)
-        else:
-            node_name: str = cmds.createNode("divide", name=name)
-        self.name: str = node_name    
-        self.input1: str = f"{node_name}.input1"
-        self.input2: str = f"{node_name}.input2"
-        self.output: str = f"{node_name}.output"
 
-class CrossProductNode:
+class CrossProductNode(Node):
+    """Maya crossProduct node with enhanced interface."""
+
     def __init__(self, name: str = "crossProduct") -> None:
-        if is_maya2026_or_newer() and not is_target_2026_or_newer():
-            node_name: str = cmds.createNode("crossProductDL", name=name)
-        else:
-            node_name: str = cmds.createNode("crossProduct", name=name)
-        self.name: str = node_name    
-        self.input1: str = f"{node_name}.input1"
-        self.input2: str = f"{node_name}.input2"
-        self.output: str = f"{node_name}.output"
+        super().__init__("crossProduct", name)
 
-class LengthNode:
+    def _setup_attributes(self) -> None:
+        self.input1 = Vector3Attribute(f"{self.name}.input1")
+        self.input2 = Vector3Attribute(f"{self.name}.input2")
+        self.output = Vector3Attribute(f"{self.name}.output")
+
+
+class DistanceBetweenNode(Node):
+    """Maya distanceBetween node with enhanced interface."""
+
+    def __init__(self, name: str = "distanceBetween") -> None:
+        super().__init__("distanceBetween", name)
+
+    def _setup_attributes(self) -> None:
+        self.point1 = Vector3Attribute(f"{self.name}.point1")
+        self.point2 = Vector3Attribute(f"{self.name}.point2")
+        self.input_matrix1 = MatrixAttribute(f"{self.name}.inMatrix1")
+        self.input_matrix2 = MatrixAttribute(f"{self.name}.inMatrix2")
+        self.distance = ScalarAttribute(f"{self.name}.distance")
+
+
+class DivideNode(Node):
+    """Maya divide node with enhanced interface."""
+
+    def __init__(self, name: str = "divide") -> None:
+        super().__init__("divide", name)
+
+    def _setup_attributes(self) -> None:
+        self.input1 = ScalarAttribute(f"{self.name}.input1")
+        self.input2 = ScalarAttribute(f"{self.name}.input2")
+        self.output = ScalarAttribute(f"{self.name}.output")
+
+
+class LengthNode(Node):
+    """Maya length node with enhanced interface."""
+
     def __init__(self, name: str = "length") -> None:
-        if is_maya2026_or_newer() and not is_target_2026_or_newer():
-            node_name: str = cmds.createNode("lengthDL", name=name)
-        else:
-            node_name: str = cmds.createNode("length", name=name)
-        self.name: str = node_name    
-        self.input: str = f"{node_name}.input"
-        self.output: str = f"{node_name}.output"
+        super().__init__("length", name)
+
+    def _setup_attributes(self) -> None:
+        self.input = Vector3Attribute(f"{self.name}.input")
+        self.output = ScalarAttribute(f"{self.name}.output")
+
+
+class MultiplyNode(Node):
+    """Maya multiply node with enhanced interface."""
+
+    def __init__(self, name: str = "multiply") -> None:
+        super().__init__("multiply", name)
+
+    def _setup_attributes(self) -> None:
+        self.input: IndexableAttribute = IndexableAttribute(f"{self.name}.input")
+        self.output: Attribute = Attribute(f"{self.name}.output")
+
+
+class MultiplyPointByMatrixNode(Node):
+    """Maya multiplyPointByMatrix node with enhanced interface."""
+
+    def __init__(self, name: str = "multiplyPointByMatrix") -> None:
+        super().__init__("multiplyPointByMatrix", name)
+
+    def _setup_attributes(self) -> None:
+        self.input_point = Vector3Attribute(f"{self.name}.input")
+        self.input_matrix = MatrixAttribute(f"{self.name}.matrix")
+        self.output = Vector3Attribute(f"{self.name}.output")
+
+
+class RowFromMatrixNode(Node):
+    """Maya rowFromMatrix node with enhanced interface."""
+
+    def __init__(self, name: str = "rowFromMatrix") -> None:
+        super().__init__("rowFromMatrix", name)
+
+    def _setup_attributes(self) -> None:
+        self.input = IntegerAttribute(f"{self.name}.input")
+        self.matrix = MatrixAttribute(f"{self.name}.matrix")
+        self.output = Vector4Attribute(f"{self.name}.output")
+
+
+class SumNode(Node):
+    """Maya sum node with enhanced interface."""
+
+    def __init__(self, name: str = "sum") -> None:
+        super().__init__("sum", name)
+
+    def _setup_attributes(self) -> None:
+        self.input: IndexableAttribute = IndexableAttribute(f"{self.name}.input")
+        self.output: Attribute = Attribute(f"{self.name}.output")

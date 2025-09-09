@@ -809,21 +809,21 @@ def make_surface_control(
     cmds.setAttr(f"{multiplier}.input2.input2Z", -control_sensitivity[1] * v_range * uv_ratio)
     u_adder = node.SumNode(name=f"{name}_uOffsetAdd")
     v_adder = node.SumNode(name=f"{name}_vOffsetAdd")
-    cmds.connectAttr(f"{multiplier}.output.outputX", f"{u_adder.input}[0]")
-    cmds.connectAttr(f"{multiplier}.output.outputZ", f"{v_adder.input}[0]")
+    cmds.connectAttr(f"{multiplier}.output.outputX", u_adder.input[0])
+    cmds.connectAttr(f"{multiplier}.output.outputZ", v_adder.input[0])
     if u_attribute:
-        cmds.connectAttr(u_attribute, f"{u_adder.input}[1]")
+        cmds.connectAttr(u_attribute, u_adder.input[1])
     else:
-        cmds.setAttr(f"{u_adder}.input2", default_u)
+        cmds.setAttr(u_adder.input[1], default_u)
     if v_attribute:
-        cmds.connectAttr(v_attribute, f"{v_adder.input}[1]")
+        cmds.connectAttr(v_attribute, v_adder.input[1])
     else:
-        cmds.setAttr(f"{v_adder.input}[1]", default_v)
+        cmds.setAttr(v_adder.input[1], default_v)
     u_clamp = node.ClampRangeNode(name=f"{name}_uClamp")
     v_clamp = node.ClampRangeNode(name=f"{name}_vClamp")
 
-    cmds.connectAttr(f"{u_adder}.output", u_clamp.input)
-    cmds.connectAttr(f"{v_adder}.output", v_clamp.input)
+    cmds.connectAttr(u_adder.output, u_clamp.input)
+    cmds.connectAttr(v_adder.output, v_clamp.input)
     cmds.setAttr(u_clamp.minimum, min_max_u[0])
     cmds.setAttr(u_clamp.maximum, min_max_u[1])
     cmds.setAttr(v_clamp.minimum, min_max_v[0])

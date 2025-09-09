@@ -9,7 +9,7 @@ This module provides functions to:
 It leverages custom control curves from the control_gen module.
 """
 
-from impulse.maya_api.node import PointMatrixMultiplyNode
+from impulse.maya_api.node import MultiplyPointByMatrixNode
 from impulse.maya_api import node
 import maya.cmds as cmds
 
@@ -210,7 +210,7 @@ def generate_ribbon(
                 cp_input = ".inputSurface"
             else:
                 cmds.error(f"Unsupported surface type: {surface_type}")
-            world_position_node: PointMatrixMultiplyNode = node.PointMatrixMultiplyNode(name=f"{pin_point}_worldPosition")
+            world_position_node: MultiplyPointByMatrixNode = node.MultiplyPointByMatrixNode(name=f"{pin_point}_worldPosition")
 
 
             cmds.connectAttr(f"{pin_point}.parentMatrix", world_position_node.input_matrix)
@@ -387,7 +387,7 @@ def ribbon_interpolate(
     for joint_idx in range(total_joints):
         # Create nodes to get world-space positions for primary joint.
         
-        primary_pos_node: PointMatrixMultiplyNode = node.PointMatrixMultiplyNode(
+        primary_pos_node: MultiplyPointByMatrixNode = node.MultiplyPointByMatrixNode(
             name=primary_joints[joint_idx].replace(interpolation_joint_suffix, "Position")
         )
         cmds.connectAttr(
@@ -406,7 +406,7 @@ def ribbon_interpolate(
 
         # Create nodes for the secondary joint.
 
-        secondary_pos_node: PointMatrixMultiplyNode = node.PointMatrixMultiplyNode(
+        secondary_pos_node: MultiplyPointByMatrixNode = node.MultiplyPointByMatrixNode(
             name=secondary_joints[joint_idx].replace(interpolation_joint_suffix, "Position")
         )
 
