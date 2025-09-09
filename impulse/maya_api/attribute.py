@@ -65,6 +65,16 @@ class ScalarAttribute(Attribute):
         """Set the value of this attribute."""
         cmds.setAttr(self.attr_path, value)
 
+    @property
+    def value(self) -> float:
+        """Get the value of this attribute."""
+        return self.get()
+    
+    @value.setter
+    def value(self, val: float | int) -> None:
+        """Set the value of this attribute."""
+        self.set(val)
+
 
 class IntegerAttribute(ScalarAttribute):
     """A Maya attribute of an integer type."""
@@ -80,6 +90,16 @@ class IntegerAttribute(ScalarAttribute):
         """Set the value of this attribute."""
         cmds.setAttr(self.attr_path, value)
 
+    @property
+    def value(self) -> int:
+        """Get the value of this attribute."""
+        return self.get()
+    
+    @value.setter
+    def value(self, val: int) -> None:
+        """Set the value of this attribute."""
+        self.set(val)
+
 
 class MatrixAttribute(Attribute):
     """A Maya attribute of the matrix type."""
@@ -94,9 +114,9 @@ class Vector3Attribute(Attribute):
     def __init__(self, attr_path: str):
         super().__init__(attr_path)
 
-        self.x: Attribute = Attribute(f"{attr_path}X")
-        self.y: Attribute = Attribute(f"{attr_path}Y")
-        self.z: Attribute = Attribute(f"{attr_path}Z")
+        self.x  = ScalarAttribute(f"{attr_path}X")
+        self.y  = ScalarAttribute(f"{attr_path}Y")
+        self.z  = ScalarAttribute(f"{attr_path}Z")
 
 
 class Vector4Attribute(Attribute):
@@ -105,24 +125,19 @@ class Vector4Attribute(Attribute):
     def __init__(self, attr_path: str):
         super().__init__(attr_path)
 
-        self.x: Attribute = Attribute(f"{attr_path}X")
-        self.y: Attribute = Attribute(f"{attr_path}Y")
-        self.z: Attribute = Attribute(f"{attr_path}Z")
-        self.w: Attribute = Attribute(f"{attr_path}W")
+        self.x  = ScalarAttribute(f"{attr_path}X")
+        self.y = ScalarAttribute(f"{attr_path}Y")
+        self.z = ScalarAttribute(f"{attr_path}Z")
+        self.w = ScalarAttribute(f"{attr_path}W")
 
-
-class IndexedAttributeElement(Attribute):
-    """An element of an indexed attribute (e.g., input[0])."""
-
-    pass
 
 
 class IndexableAttribute(Attribute):
     """A Maya attribute that supports indexing with bracket notation."""
 
-    def __getitem__(self, index: int) -> IndexedAttributeElement:
+    def __getitem__(self, index: int) -> Attribute:
         """Return the indexed attribute path: attr.input[0], attr.input[1], etc."""
-        return IndexedAttributeElement(attr_path=f"{self.attr_path}[{index}]")
+        return Attribute(attr_path=f"{self.attr_path}[{index}]")
 
     def get_size(self) -> int:
         """Get the number of elements in this array."""
