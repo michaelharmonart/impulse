@@ -3,10 +3,19 @@ import os
 from enum import Enum
 from typing import Any, Literal
 
-from impulse.maya_api import node
-from maya.api.OpenMaya import MDoubleArray, MFnNurbsCurve, MItGeometry, MPoint, MPointArray, MSelectionList, MSpace
 import maya.cmds as cmds
+from maya.api.OpenMaya import (
+    MDoubleArray,
+    MFnNurbsCurve,
+    MItGeometry,
+    MPoint,
+    MPointArray,
+    MSelectionList,
+    MSpace,
+)
 
+from impulse.maya_api import node
+from impulse.maya_api.node import SumNode
 from impulse.utils import math as math
 from impulse.utils import pin as pin
 from impulse.utils.naming import flip_side, get_side
@@ -26,7 +35,7 @@ class ControlShape(Enum):
     LOCATOR = "locator"
     DIAMOND = "diamond"
     TRIANGLE = "triangle"
-    HEXAGON = "hexagon" 
+    HEXAGON = "hexagon"
 
     @property
     def filename(self) -> str:
@@ -68,7 +77,9 @@ def get_cv_positions(curve_shape: str) -> list[tuple[float, float, float]]:
     fn_curve: MFnNurbsCurve = MFnNurbsCurve(curve_obj)
 
     cv_positions: MPointArray = fn_curve.cvPositions(space=MSpace.kObject)
-    positions: list[tuple[float, float, float]] = [(point.x, point.y, point.z) for point in cv_positions]
+    positions: list[tuple[float, float, float]] = [
+        (point.x, point.y, point.z) for point in cv_positions
+    ]
     return positions
 
 
@@ -89,6 +100,7 @@ def get_cv_weights(curve_shape: str) -> list[float]:
     weights: list[float] = [point.w for point in cv_positions]
     return weights
 
+
 def get_cv_data(curve_shape: str) -> tuple[list[tuple[float, float, float]], list[float]]:
     """
     Gets both the positions and weights of all CVs for a given curve shape.
@@ -105,7 +117,9 @@ def get_cv_data(curve_shape: str) -> tuple[list[tuple[float, float, float]], lis
     fn_curve: MFnNurbsCurve = MFnNurbsCurve(curve_obj)
 
     cv_positions: MPointArray = fn_curve.cvPositions(space=MSpace.kObject)
-    positions: list[tuple[float, float, float]] = [(point.x, point.y, point.z) for point in cv_positions]
+    positions: list[tuple[float, float, float]] = [
+        (point.x, point.y, point.z) for point in cv_positions
+    ]
     weights: list[float] = [point.w for point in cv_positions]
 
     return positions, weights
@@ -807,7 +821,7 @@ def make_surface_control(
     cmds.connectAttr(z_attribute, f"{multiplier}.input1.input1Z")
     cmds.setAttr(f"{multiplier}.input2.input2X", control_sensitivity[0] * u_range)
     cmds.setAttr(f"{multiplier}.input2.input2Z", -control_sensitivity[1] * v_range * uv_ratio)
-    u_adder = node.SumNode(name=f"{name}_uOffsetAdd")
+    u_adder: SumNode = node.SumNode(name=f"{name}_uOffsetAdd")
     v_adder = node.SumNode(name=f"{name}_vOffsetAdd")
     cmds.connectAttr(f"{multiplier}.output.outputX", u_adder.input[0])
     cmds.connectAttr(f"{multiplier}.output.outputZ", v_adder.input[0])

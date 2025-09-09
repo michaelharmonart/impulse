@@ -1,6 +1,7 @@
-from impulse.maya_api.node import MultiplyNode
-from impulse.maya_api import node
 import maya.cmds as cmds
+
+from impulse.maya_api import node
+from impulse.maya_api.node import MultiplyNode
 
 
 def make_uv_pin(

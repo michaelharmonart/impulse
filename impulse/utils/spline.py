@@ -3,10 +3,10 @@ Functions for working with splines.
 
 """
 
-from impulse.maya_api.node import MultiplyNode, MultiplyPointByMatrixNode, RowFromMatrixNode
 from typing import Any
 
-from impulse.maya_api import node
+import maya.cmds as cmds
+import numpy as np
 from maya.api.OpenMaya import (
     MDoubleArray,
     MFnNurbsCurve,
@@ -17,9 +17,9 @@ from maya.api.OpenMaya import (
     MSelectionList,
     MSpace,
 )
-import maya.cmds as cmds
-import numpy as np
 
+from impulse.maya_api import node
+from impulse.maya_api.node import MultiplyNode, MultiplyPointByMatrixNode, RowFromMatrixNode
 from impulse.structs.transform import Vector3 as Vector3
 from impulse.utils.control import Control, ControlShape, connect_control, make_control
 from impulse.utils.transform import clean_parent, matrix_constraint

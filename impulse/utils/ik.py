@@ -1,6 +1,6 @@
-from impulse.maya_api import node
 import maya.cmds as cmds
 
+from impulse.maya_api import node
 from impulse.utils.transform import match_transform, matrix_constraint
 
 
@@ -135,7 +135,7 @@ def ik_from_guides(
             rest_length += cmds.getAttr(temp_distance_node.distance)
             cmds.disconnectAttr(f"{joint}.matrix", temp_distance_node.input_matrix2)
 
-        normalize_node = node.DivideNode(name=f"{name}_dist_norm")    
+        normalize_node = node.DivideNode(name=f"{name}_dist_norm")
         cmds.connectAttr(distance_node.distance, normalize_node.input1)
         cmds.setAttr(normalize_node.input2, rest_length)
 

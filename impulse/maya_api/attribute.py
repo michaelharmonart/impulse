@@ -30,7 +30,7 @@ class Attribute:
     def value(self) -> Any:
         """Get the value of this attribute."""
         return self.get()
-    
+
     @value.setter
     def value(self, val: Any) -> None:
         """Set the value of this attribute."""
@@ -69,7 +69,7 @@ class ScalarAttribute(Attribute):
     def value(self) -> float:
         """Get the value of this attribute."""
         return self.get()
-    
+
     @value.setter
     def value(self, val: float | int) -> None:
         """Set the value of this attribute."""
@@ -94,7 +94,7 @@ class IntegerAttribute(ScalarAttribute):
     def value(self) -> int:
         """Get the value of this attribute."""
         return self.get()
-    
+
     @value.setter
     def value(self, val: int) -> None:
         """Set the value of this attribute."""
@@ -114,9 +114,9 @@ class Vector3Attribute(Attribute):
     def __init__(self, attr_path: str):
         super().__init__(attr_path)
 
-        self.x  = ScalarAttribute(f"{attr_path}X")
-        self.y  = ScalarAttribute(f"{attr_path}Y")
-        self.z  = ScalarAttribute(f"{attr_path}Z")
+        self.x = ScalarAttribute(f"{attr_path}X")
+        self.y = ScalarAttribute(f"{attr_path}Y")
+        self.z = ScalarAttribute(f"{attr_path}Z")
 
 
 class Vector4Attribute(Attribute):
@@ -125,11 +125,10 @@ class Vector4Attribute(Attribute):
     def __init__(self, attr_path: str):
         super().__init__(attr_path)
 
-        self.x  = ScalarAttribute(f"{attr_path}X")
+        self.x = ScalarAttribute(f"{attr_path}X")
         self.y = ScalarAttribute(f"{attr_path}Y")
         self.z = ScalarAttribute(f"{attr_path}Z")
         self.w = ScalarAttribute(f"{attr_path}W")
-
 
 
 class IndexableAttribute(Attribute):

@@ -1,6 +1,15 @@
-from maya.api.OpenMaya import MAngle, MDagPath, MEulerRotation, MMatrix, MSelectionList, MSpace, MTransformationMatrix
-import maya.cmds as cmds
 from enum import Enum
+
+import maya.cmds as cmds
+from maya.api.OpenMaya import (
+    MAngle,
+    MDagPath,
+    MEulerRotation,
+    MMatrix,
+    MSelectionList,
+    MSpace,
+    MTransformationMatrix,
+)
 
 from impulse.utils.naming import flip_side
 
@@ -53,7 +62,7 @@ def get_world_matrix(transform: str) -> MMatrix:
 def set_world_matrix(transform: str, matrix: MMatrix, fallback=False) -> None:
     """
     Set the world matrix of a transform by decomposing it into local components.
-    
+
     Args:
         transform: Maya transform node name.
         matrix: Target world space matrix.
@@ -73,7 +82,7 @@ def set_world_matrix(transform: str, matrix: MMatrix, fallback=False) -> None:
         else:
             # No parent - world matrix IS the local matrix
             local_matrix: MMatrix = matrix
-        
+
         # Apply local matrix using transformation matrix
         transform_matrix: MTransformationMatrix = MTransformationMatrix(local_matrix)
         # Set translation
@@ -102,8 +111,6 @@ def set_world_matrix(transform: str, matrix: MMatrix, fallback=False) -> None:
         # Set shear
         shear = transform_matrix.shear(MSpace.kTransform)
         cmds.setAttr(f"{transform}.shear", shear[0], shear[1], shear[2])
-        
-
 
 
 def match_transform(transform: str, target_transform: str) -> None:

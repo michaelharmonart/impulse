@@ -102,7 +102,7 @@ def lab_to_lch(color: tuple[float, float, float]) -> tuple[float, float, float]:
     Returns:
         color: The corresponding color in LCh space (L, C, H). Hue is measured in degrees.
     """
-    
+
     l: float = color[0]
     a: float = color[1]
     b: float = color[2]
@@ -112,6 +112,7 @@ def lab_to_lch(color: tuple[float, float, float]) -> tuple[float, float, float]:
     if h < 0:
         h += 360.0
     return (l, c, h)
+
 
 def lch_to_lab(color: tuple[float, float, float]) -> tuple[float, float, float]:
     """
@@ -126,7 +127,7 @@ def lch_to_lab(color: tuple[float, float, float]) -> tuple[float, float, float]:
     """
     l: float = color[0]
     c: float = color[1]
-    h: float =  math.radians(color[2])
+    h: float = math.radians(color[2])
 
     a: float = c * math.cos(h)
     b: float = c * math.sin(h)
@@ -134,9 +135,7 @@ def lch_to_lab(color: tuple[float, float, float]) -> tuple[float, float, float]:
     return (l, a, b)
 
 
-
 def linear_to_srgb_color(linear_color: tuple[float, float, float]) -> tuple[float, float, float]:
-
     """
     Convert a linear MColor to sRGB space.
 
@@ -297,8 +296,6 @@ def face_color_from_texture(mesh: str, anti_alias: bool = False) -> None:
     texture_node = get_texture_from_shader(shader_node)
     if not texture_node:
         raise RuntimeError(f"No texture connected to shader {shader_node}")
-
-    
 
     face_count: int = fn_mesh.numPolygons
     face_colors: list[MColor] = []

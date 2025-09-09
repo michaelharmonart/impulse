@@ -9,10 +9,10 @@ This module provides functions to:
 It leverages custom control curves from the control_gen module.
 """
 
-from impulse.maya_api.node import MultiplyPointByMatrixNode
-from impulse.maya_api import node
 import maya.cmds as cmds
 
+from impulse.maya_api import node
+from impulse.maya_api.node import MultiplyPointByMatrixNode
 from impulse.utils import pin as pin
 from impulse.utils.control import (
     Control,
@@ -210,8 +210,9 @@ def generate_ribbon(
                 cp_input = ".inputSurface"
             else:
                 cmds.error(f"Unsupported surface type: {surface_type}")
-            world_position_node: MultiplyPointByMatrixNode = node.MultiplyPointByMatrixNode(name=f"{pin_point}_worldPosition")
-
+            world_position_node: MultiplyPointByMatrixNode = node.MultiplyPointByMatrixNode(
+                name=f"{pin_point}_worldPosition"
+            )
 
             cmds.connectAttr(f"{pin_point}.parentMatrix", world_position_node.input_matrix)
             cmds.connectAttr(f"{pin_point}.translate", world_position_node.input_point)
@@ -386,13 +387,11 @@ def ribbon_interpolate(
 
     for joint_idx in range(total_joints):
         # Create nodes to get world-space positions for primary joint.
-        
+
         primary_pos_node: MultiplyPointByMatrixNode = node.MultiplyPointByMatrixNode(
             name=primary_joints[joint_idx].replace(interpolation_joint_suffix, "Position")
         )
-        cmds.connectAttr(
-            f"{primary_joints[joint_idx]}.parentMatrix", primary_pos_node.input_matrix
-        )
+        cmds.connectAttr(f"{primary_joints[joint_idx]}.parentMatrix", primary_pos_node.input_matrix)
         cmds.connectAttr(f"{primary_joints[joint_idx]}.translate", primary_pos_node.input_point)
 
         primary_cp_node = cmds.createNode(
@@ -413,9 +412,7 @@ def ribbon_interpolate(
         cmds.connectAttr(
             f"{secondary_joints[joint_idx]}.parentMatrix", secondary_pos_node.input_matrix
         )
-        cmds.connectAttr(
-            f"{secondary_joints[joint_idx]}.translate", secondary_pos_node.input_point
-        )
+        cmds.connectAttr(f"{secondary_joints[joint_idx]}.translate", secondary_pos_node.input_point)
 
         secondary_cp_node = cmds.createNode(
             cp_node_type,
