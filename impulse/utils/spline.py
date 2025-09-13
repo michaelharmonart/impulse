@@ -563,10 +563,16 @@ def get_point_on_spline(
     degree: int = 3,
     knots: list[float] | None = None,
     weights: list[float] | None = None,
+    normalize_parameter: bool = True,
 ) -> Vector3:
     position: Vector3 = Vector3()
     for control_point, weight in point_on_spline_weights(
-        cvs=cv_positions, t=t, degree=degree, knots=knots, weights=weights
+        cvs=cv_positions,
+        t=t,
+        degree=degree,
+        knots=knots,
+        weights=weights,
+        normalize=normalize_parameter,
     ):
         position += control_point * weight
     return position
@@ -593,6 +599,9 @@ def resample(
     padded: bool = True,
     arc_length: bool = True,
     sample_points: int = 256,
+    u_min: float | None = None,
+    u_max: float | None = None,
+    normalize_parameter: bool = True,
 ) -> list[float]:
     """
     Takes curve CV positions and returns the parameter of evenly spaced points along the curve.
@@ -608,19 +617,46 @@ def resample(
         arc_length(bool): When True, the points are returned with even spacing according to arc length.
         sample_points: The number of points to sample along the curve to find even arc-length segments.
             More points will be more accurate/evenly spaced.
+        u_min (float): The starting parameter value of the resampling range. Must be less than u_max.
+        u_max (float): The ending parameter value of the resampling range. Must be greater than u_min.
     Returns:
         list: List of the parameter values of the picked points along the curve.
     """
 
-    def get_target_u(index: int) -> float:
+    if not knots:
+        knots: list[float] = generate_knots(
+            count=len(cv_positions), degree=degree, periodic=periodic
+        )
+
+    if normalize_parameter:
+        domain_start: float = 0.0
+        domain_end: float = 1.0
+    else:
+        domain_start: float = knots[degree]
+        domain_end: float = knots[-degree - 1]
+
+    if not u_min:
+        u_min: float = domain_start
+    if not u_max:
+        u_max: float = domain_end
+
+    if not u_min < u_max:
+        raise ValueError(
+            f"The minimum U value ({u_min}) must be less than the maximum U value ({u_max})"
+        )
+
+    def get_normalized_u(index):
         if periodic:
-            u = i / (number_of_points)
+            base_u = i / (number_of_points)
         else:
             if padded:
-                u = (i + 0.5) / number_of_points
+                base_u = (i + 0.5) / number_of_points
             else:
-                u = i / (number_of_points - 1)
-        return u
+                base_u = i / (number_of_points - 1)
+        return base_u
+
+    def get_target_u(index: int) -> float:
+        return u_min + (u_max - u_min) * get_normalized_u(index)
 
     if not arc_length:
         point_parameters: list[float] = []
@@ -630,14 +666,26 @@ def resample(
         return point_parameters
 
     # Arc length based resampling
-    samples: list[Vector3] = []
-    for i in range(sample_points):
-        parameter: float = i * (1 / (sample_points - 1))
-        sample_pos: Vector3 = get_point_on_spline(
-            cv_positions=cv_positions, t=parameter, degree=degree, knots=knots, weights=weights
-        )
-        samples.append(sample_pos)
+    if sample_points < 2:
+        raise ValueError("sample_points must be >= 2")
 
+    sample_params: list[float] = [
+        u_min + (u_max - u_min) * (i / (sample_points - 1)) for i in range(sample_points)
+    ]
+
+    samples: list[Vector3] = [
+        get_point_on_spline(
+            cv_positions=cv_positions,
+            t=param,
+            degree=degree,
+            knots=knots,
+            weights=weights,
+            normalize_parameter=normalize_parameter,
+        )
+        for param in sample_params
+    ]
+
+    # cumulative arc lengths (arc_lengths[0] will be 0.0)
     arc_lengths: list[float] = []
     c_length: float = 0
     prev_sample: Vector3 | None = None
@@ -649,40 +697,48 @@ def resample(
         arc_lengths.append(c_length)
         prev_sample = sample
 
-    total_length: float = arc_lengths[len(arc_lengths) - 1]
+    total_length: float = arc_lengths[-1]
+
     point_parameters: list[float] = []
+    n_samples: int = len(arc_lengths)  # equal to sample_points
+
     for i in range(number_of_points):
-        u = get_target_u(i)
-        mapped_t: float = u
-        target_length: float = u * total_length
+        normalized_u = get_normalized_u(i)
+        mapped_t: float = get_target_u(i)
+        target_length: float = normalized_u * total_length
 
         # Binary search to find the first point equal or greater than the target length
         low: int = 0
-        high: int = len(arc_lengths) - 1
+        high: int = n_samples - 1
         index: int = 0
         while low < high:
-            index = low + (high - low) // 2
-            if arc_lengths[index] < target_length:
-                low = index + 1
+            mid = (low + high) // 2
+            if arc_lengths[mid] < target_length:
+                low = mid + 1
             else:
-                high = index
+                high = mid
+        index = low  # smallest index where arc_lengths[index] >= target_length.
 
-        # Step back by one
-        if arc_lengths[index] > target_length:
-            index -= 1
-        length_before: float = arc_lengths[index]
+        prev_index: int = max(0, index - 1)
+        next_index: int = index
 
         # If the sample is exactly our target point return it, if it's the last, return the end point, otherwise interpolate between the closest samples
-        if length_before == target_length:
-            mapped_t = index / len(arc_lengths)
+        if arc_lengths[prev_index] == target_length:
+            mapped_t: float = sample_params[next_index]
         elif i == number_of_points - 1:
-            u = get_target_u(number_of_points)
+            mapped_t: float = get_target_u(number_of_points)
         else:
-            sample_distance = arc_lengths[index + 1] - arc_lengths[index]
-            sample_fraction = (
-                target_length - length_before
-            ) / sample_distance  # How far we are along the current segment
-            mapped_t = (index + sample_fraction) / len(arc_lengths)
+            length_before: float = arc_lengths[prev_index]
+            sample_distance: float = arc_lengths[next_index] - arc_lengths[prev_index]
+            if sample_distance == 0.0:
+                sample_fraction: float = 0.0
+            else:
+                sample_fraction = (
+                    target_length - length_before
+                ) / sample_distance  # How far we are along the current segment
+            mapped_t = sample_params[prev_index] + sample_fraction * (
+                sample_params[next_index] - sample_params[prev_index]
+            )
 
         point_parameters.append(mapped_t)
 
@@ -1142,6 +1198,7 @@ def matrix_spline_from_curve(
         periodic=periodic,
         padded=padded,
         arc_length=arc_length,
+        normalize_parameter=False
     )
 
     for i in range(segments):
@@ -1165,6 +1222,7 @@ def matrix_spline_from_curve(
             stretch=stretch,
             primary_axis=primary_axis,
             secondary_axis=secondary_axis,
+            normalize_parameter=False
         )
     return matrix_spline
 
@@ -1285,6 +1343,7 @@ def matrix_spline_from_transforms(
         periodic=periodic,
         padded=padded,
         arc_length=arc_length,
+        normalize_parameter=False,
     )
 
     prev_segment: str | None = None
@@ -1314,5 +1373,6 @@ def matrix_spline_from_transforms(
             stretch=stretch,
             primary_axis=primary_axis,
             secondary_axis=secondary_axis,
+            normalize_parameter=False
         )
     return matrix_spline
