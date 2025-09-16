@@ -31,7 +31,7 @@ def maya_to_standard_knots(
     new_knots.append(0.0)
 
     # A cubic periodic knot vector looks like: [a,b,c,d,e, ...,  p+a,p+b,p+c,p+d,p+e]
-    # p is the length repeated indices, in the above case it would be 5 
+    # offset is the length of the repeated indices, in the above case it would be 5 
     # (degree is multiplied by 2 since degree is both part of the iterator and the indexing equation):
     # -degree < i < degree (max i here is used to calculate p)
     # k[(degree-1)+i+1] - k[(degree-1)+i] = k[(cv_count-1)+i+1] - k[(cv_count-1)+i]
