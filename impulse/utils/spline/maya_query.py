@@ -10,6 +10,8 @@ def maya_to_standard_knots(
     # Refer to https://openusd.org/dev/api/class_usd_geom_nurbs_curves.html#details
     # The above only works with uniform knots, so this is generalized to higher order and non-uniform knots
     # based on info found here https://developer.rhino3d.com/guides/opennurbs/periodic-curves-and-surfaces/
+    # Although there is a typo in the above doc, k[(cv_count)+i] should be k[(cv_count - 1)+i]
+    # Don't ask how long it took me to find that out
     """
     Convert Maya-style knot vector to a 'standard' knot vector.
 
@@ -29,10 +31,10 @@ def maya_to_standard_knots(
     new_knots.append(0.0)
 
     # A cubic periodic knot vector looks like: [a,b,c,d,e, ...,  p+a,p+b,p+c,p+d,p+e]
-    # p is the length of the knot vector - offset 
+    # p is the length repeated indices, in the above case it would be 5 
     # (degree is multiplied by 2 since degree is both part of the iterator and the indexing equation):
     # -degree < i < degree (max i here is used to calculate p)
-    # k[(degree-1)+i+1] - k[(degree-1)+i] = k[(cv_count-1)+i+1] - k[(cv_count)+i]
+    # k[(degree-1)+i+1] - k[(degree-1)+i] = k[(cv_count-1)+i+1] - k[(cv_count-1)+i]
     # (degree-1)+i and (cv_count-1)+i can now both be substituted with the offset
 
     offset: int = (degree * 2) - 1 
