@@ -1,6 +1,7 @@
 import json
 import os
 from enum import Enum
+from pathlib import Path
 from typing import Any, Literal
 
 import maya.cmds as cmds
@@ -16,12 +17,13 @@ from maya.api.OpenMaya import (
 
 from impulse.maya_api import node
 from impulse.maya_api.node import SumNode
+from impulse.resources import get_resource_root
 from impulse.utils import math as math
 from impulse.utils import pin as pin
 from impulse.utils.naming import flip_side, get_side
 from impulse.utils.transform import RotationOrder, match_transform, matrix_constraint
 
-CONTROL_DIR: str = os.path.dirname(os.path.realpath(__file__)) + "/control_shapes"
+CONTROL_DIR: Path = get_resource_root() / "control_shapes"
 
 
 class ControlShape(Enum):
@@ -188,7 +190,7 @@ def write_curve(control: str | None = None, name: str | None = None, force: bool
     if not name:
         name: str = control
 
-    json_path = f"{CONTROL_DIR}/{name}.json"
+    json_path: Path = CONTROL_DIR / f"{name}.json"
 
     # If the file exists, only write it if force = True, or after asking for confirmation.
     if os.path.isfile(path=json_path):
@@ -234,7 +236,7 @@ def get_curve_data(curve_shape: ControlShape | str) -> dict:
         curve_shape: ControlShape = ControlShape[curve_shape.strip().upper()]
     if curve_shape not in _loaded_control_shapes:
         # check if curve dict is a file and convert it to dictionary if it is
-        file_path = f"{CONTROL_DIR}/{curve_shape.filename}.json"
+        file_path: Path = CONTROL_DIR / f"{curve_shape.filename}.json"
         if not os.path.isfile(file_path):
             cmds.error(
                 f"Shape does not exist in library. You must write out the file {file_path} before reading."

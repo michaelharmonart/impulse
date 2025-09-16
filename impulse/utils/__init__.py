@@ -1,10 +1,10 @@
+from . import color as color
 from . import control as control
-from . import ribbon as ribbon
-from . import pin as pin
-from . import spline as spline
-from . import transform as transform
-from . import skin as skin
+from . import deformer as deformer
 from . import ik as ik
 from . import naming as naming
-from . import color as color
-from . import deformer as deformer
+from . import pin as pin
+from . import ribbon as ribbon
+from . import skin as skin
+from . import spline as spline
+from . import transform as transform

@@ -26,40 +26,6 @@ def generate_knots(count: int, degree: int = 3, periodic=False) -> list[float]:
     return [float(knot) for knot in knots]
 
 
-def maya_to_standard_knots(
-    knots: list[float], degree: int = 3, periodic: bool = False
-) -> list[float]:
-    """
-    Convert Maya-style knot vector to a 'standard' knot vector.
-
-    Args:
-        knots (list[float]): Input knot sequence from Maya.
-        degree (int, optional): Degree of the curve. Defaults to 3.
-        periodic (bool, optional): Whether the curve is periodic. Defaults to False.
-
-    Returns:
-        list[float]: Adjusted knot sequence.
-    """
-    new_knots: list[float] = knots.copy()
-    periodic_indices: int = (degree * 2) - 1
-
-    # add placeholders for first/last values
-    new_knots.insert(0, 0.0)
-    new_knots.append(0.0)
-
-    if periodic:
-        new_knots[0] = new_knots[1] - (
-            new_knots[-(periodic_indices - 1)] - new_knots[-periodic_indices]
-        )
-        new_knots[-1] = new_knots[-2] + (
-            new_knots[periodic_indices] - new_knots[periodic_indices - 1]
-        )
-    else:
-        new_knots[0] = new_knots[1]
-        new_knots[-1] = new_knots[-2]
-    return new_knots
-
-
 def is_periodic_knot_vector(knots: list[float], degree: int = 3) -> bool:
     # Based on this equation k[(degree-1)+i+1] - k[(degree-1)+i] = k[(cv_count-1)+i+1] - k[(cv_count)+i]
     # See https://developer.rhino3d.com/guides/opennurbs/periodic-curves-and-surfaces/

@@ -2,7 +2,6 @@ import maya.cmds as cmds
 from maya.api.OpenMaya import MDoubleArray, MFnNurbsCurve, MPointArray, MSelectionList, MSpace
 
 from impulse.structs.transform import Vector3
-from impulse.utils.spline import maya_to_standard_knots
 
 
 def get_knots(curve_shape: str) -> list[float]:
@@ -33,6 +32,40 @@ def get_knots(curve_shape: str) -> list[float]:
         periodic: bool = False
     knots: list[float] = maya_to_standard_knots(knots=knots, degree=degree, periodic=periodic)
     return knots
+
+
+def maya_to_standard_knots(
+    knots: list[float], degree: int = 3, periodic: bool = False
+) -> list[float]:
+    """
+    Convert Maya-style knot vector to a 'standard' knot vector.
+
+    Args:
+        knots (list[float]): Input knot sequence from Maya.
+        degree (int, optional): Degree of the curve. Defaults to 3.
+        periodic (bool, optional): Whether the curve is periodic. Defaults to False.
+
+    Returns:
+        list[float]: Adjusted knot sequence.
+    """
+    new_knots: list[float] = knots.copy()
+    periodic_indices: int = (degree * 2) - 1
+
+    # add placeholders for first/last values
+    new_knots.insert(0, 0.0)
+    new_knots.append(0.0)
+
+    if periodic:
+        new_knots[0] = new_knots[1] - (
+            new_knots[-(periodic_indices - 1)] - new_knots[-periodic_indices]
+        )
+        new_knots[-1] = new_knots[-2] + (
+            new_knots[periodic_indices] - new_knots[periodic_indices - 1]
+        )
+    else:
+        new_knots[0] = new_knots[1]
+        new_knots[-1] = new_knots[-2]
+    return new_knots
 
 
 def get_cvs(curve_shape: str) -> list[Vector3]:

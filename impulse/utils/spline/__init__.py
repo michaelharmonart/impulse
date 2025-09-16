@@ -11,7 +11,6 @@ from .math import (
     get_tangent_on_spline,
     get_weights_along_spline,
     is_periodic_knot_vector,
-    maya_to_standard_knots,
     point_on_spline_weights,
     resample,
     tangent_on_spline_weights,
@@ -23,12 +22,11 @@ from .matrix_spline import (
     matrix_spline_from_transforms,
     pin_to_matrix_spline,
 )
-from .maya_query import get_cv_weights, get_cvs, get_knots
+from .maya_query import get_cv_weights, get_cvs, get_knots, maya_to_standard_knots
 
 __all__ = [
     # Math
     "generate_knots",
-    "maya_to_standard_knots",
     "is_periodic_knot_vector",
     "point_on_spline_weights",
     "get_weights_along_spline",
@@ -44,6 +42,7 @@ __all__ = [
     "matrix_spline_from_transforms",
     # Maya Query
     "get_knots",
+    "maya_to_standard_knots",
     "get_cvs",
     "get_cv_weights",
 ]
