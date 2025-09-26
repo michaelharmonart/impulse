@@ -155,6 +155,7 @@ def pin_to_matrix_spline(
     stretch: bool = True,
     primary_axis: tuple[int, int, int] | None = (0, 1, 0),
     secondary_axis: tuple[int, int, int] | None = (0, 0, 1),
+    twist: bool = True,
 ) -> None:
     """
     Pins a transform to a matrix spline at a given parameter along the curve.
@@ -172,6 +173,9 @@ def pin_to_matrix_spline(
             from the spline. Used to resolve orientation. Must be one of the
             cardinal axes (±X, ±Y, ±Z) and orthogonal to ``primary_axis``.
             Defaults to (0, 0, 1) (the +Z axis).
+        twist (bool): When True the twist is calculated by averaging the secondary axis vector 
+            as the up vector for the aim matrix. If False no vector is set and the orientation is the swing
+            part of a swing twist decomposition.
     Returns:
         None
     """
@@ -238,8 +242,6 @@ def pin_to_matrix_spline(
     aim_matrix = cmds.createNode("aimMatrix", name=f"{segment_name}_AimMatrix")
     cmds.setAttr(f"{aim_matrix}.primaryMode", 2)
     cmds.setAttr(f"{aim_matrix}.primaryInputAxis", *primary_axis)
-    cmds.setAttr(f"{aim_matrix}.secondaryMode", 2)
-    cmds.setAttr(f"{aim_matrix}.secondaryInputAxis", *secondary_axis)
     cmds.connectAttr(tangent_vector_node.output, f"{aim_matrix}.primary.primaryTargetVector")
 
     axis_to_row: dict[tuple[int, int, int], node.RowFromMatrixNode] = {
@@ -251,7 +253,9 @@ def pin_to_matrix_spline(
         (0, 0, -1): blended_matrix_row3,
     }
     secondary_row: node.RowFromMatrixNode | None = axis_to_row.get(tuple(secondary_axis))
-    if secondary_row:
+    if secondary_row and twist:
+        cmds.setAttr(f"{aim_matrix}.secondaryMode", 2)
+        cmds.setAttr(f"{aim_matrix}.secondaryInputAxis", *secondary_axis)
         cmds.connectAttr(
             f"{secondary_row.output}X", f"{aim_matrix}.secondary.secondaryTargetVectorX"
         )
@@ -261,6 +265,8 @@ def pin_to_matrix_spline(
         cmds.connectAttr(
             f"{secondary_row.output}Z", f"{aim_matrix}.secondary.secondaryTargetVectorZ"
         )
+    else:
+        cmds.setAttr(f"{aim_matrix}.secondaryMode", 0)
 
     # Create nodes to access the values of the aim matrix node.
     deconstruct_matrix_attribute = f"{aim_matrix}.outputMatrix"
@@ -372,6 +378,7 @@ def matrix_spline_from_curve(
     arc_length: bool = True,
     primary_axis: tuple[int, int, int] | None = (0, 1, 0),
     secondary_axis: tuple[int, int, int] | None = (0, 0, 1),
+    twist: bool = True,
 ) -> MatrixSpline:
     """
     Takes a curve shape and creates a matrix spline with controls and deformation joints.
@@ -396,6 +403,9 @@ def matrix_spline_from_curve(
             from the spline. Used to resolve orientation. Must be one of the
             cardinal axes (±X, ±Y, ±Z) and orthogonal to ``primary_axis``.
             Defaults to (0, 0, 1) (the +Z axis).
+        twist (bool): When True the twist is calculated by averaging the secondary axis vector 
+            as the up vector for the aim matrix. If False no vector is set and the orientation is the swing
+            part of a swing twist decomposition.
 
     Returns:
         matrix_spline: The resulting matrix spline.
@@ -499,6 +509,7 @@ def matrix_spline_from_curve(
             primary_axis=primary_axis,
             secondary_axis=secondary_axis,
             normalize_parameter=False,
+            twist=twist,
         )
     return matrix_spline
 
@@ -523,6 +534,7 @@ def matrix_spline_from_transforms(
     def_chain: bool = False,
     primary_axis: tuple[int, int, int] | None = (0, 1, 0),
     secondary_axis: tuple[int, int, int] | None = (0, 0, 1),
+    twist: bool = True,
 ) -> MatrixSpline:
     """
     Takes a set of transforms (cvs) and creates a matrix spline with controls and deformation joints.
@@ -554,6 +566,9 @@ def matrix_spline_from_transforms(
             from the spline. Used to resolve orientation. Must be one of the
             cardinal axes (±X, ±Y, ±Z) and orthogonal to ``primary_axis``.
             Defaults to (0, 0, 1) (the +Z axis).
+        twist (bool): When True the twist is calculated by averaging the secondary axis vector 
+            as the up vector for the aim matrix. If False no vector is set and the orientation is the swing
+            part of a swing twist decomposition.
     Returns:
         matrix_spline: The resulting matrix spline.
     """
