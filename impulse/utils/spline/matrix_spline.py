@@ -31,6 +31,23 @@ class MatrixSpline:
         periodic: bool = False,
         name: str | None = None,
     ) -> None:
+        """
+        A matrix-based B-spline representation driven by transform nodes (CVs).
+
+        Encapsulates a B-spline where each control vertex (CV) is represented by a transform
+        in the scene. Instead of interpolating only point positions, the spline blends full
+        4x4 matrices derived from each CV’s transform, with scale encoded in the matrix’s
+        empty elements.
+
+        Args:
+            cv_transforms (list[str]): Transform node names used as control vertices.
+            degree (int, optional): Spline degree. Defaults to 3.
+            knots (list[float] | None, optional): Knot vector. If None, a suitable vector
+                is generated from the CV count, degree, and periodic setting.
+            periodic (bool, optional): Whether the spline is periodic (closed). Defaults to False.
+            name (str | None, optional): Base name for created scene nodes. Defaults to "MatrixSpline".
+        """
+        self.curve: str | None = None
         self.periodic: bool = periodic
         self.degree: int = degree
         self.cv_transforms: list[str] = cv_transforms
@@ -38,13 +55,16 @@ class MatrixSpline:
         if knots:
             self.knots: list[float] = knots
         else:
-            self.knots: list[float] = generate_knots(count=number_of_cvs, degree=degree)
+            self.knots: list[float] = generate_knots(
+                count=number_of_cvs, degree=degree, periodic=periodic
+            )
         if name:
             self.name: str = name
         else:
             self.name: str = "MatrixSpline"
 
         cv_matrices: list[str] = []
+        cv_position_attrs: list[tuple[str, str, str]] = []
         for index, cv_transform in enumerate(cv_transforms):
             # Remove scale and shear from matrix since they will interfere with the
             # linear interpolation of the basis vectors (causing flipping)
@@ -92,13 +112,59 @@ class MatrixSpline:
             cmds.connectAttr(f"{row4.output}W", f"{cv_matrix}.in33")
 
             cv_matrices.append(f"{cv_matrix}.output")
+            cv_position_attrs.append((f"{row4.output}X", f"{row4.output}Y", f"{row4.output}Z"))
 
         # If the curve is periodic there are we need to re-add CVs that move together.
         if periodic:
             for i in range(degree):
                 cv_matrices.append(cv_matrices[i])
 
-        self.cv_matrices = cv_matrices
+        self.cv_matrices: list[str] = cv_matrices
+        self.cv_position_attrs: list[tuple[str, str, str]] = cv_position_attrs
+
+
+def bound_curve_from_matrix_spline(
+    matrix_spline: MatrixSpline, curve_parent: str | None = None
+) -> str:
+    """
+    Creates a NURBS curve driven by a MatrixSpline’s control transforms.
+
+    This function builds a NURBS curve whose control points are bound directly to
+    the CV transforms of a given MatrixSpline. This is useful for having calculating a 
+    live attribute for the MatrixSpline arc length for example.
+
+    Args:
+        matrix_spline (MatrixSpline): The MatrixSpline instance providing CVs, knots,
+            and degree information.
+        curve_parent (str | None, optional): Optional parent transform to parent the
+            created curve under. If provided, the curve is parented relatively.
+
+    Returns:
+        str: The name of the created curve transform node.
+    """
+    maya_knots: list[float] = matrix_spline.knots[1:-1]
+    if matrix_spline.periodic:
+        extended_cvs: list[str] = (
+            matrix_spline.cv_transforms + matrix_spline.cv_transforms[: matrix_spline.degree]
+        )
+    else:
+        extended_cvs: list[str] = matrix_spline.cv_transforms
+    curve_transform: str = cmds.curve(
+        name=f"{matrix_spline.name}_Curve",
+        point=[
+            cmds.xform(cv, query=True, worldSpace=True, translation=True) for cv in extended_cvs
+        ],
+        periodic=matrix_spline.periodic,
+        knot=maya_knots,
+        degree=matrix_spline.degree,
+    )
+    if curve_parent is not None:
+        cmds.parent(curve_transform, curve_parent, relative=True)
+
+    for index, cv_position_attrs in enumerate(matrix_spline.cv_position_attrs):
+        cmds.connectAttr(cv_position_attrs[0], f"{curve_transform}.controlPoints[{index}].xValue")
+        cmds.connectAttr(cv_position_attrs[1], f"{curve_transform}.controlPoints[{index}].yValue")
+        cmds.connectAttr(cv_position_attrs[2], f"{curve_transform}.controlPoints[{index}].zValue")
 
 
 def closest_point_on_matrix_spline(
@@ -173,7 +239,7 @@ def pin_to_matrix_spline(
             from the spline. Used to resolve orientation. Must be one of the
             cardinal axes (±X, ±Y, ±Z) and orthogonal to ``primary_axis``.
             Defaults to (0, 0, 1) (the +Z axis).
-        twist (bool): When True the twist is calculated by averaging the secondary axis vector 
+        twist (bool): When True the twist is calculated by averaging the secondary axis vector
             as the up vector for the aim matrix. If False no vector is set and the orientation is the swing
             part of a swing twist decomposition.
     Returns:
@@ -379,6 +445,7 @@ def matrix_spline_from_curve(
     primary_axis: tuple[int, int, int] | None = (0, 1, 0),
     secondary_axis: tuple[int, int, int] | None = (0, 0, 1),
     twist: bool = True,
+    create_curve: bool = False,
 ) -> MatrixSpline:
     """
     Takes a curve shape and creates a matrix spline with controls and deformation joints.
@@ -403,10 +470,11 @@ def matrix_spline_from_curve(
             from the spline. Used to resolve orientation. Must be one of the
             cardinal axes (±X, ±Y, ±Z) and orthogonal to ``primary_axis``.
             Defaults to (0, 0, 1) (the +Z axis).
-        twist (bool): When True the twist is calculated by averaging the secondary axis vector 
+        twist (bool): When True the twist is calculated by averaging the secondary axis vector
             as the up vector for the aim matrix. If False no vector is set and the orientation is the swing
             part of a swing twist decomposition.
-
+        create_curve (bool, optional): If True, creates and binds a NURBS curve to the MatrixSpline.
+            This is useful for arc length calculation.
     Returns:
         matrix_spline: The resulting matrix spline.
     """
@@ -473,8 +541,16 @@ def matrix_spline_from_curve(
         cmds.parent(cv_transform, mch_group)
         cmds.parent(control.offset_transform, ctl_group)
     matrix_spline: MatrixSpline = MatrixSpline(
-        cv_transforms=cv_transforms, degree=degree, knots=knots, periodic=periodic, name=name
+        cv_transforms=cv_transforms,
+        degree=degree,
+        knots=knots,
+        periodic=periodic,
+        name=name,
     )
+    if create_curve:
+        matrix_spline.curve = bound_curve_from_matrix_spline(
+            matrix_spline=matrix_spline, curve_parent=container_group
+        )
 
     segment_parameters: list[float] = resample(
         cv_positions=cv_positions,
@@ -535,6 +611,7 @@ def matrix_spline_from_transforms(
     primary_axis: tuple[int, int, int] | None = (0, 1, 0),
     secondary_axis: tuple[int, int, int] | None = (0, 0, 1),
     twist: bool = True,
+    create_curve: bool = False,
 ) -> MatrixSpline:
     """
     Takes a set of transforms (cvs) and creates a matrix spline with controls and deformation joints.
@@ -566,9 +643,11 @@ def matrix_spline_from_transforms(
             from the spline. Used to resolve orientation. Must be one of the
             cardinal axes (±X, ±Y, ±Z) and orthogonal to ``primary_axis``.
             Defaults to (0, 0, 1) (the +Z axis).
-        twist (bool): When True the twist is calculated by averaging the secondary axis vector 
+        twist (bool): When True the twist is calculated by averaging the secondary axis vector
             as the up vector for the aim matrix. If False no vector is set and the orientation is the swing
             part of a swing twist decomposition.
+        create_curve (bool, optional): If True, creates and binds a NURBS curve to the MatrixSpline.
+            This is useful for arc length calculation.
     Returns:
         matrix_spline: The resulting matrix spline.
     """
@@ -617,8 +696,16 @@ def matrix_spline_from_transforms(
         cmds.parent(cv_transform, mch_group)
 
     matrix_spline: MatrixSpline = MatrixSpline(
-        cv_transforms=cv_transforms, degree=degree, periodic=periodic, name=name, knots=knots
+        cv_transforms=cv_transforms,
+        degree=degree,
+        periodic=periodic,
+        name=name,
+        knots=knots,
     )
+    if create_curve:
+        matrix_spline.curve = bound_curve_from_matrix_spline(
+            matrix_spline=matrix_spline, curve_parent=container_group
+        )
 
     extended_cv_positions: list[Vector3] = list(cv_positions)
 
@@ -665,5 +752,6 @@ def matrix_spline_from_transforms(
             primary_axis=primary_axis,
             secondary_axis=secondary_axis,
             normalize_parameter=False,
+            twist=twist,
         )
     return matrix_spline
