@@ -189,8 +189,8 @@ class SubtractNode(Node):
         super().__init__("subtract", name)
 
     def _setup_attributes(self) -> None:
-        self.input1: ScalarAttribute = IndexableAttribute(f"{self.name}.input1")
-        self.input2: ScalarAttribute = IndexableAttribute(f"{self.name}.input2")
+        self.input1: ScalarAttribute = ScalarAttribute(f"{self.name}.input1")
+        self.input2: ScalarAttribute = ScalarAttribute(f"{self.name}.input2")
         self.output: ScalarAttribute = ScalarAttribute(f"{self.name}.output")
 
 
