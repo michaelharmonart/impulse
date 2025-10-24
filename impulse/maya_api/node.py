@@ -29,6 +29,7 @@ class Node:
 
     NODE_TYPES: dict[str, dict[str, str]] = {
         "multiply": {"standard": "multiply", "DL": "multiplyDL"},
+        "subtract": {"standard": "subtract", "DL": "subtractDL"},
         "sum": {"standard": "sum", "DL": "sumDL"},
         "divide": {"standard": "divide", "DL": "divideDL"},
         "clampRange": {"standard": "clampRange", "DL": "clampRangeDL"},
@@ -154,7 +155,7 @@ class MultiplyNode(Node):
 
     def _setup_attributes(self) -> None:
         self.input: IndexableAttribute = IndexableAttribute(f"{self.name}.input")
-        self.output: Attribute = Attribute(f"{self.name}.output")
+        self.output: ScalarAttribute = ScalarAttribute(f"{self.name}.output")
 
 
 class MultiplyPointByMatrixNode(Node):
@@ -181,6 +182,18 @@ class RowFromMatrixNode(Node):
         self.output = Vector4Attribute(f"{self.name}.output")
 
 
+class SubtractNode(Node):
+    """Maya subtract node with enhanced interface."""
+
+    def __init__(self, name: str = "subtract") -> None:
+        super().__init__("subtract", name)
+
+    def _setup_attributes(self) -> None:
+        self.input1: ScalarAttribute = IndexableAttribute(f"{self.name}.input1")
+        self.input2: ScalarAttribute = IndexableAttribute(f"{self.name}.input2")
+        self.output: ScalarAttribute = ScalarAttribute(f"{self.name}.output")
+
+
 class SumNode(Node):
     """Maya sum node with enhanced interface."""
 
@@ -189,4 +202,5 @@ class SumNode(Node):
 
     def _setup_attributes(self) -> None:
         self.input: IndexableAttribute = IndexableAttribute(f"{self.name}.input")
-        self.output: Attribute = Attribute(f"{self.name}.output")
+        self.output: ScalarAttribute = ScalarAttribute(f"{self.name}.output")
+
