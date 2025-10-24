@@ -165,7 +165,7 @@ def bound_curve_from_matrix_spline(
         cmds.connectAttr(cv_position_attrs[0], f"{curve_transform}.controlPoints[{index}].xValue")
         cmds.connectAttr(cv_position_attrs[1], f"{curve_transform}.controlPoints[{index}].yValue")
         cmds.connectAttr(cv_position_attrs[2], f"{curve_transform}.controlPoints[{index}].zValue")
-
+    return curve_transform
 
 def closest_point_on_matrix_spline(
     matrix_spline: MatrixSpline, position: list[float, float, float]
