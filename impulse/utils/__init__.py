@@ -8,3 +8,4 @@ from . import ribbon as ribbon
 from . import skin as skin
 from . import spline as spline
 from . import transform as transform
+from . import pose_interpolator as pose_interpolator
