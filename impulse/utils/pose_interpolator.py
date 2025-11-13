@@ -72,7 +72,7 @@ class Pose:
                 MTransformationMatrix(matrix) for matrix in self.matrices
             ]
             self.rotations = [matrix.rotation(asQuaternion=True) for matrix in transform_matrices]
-            self.translations = [matrix.translation(MSpace.kTransform) for matrix in transform_matrices]
+            self.translations = [MPoint(matrix.translation(MSpace.kTransform)) for matrix in transform_matrices]
         if not isinstance(self.pose_type, PoseType):
             self.pose_type = PoseType(self.pose_type)
         self.index: int | None = None
@@ -189,10 +189,10 @@ class PoseInterpolator:
             )
         cmds.setAttr(f"{pose_attr}.isIndependent", 1 if pose.independent else 0)
         cmds.setAttr(f"{pose_attr}.poseRotationFalloff", pose.rotation_falloff)
-        cmds.setAttr(f"{pose_attr}.poseRotationFalloff", pose.rotation_falloff)
+        cmds.setAttr(f"{pose_attr}.poseTranslationFalloff", pose.translation_falloff)
         cmds.setAttr(f"{pose_attr}.poseType", pose.pose_type.value)
         cmds.setAttr(f"{pose_attr}.poseFalloff", pose.gaussian_falloff)
         cmds.setAttr(f"{pose_attr}.isEnabled", 1 if pose.enabled else 0)
         pose.index = next_pose_index
-        self.pose_indices.add(index)
+        self.pose_indices.add(next_pose_index)
         self.poses.append(pose)
