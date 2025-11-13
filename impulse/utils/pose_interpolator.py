@@ -5,7 +5,7 @@ from typing import Literal
 import maya.cmds as cmds
 from maya.api.OpenMaya import MMatrix, MPoint, MQuaternion, MSpace, MTransformationMatrix
 
-from impulse.utils.transform import get_world_matrix
+from impulse.utils.transform import get_local_matrix
 
 
 @dataclass
@@ -61,7 +61,7 @@ class Pose:
     matrices: list[MMatrix] | None = None
     independent: bool = False
     rotation_falloff: float = 180
-    translation_falloff: float = 0
+    translation_falloff: float = 0.001
     pose_type: PoseType | int = PoseType.SWING_ONLY
     gaussian_falloff: float = 1
     enabled: bool = True
@@ -162,7 +162,7 @@ class PoseInterpolator:
         self.drivers.append(driver)
 
     def _get_neutral_pose(self) -> Pose:
-        matrices: list[MMatrix] = [get_world_matrix(driver.transform) for driver in self.drivers]
+        matrices: list[MMatrix] = [get_local_matrix(driver.transform) for driver in self.drivers]
         return Pose(name="neutral", matrices=matrices, gaussian_falloff=0.5)
 
     def _next_free_pose_index(self) -> int:

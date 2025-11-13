@@ -5,6 +5,7 @@ from maya.api.OpenMaya import (
     MAngle,
     MDagPath,
     MEulerRotation,
+    MFnTransform,
     MMatrix,
     MSelectionList,
     MSpace,
@@ -47,6 +48,16 @@ def get_shapes(transform: str) -> list[str]:
 def mmatrix_to_list(matrix: MMatrix) -> list[float]:
     return [matrix.getElement(row, col) for row in range(4) for col in range(4)]
 
+def get_local_matrix(transform: str) -> MMatrix:
+    """
+    Returns the local matrix of a transform.
+    """
+    selection = MSelectionList()
+    selection.add(transform)
+    dag_path: MDagPath = selection.getDagPath(0)
+    mfn_transform: MFnTransform = MFnTransform(dag_path)
+    transformation: MTransformationMatrix = mfn_transform.transformation()
+    return transformation.asMatrix()
 
 def get_world_matrix(transform: str) -> MMatrix:
     """
