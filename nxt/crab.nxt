@@ -592,7 +592,9 @@
                 "tweak_attr = f\"{control_panel}.${tweak_attr_long}\"",
                 "cmds.setAttr(tweak_attr, channelBox=True)   ",
                 "",
-                "cmds.connectAttr(\"${tweak_attr}\", \"${tweak_group}.visibility\")"
+                "cmds.connectAttr(\"${tweak_attr}\", \"${tweak_group}.visibility\")",
+                "",
+                "cmds.refresh()"
             ]
         },
         "/left/eye/eye": {

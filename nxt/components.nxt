@@ -276,7 +276,10 @@
                 "def_joints = impulse.utils.ik.fk_from_guides(guides=self.joints, name=\"${part_def}\", parent=\"${def_group}\", suffix=\"_DEF\", side_mult=${side_mult}, include_last=False)",
                 "impulse.utils.transform.constrain_transforms(self.pose_joints[:-1], def_joints)",
                 "self.def_joints = def_joints",
-                "STAGE.body_joints.extend(def_joints)"
+                "STAGE.body_joints.extend(def_joints)",
+                "",
+                "cmds.refresh()",
+                ""
             ]
         },
         "/limb/controls": {
@@ -782,6 +785,7 @@
                 "impulse.utils.transform.matrix_constraint(pinned_transform, mid_control.offset_transform, keep_offset=True)",
                 "",
                 "STAGE.body_joints.extend(cmds.listRelatives(def_group, type=\"joint\", allDescendents=True))",
+                "cmds.refresh()",
                 ""
             ]
         }

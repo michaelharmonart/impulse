@@ -59,6 +59,26 @@ def get_local_matrix(transform: str) -> MMatrix:
     transformation: MTransformationMatrix = mfn_transform.transformation()
     return transformation.asMatrix()
 
+def get_parent_matrix(transform: str) -> MMatrix:
+    """
+    Returns the full world matrix of a transform up to it's parent, including rotateAxis, jointOrient, etc.
+    Equivalent to Maya's internal parent matrix.
+    """
+    selection = MSelectionList()
+    selection.add(transform)
+    dag_path: MDagPath = selection.getDagPath(0)
+    return dag_path.exclusiveMatrix()
+
+def get_parent_inverse_matrix(transform: str) -> MMatrix:
+    """
+    Returns the full inverse world matrix of a transform up to it's parent, including rotateAxis, jointOrient, etc.
+    Equivalent to Maya's internal parentInverse matrix.
+    """
+    selection = MSelectionList()
+    selection.add(transform)
+    dag_path: MDagPath = selection.getDagPath(0)
+    return dag_path.exclusiveMatrixInverse()
+
 def get_world_matrix(transform: str) -> MMatrix:
     """
     Returns the full world matrix of a transform, including rotateAxis, jointOrient, etc.
@@ -82,17 +102,9 @@ def set_world_matrix(transform: str, matrix: MMatrix, fallback=False) -> None:
     if fallback:
         cmds.xform(transform, worldSpace=True, matrix=mmatrix_to_list(matrix))
     else:
-        # Get parent and calculate local matrix
-        parents: list[str] = cmds.listRelatives(transform, parent=True)
-        parent: str | None = parents[0] if parents else None
-        if parent:
-            # Has parent - calculate local matrix relative to parent
-            parent_world_matrix = get_world_matrix(parent)
-            inverse_matrix: MMatrix = parent_world_matrix.inverse()
-            local_matrix: MMatrix = matrix * inverse_matrix
-        else:
-            # No parent - world matrix IS the local matrix
-            local_matrix: MMatrix = matrix
+
+        inverse_matrix: MMatrix = get_parent_inverse_matrix(transform)
+        local_matrix: MMatrix = matrix * inverse_matrix
 
         # Apply local matrix using transformation matrix
         transform_matrix: MTransformationMatrix = MTransformationMatrix(local_matrix)
