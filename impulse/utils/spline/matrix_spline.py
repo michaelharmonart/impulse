@@ -432,6 +432,7 @@ def pin_to_matrix_spline(
 def matrix_spline_from_curve(
     curve: str,
     segments: int,
+    transforms_to_pin: list[str] = [],
     padded: bool = True,
     name: str | None = None,
     control_size: float = 0.1,
@@ -452,6 +453,7 @@ def matrix_spline_from_curve(
     Args:
         curve: The curve transform.
         segments: Number of matrices to pin to the curve.
+        transforms_to_pin: These transforms will be constrained to the spline as a normal segment.
         padded: When True, segments are sampled such that the end points have half a segment of spacing from the ends of the spline.
         name: Name of the matrix spline group to be created.
         control_size: Size of generated controls.
@@ -587,12 +589,37 @@ def matrix_spline_from_curve(
             normalize_parameter=False,
             twist=twist,
         )
+    if transforms_to_pin is not None:
+        pin_parameters: list[float] = resample(
+            cv_positions=cv_positions,
+            number_of_points=len(transforms_to_pin),
+            degree=degree,
+            knots=knots,
+            periodic=periodic,
+            padded=padded,
+            arc_length=arc_length,
+            normalize_parameter=False,
+        )
+        for index, transform in enumerate(transforms_to_pin):
+            segment_pin: str = cmds.group(name=f"{transform}_Pin", empty=True, parent=container_group)
+            matrix_constraint(segment_pin, transform, keep_offset=False)
+            pin_to_matrix_spline(
+                matrix_spline=matrix_spline,
+                pinned_transform=segment_pin,
+                parameter=pin_parameters[index],
+                stretch=stretch,
+                primary_axis=primary_axis,
+                secondary_axis=secondary_axis,
+                normalize_parameter=False,
+                twist=twist,
+            )
     return matrix_spline
 
 
 def matrix_spline_from_transforms(
     transforms: list[str],
     segments: int,
+    transforms_to_pin: list[str] | None = [],
     periodic: bool = False,
     degree: int = 3,
     knots: list[str] | None = None,
@@ -616,7 +643,8 @@ def matrix_spline_from_transforms(
     """
     Takes a set of transforms (cvs) and creates a matrix spline with controls and deformation joints.
     Args:
-        curve: The curve transform.
+        transforms: The transforms (CVS) that will drive the spline.
+        transforms_to_pin: These transforms will be constrained to the spline as a normal segment.
         segments: Number of matrices to pin to the curve.
         periodic: Whether the given transforms form a periodic curve or not (no need for repeated CVs)
         degree: Degree of the spline to be created.
@@ -754,4 +782,28 @@ def matrix_spline_from_transforms(
             normalize_parameter=False,
             twist=twist,
         )
+    if transforms_to_pin is not None:
+        pin_parameters: list[float] = resample(
+            cv_positions=extended_cv_positions,
+            number_of_points=len(transforms_to_pin),
+            degree=degree,
+            knots=knots,
+            periodic=periodic,
+            padded=padded,
+            arc_length=arc_length,
+            normalize_parameter=False,
+        )
+        for index, transform in enumerate(transforms_to_pin):
+            segment_pin: str = cmds.group(name=f"{transform}_Pin", empty=True, parent=container_group)
+            matrix_constraint(segment_pin, transform, keep_offset=False)
+            pin_to_matrix_spline(
+                matrix_spline=matrix_spline,
+                pinned_transform=segment_pin,
+                parameter=pin_parameters[index],
+                stretch=stretch,
+                primary_axis=primary_axis,
+                secondary_axis=secondary_axis,
+                normalize_parameter=False,
+                twist=twist,
+            )
     return matrix_spline
