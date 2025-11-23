@@ -52,7 +52,7 @@ def create_iris_drivers(name: str, loops: int = 8, iris_loops: int = 2, iris_sca
         if white:
             cmds.connectAttr(scale_map.output, remap.input1)
             cmds.setAttr(remap.input2, 0)
-            cmds.setAttr(remap.weight, white_i/(white_loops-1))
+            cmds.setAttr(remap.weight, (white_i+1)/(white_loops))
             
         sin_node = node.SinNode(name=f"{driver}_Sin")
         cos_node = node.CosNode(name=f"{driver}_Cos")
