@@ -222,6 +222,7 @@ def pin_to_matrix_spline(
     primary_axis: tuple[int, int, int] | None = (0, 1, 0),
     secondary_axis: tuple[int, int, int] | None = (0, 0, 1),
     twist: bool = True,
+    align_tangent: bool = True,
 ) -> None:
     """
     Pins a transform to a matrix spline at a given parameter along the curve.
@@ -242,6 +243,7 @@ def pin_to_matrix_spline(
         twist (bool): When True the twist is calculated by averaging the secondary axis vector
             as the up vector for the aim matrix. If False no vector is set and the orientation is the swing
             part of a swing twist decomposition.
+        align_tangent: When True the pinned segments will align their primary axis along the spline. 
     Returns:
         None
     """
@@ -270,25 +272,6 @@ def pin_to_matrix_spline(
         cmds.setAttr(f"{blended_matrix}.wtMatrix[{index}].weightIn", point_weight[1])
         cmds.connectAttr(f"{point_weight[0]}", f"{blended_matrix}.wtMatrix[{index}].matrixIn")
 
-    blended_tangent_matrix = cmds.createNode("wtAddMatrix", name=f"{segment_name}_TangentMatrix")
-    tangent_weights = tangent_on_spline_weights(
-        cvs=cv_matrices, t=parameter, degree=degree, knots=knots, normalize=normalize_parameter
-    )
-    for index, tangent_weight in enumerate(tangent_weights):
-        cmds.setAttr(
-            f"{blended_tangent_matrix}.wtMatrix[{index}].weightIn",
-            tangent_weight[1],
-        )
-        cmds.connectAttr(
-            f"{tangent_weight[0]}",
-            f"{blended_tangent_matrix}.wtMatrix[{index}].matrixIn",
-        )
-    tangent_vector_node: node.MultiplyPointByMatrixNode = node.MultiplyPointByMatrixNode(
-        name=f"{blended_tangent_matrix}_TangentVector"
-    )
-
-    cmds.connectAttr(f"{blended_tangent_matrix}.matrixSum", tangent_vector_node.input_matrix)
-
     # Create nodes to access the values of the blended matrix node.
     deconstruct_matrix_attribute = f"{blended_matrix}.matrixSum"
     blended_matrix_row1 = node.RowFromMatrixNode(name=f"{blended_matrix}_row1")
@@ -304,12 +287,6 @@ def pin_to_matrix_spline(
     cmds.connectAttr(deconstruct_matrix_attribute, blended_matrix_row4.matrix)
     cmds.setAttr(blended_matrix_row4.input, 3)
 
-    # Create aim matrix node.
-    aim_matrix = cmds.createNode("aimMatrix", name=f"{segment_name}_AimMatrix")
-    cmds.setAttr(f"{aim_matrix}.primaryMode", 2)
-    cmds.setAttr(f"{aim_matrix}.primaryInputAxis", *primary_axis)
-    cmds.connectAttr(tangent_vector_node.output, f"{aim_matrix}.primary.primaryTargetVector")
-
     axis_to_row: dict[tuple[int, int, int], node.RowFromMatrixNode] = {
         (1, 0, 0): blended_matrix_row1,
         (0, 1, 0): blended_matrix_row2,
@@ -318,35 +295,71 @@ def pin_to_matrix_spline(
         (0, -1, 0): blended_matrix_row2,
         (0, 0, -1): blended_matrix_row3,
     }
-    secondary_row: node.RowFromMatrixNode | None = axis_to_row.get(tuple(secondary_axis))
-    if secondary_row and twist:
-        cmds.setAttr(f"{aim_matrix}.secondaryMode", 2)
-        cmds.setAttr(f"{aim_matrix}.secondaryInputAxis", *secondary_axis)
-        cmds.connectAttr(
-            f"{secondary_row.output}X", f"{aim_matrix}.secondary.secondaryTargetVectorX"
+
+    if align_tangent:
+        blended_tangent_matrix = cmds.createNode("wtAddMatrix", name=f"{segment_name}_TangentMatrix")
+        tangent_weights = tangent_on_spline_weights(
+            cvs=cv_matrices, t=parameter, degree=degree, knots=knots, normalize=normalize_parameter
         )
-        cmds.connectAttr(
-            f"{secondary_row.output}Y", f"{aim_matrix}.secondary.secondaryTargetVectorY"
+        for index, tangent_weight in enumerate(tangent_weights):
+            cmds.setAttr(
+                f"{blended_tangent_matrix}.wtMatrix[{index}].weightIn",
+                tangent_weight[1],
+            )
+            cmds.connectAttr(
+                f"{tangent_weight[0]}",
+                f"{blended_tangent_matrix}.wtMatrix[{index}].matrixIn",
+            )
+        tangent_vector_node: node.MultiplyPointByMatrixNode = node.MultiplyPointByMatrixNode(
+            name=f"{blended_tangent_matrix}_TangentVector"
         )
-        cmds.connectAttr(
-            f"{secondary_row.output}Z", f"{aim_matrix}.secondary.secondaryTargetVectorZ"
-        )
+        cmds.connectAttr(f"{blended_tangent_matrix}.matrixSum", tangent_vector_node.input_matrix)
+
+        # Create aim matrix node.
+        aim_matrix = cmds.createNode("aimMatrix", name=f"{segment_name}_AimMatrix")
+        cmds.setAttr(f"{aim_matrix}.primaryMode", 2)
+        cmds.setAttr(f"{aim_matrix}.primaryInputAxis", *primary_axis)
+        cmds.connectAttr(tangent_vector_node.output, f"{aim_matrix}.primary.primaryTargetVector")
+
+        secondary_row: node.RowFromMatrixNode | None = axis_to_row.get(tuple(secondary_axis))
+        if secondary_row and twist:
+            cmds.setAttr(f"{aim_matrix}.secondaryMode", 2)
+            cmds.setAttr(f"{aim_matrix}.secondaryInputAxis", *secondary_axis)
+            cmds.connectAttr(
+                f"{secondary_row.output}X", f"{aim_matrix}.secondary.secondaryTargetVectorX"
+            )
+            cmds.connectAttr(
+                f"{secondary_row.output}Y", f"{aim_matrix}.secondary.secondaryTargetVectorY"
+            )
+            cmds.connectAttr(
+                f"{secondary_row.output}Z", f"{aim_matrix}.secondary.secondaryTargetVectorZ"
+            )
+        else:
+            cmds.setAttr(f"{aim_matrix}.secondaryMode", 0)
+        rigid_matrix = aim_matrix
+        rigid_matrix_output= f"{aim_matrix}.outputMatrix"
     else:
-        cmds.setAttr(f"{aim_matrix}.secondaryMode", 0)
+        pick_matrix = cmds.createNode("pickMatrix", name=f"{segment_name}_Ortho")
+        cmds.setAttr(f"{pick_matrix}.useTranslate", 1)
+        cmds.setAttr(f"{pick_matrix}.useRotate", 1)
+        cmds.setAttr(f"{pick_matrix}.useScale", 0)
+        cmds.setAttr(f"{pick_matrix}.useShear", 0)
+        cmds.connectAttr(deconstruct_matrix_attribute, f"{pick_matrix}.inputMatrix")
+        rigid_matrix = pick_matrix
+        rigid_matrix_output= f"{pick_matrix}.outputMatrix"
 
-    # Create nodes to access the values of the aim matrix node.
-    deconstruct_matrix_attribute = f"{aim_matrix}.outputMatrix"
-    aim_matrix_row1 = node.RowFromMatrixNode(name=f"{aim_matrix}_row1")
-    cmds.connectAttr(deconstruct_matrix_attribute, aim_matrix_row1.matrix)
-    cmds.setAttr(aim_matrix_row1.input, 0)
-    aim_matrix_row2 = node.RowFromMatrixNode(name=f"{aim_matrix}_row2")
-    cmds.connectAttr(deconstruct_matrix_attribute, aim_matrix_row2.matrix)
-    cmds.setAttr(aim_matrix_row2.input, 1)
-    aim_matrix_row3 = node.RowFromMatrixNode(name=f"{aim_matrix}_row3")
-    cmds.connectAttr(deconstruct_matrix_attribute, aim_matrix_row3.matrix)
-    cmds.setAttr(aim_matrix_row3.input, 2)
+    # Create nodes to access the values of the rigid matrix (aim matrix or pick matrix) node.
+    rigid_matrix_row1 = node.RowFromMatrixNode(name=f"{rigid_matrix}_row1")
+    cmds.connectAttr(rigid_matrix_output, rigid_matrix_row1.matrix)
+    cmds.setAttr(rigid_matrix_row1.input, 0)
+    rigid_matrix_row2 = node.RowFromMatrixNode(name=f"{rigid_matrix}_row2")
+    cmds.connectAttr(rigid_matrix_output, rigid_matrix_row2.matrix)
+    cmds.setAttr(rigid_matrix_row2.input, 1)
+    rigid_matrix_row3 = node.RowFromMatrixNode(name=f"{rigid_matrix}_row3")
+    cmds.connectAttr(rigid_matrix_output, rigid_matrix_row3.matrix)
+    cmds.setAttr(rigid_matrix_row3.input, 2)
 
-    if stretch:
+    if align_tangent and stretch:
         # Get tangent vector magnitude
         tangent_vector_length = node.LengthNode(name=f"{segment_name}_tangentVectorLength")
         cmds.connectAttr(tangent_vector_node.output, tangent_vector_length.input)
@@ -363,6 +376,8 @@ def pin_to_matrix_spline(
             )
         cmds.setAttr(tangent_vector_length_scaled.input[1], 1 / tangent_length)
         tangent_scale_attr: str = tangent_vector_length_scaled.output
+    else:
+        tangent_scale_attr = None
 
     def is_same_axis(axis1: tuple[int, int, int], axis2: tuple[int, int, int]) -> bool:
         # Compare absolute values to handle flips: (0,1,0) == (0,-1,0)
@@ -391,19 +406,19 @@ def pin_to_matrix_spline(
 
     x_scaled: str = scale_vector(
         node_name=f"{segment_name}_xScale",
-        vector_attr=aim_matrix_row1.output,
+        vector_attr=rigid_matrix_row1.output,
         scale_attr=f"{blended_matrix_row1.output}W",
         axis=X_AXIS,
     )
     y_scaled: str = scale_vector(
         node_name=f"{segment_name}_yScale",
-        vector_attr=aim_matrix_row2.output,
+        vector_attr=rigid_matrix_row2.output,
         scale_attr=f"{blended_matrix_row2.output}W",
         axis=Y_AXIS,
     )
     z_scaled: str = scale_vector(
         node_name=f"{segment_name}_zScale",
-        vector_attr=aim_matrix_row3.output,
+        vector_attr=rigid_matrix_row3.output,
         scale_attr=f"{blended_matrix_row3.output}W",
         axis=Z_AXIS,
     )
@@ -446,6 +461,7 @@ def matrix_spline_from_curve(
     primary_axis: tuple[int, int, int] | None = (0, 1, 0),
     secondary_axis: tuple[int, int, int] | None = (0, 0, 1),
     twist: bool = True,
+    align_tangent: bool = True,
     create_curve: bool = False,
 ) -> MatrixSpline:
     """
@@ -475,6 +491,7 @@ def matrix_spline_from_curve(
         twist (bool): When True the twist is calculated by averaging the secondary axis vector
             as the up vector for the aim matrix. If False no vector is set and the orientation is the swing
             part of a swing twist decomposition.
+        align_tangent: When True the pinned segments will align their primary axis along the spline.
         create_curve (bool, optional): If True, creates and binds a NURBS curve to the MatrixSpline.
             This is useful for arc length calculation.
     Returns:
@@ -588,6 +605,7 @@ def matrix_spline_from_curve(
             secondary_axis=secondary_axis,
             normalize_parameter=False,
             twist=twist,
+            align_tangent=align_tangent
         )
     if transforms_to_pin is not None:
         pin_parameters: list[float] = resample(
@@ -612,6 +630,7 @@ def matrix_spline_from_curve(
                 secondary_axis=secondary_axis,
                 normalize_parameter=False,
                 twist=twist,
+                align_tangent=align_tangent
             )
     return matrix_spline
 
@@ -638,6 +657,7 @@ def matrix_spline_from_transforms(
     primary_axis: tuple[int, int, int] | None = (0, 1, 0),
     secondary_axis: tuple[int, int, int] | None = (0, 0, 1),
     twist: bool = True,
+    align_tangent: bool = True,
     create_curve: bool = False,
 ) -> MatrixSpline:
     """
@@ -674,6 +694,7 @@ def matrix_spline_from_transforms(
         twist (bool): When True the twist is calculated by averaging the secondary axis vector
             as the up vector for the aim matrix. If False no vector is set and the orientation is the swing
             part of a swing twist decomposition.
+        align_tangent: When True the pinned segments will align their primary axis along the spline. 
         create_curve (bool, optional): If True, creates and binds a NURBS curve to the MatrixSpline.
             This is useful for arc length calculation.
     Returns:
@@ -781,6 +802,7 @@ def matrix_spline_from_transforms(
             secondary_axis=secondary_axis,
             normalize_parameter=False,
             twist=twist,
+            align_tangent=align_tangent
         )
     if transforms_to_pin is not None:
         pin_parameters: list[float] = resample(
@@ -805,5 +827,6 @@ def matrix_spline_from_transforms(
                 secondary_axis=secondary_axis,
                 normalize_parameter=False,
                 twist=twist,
+                align_tangent=align_tangent,
             )
     return matrix_spline
