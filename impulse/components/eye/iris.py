@@ -1,6 +1,8 @@
+import maya.cmds as cmds
+
 from impulse.maya_api import node
 from impulse.utils.transform import matrix_constraint
-import maya.cmds as cmds
+
 
 def create_iris_drivers(name: str, loops: int = 8, iris_loops: int = 2, iris_scale: int = 30, debug=False):
     part_name = name

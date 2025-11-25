@@ -1,1 +1,1 @@
-from . import iris as iris
+from . import eye as eye

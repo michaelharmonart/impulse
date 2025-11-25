@@ -42,6 +42,8 @@ class MatrixSpline:
             periodic (bool, optional): Whether the spline is periodic (closed). Defaults to False.
             name (str | None, optional): Base name for created scene nodes. Defaults to "MatrixSpline".
         """
+        self.pinned_transforms: list[str] = []
+        self.pinned_drivers: list[str] = []
         self.curve: str | None = None
         self.periodic: bool = periodic
         self.degree: int = degree
@@ -437,3 +439,4 @@ def pin_to_matrix_spline(
     cmds.connectAttr(f"{blended_matrix_row4.output}Z", f"{output_matrix}.in32")
 
     cmds.connectAttr(f"{output_matrix}.output", f"{pinned_transform}.offsetParentMatrix")
+    matrix_spline.pinned_transforms.append(pinned_transform)

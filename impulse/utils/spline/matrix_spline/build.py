@@ -377,6 +377,7 @@ def matrix_spline_from_transforms(
             twist=twist,
             align_tangent=align_tangent,
         )
+        matrix_spline.pinned_drivers.append(segment_transform)
     if transforms_to_pin is not None:
         pin_parameters: list[float] = resample(
             cv_positions=extended_cv_positions,
