@@ -9,4 +9,5 @@ Notable current features/code snippets that might be useful to you:
 - the spline module has helper functions for generating a "ribbon" like spline based on weighted matrix sums, aka it's faster and more flexible than a ribbon (allows for scaling of control verts)
 - skin.py has helper functions to automatically split weights for twist/bend joints
 - color.py has a helper function to bake textures into face colors
+- pose_interpolator.py has tools for procedurally generating and managing pose interpolators
 - and many more!

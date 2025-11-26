@@ -140,7 +140,7 @@ def create_eyelid_spline(
 
 
 def create_eyelid_drivers(
-    name: str, parent: str, cv_transforms: list[str], loop_guides: list[str] | None = None, degree: int = 3,
+    name: str, parent: str, cv_transforms: list[str], loop_guides: list[str] | None = None, degree: int = 3, aim_vector: tuple[float, float, float] = (0,1,0),
 ):
     part_name = name
     group = cmds.group(empty=True, name=f"{part_name}_GRP", parent=parent)
@@ -159,7 +159,7 @@ def create_eyelid_drivers(
         driver = cmds.group(empty=True, name=f"{part_name}_Driver{i:02d}", parent=mch_group)
         joint: str = cmds.joint(name=f"{part_name}_{i:02d}_DEF")
         cmds.parent(joint, def_group, relative=True)
-        cmds.aimConstraint(lid_driver, driver, maintainOffset=False, worldUpType="none")
+        cmds.aimConstraint(lid_driver, driver, maintainOffset=False, worldUpType="none", aimVector=aim_vector)
         match_transform(joint, lid_driver)
         matrix_constraint(driver, joint, keep_offset=True)
         
