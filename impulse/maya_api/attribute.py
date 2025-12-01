@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Generic, Iterator, TypeVar
 
 import maya.cmds as cmds
+
+AttributeType = TypeVar("AttributeType", bound="Attribute")
 
 
 class Attribute:
@@ -101,6 +103,31 @@ class IntegerAttribute(ScalarAttribute):
         self.set(val)
 
 
+class BooleanAttribute(IntegerAttribute):
+    """A Maya attribute of a bool type."""
+
+    def __init__(self, attr_path: str):
+        super().__init__(attr_path)
+
+    def get(self) -> bool:
+        """Get the value of this attribute."""
+        return bool(cmds.getAttr(self.attr_path))
+
+    def set(self, value: bool) -> None:
+        """Set the value of this attribute."""
+        cmds.setAttr(self.attr_path, 1 if value else 0)
+
+    @property
+    def value(self) -> int:
+        """Get the value of this attribute."""
+        return self.get()
+
+    @value.setter
+    def value(self, val: int) -> None:
+        """Set the value of this attribute."""
+        self.set(val)
+
+
 class MatrixAttribute(Attribute):
     """A Maya attribute of the matrix type."""
 
@@ -131,17 +158,46 @@ class Vector4Attribute(Attribute):
         self.w = ScalarAttribute(f"{attr_path}W")
 
 
-class IndexableAttribute(Attribute):
+class IndexableAttribute(Attribute, Generic[AttributeType]):
     """A Maya attribute that supports indexing with bracket notation."""
 
-    def __getitem__(self, index: int) -> Attribute:
+    def __getitem__(self, index: int) -> AttributeType:
         """Return the indexed attribute path: attr.input[0], attr.input[1], etc."""
         return Attribute(attr_path=f"{self.attr_path}[{index}]")
 
-    def get_size(self) -> int:
+    def __len__(self) -> int:
         """Get the number of elements in this array."""
         return cmds.getAttr(self.attr_path, size=True)
 
     def get_indices(self) -> list[int]:
         """Get all existing indices in this array."""
         return cmds.getAttr(self.attr_path, multiIndices=True) or []
+
+    def __iter__(self) -> Iterator[AttributeType]:
+        """Iterate over all existing, non-sparse elements in the array."""
+        # This allows for loop iteration: for item in my_attr:
+        for index in self.get_indices():
+            yield self[index]
+
+
+class BlendMatrixTargetAttribute(Attribute):
+    """A Maya attribute of the same compound type as the targets in a blendMatrix node."""
+
+    def __init__(self, attr_path: str):
+        super().__init__(attr_path)
+
+        self.target_matrix = MatrixAttribute(f"{attr_path}.targetMatrix")
+        self.use_matrix = BooleanAttribute(f"{attr_path}.useMatrix")
+        self.weight = ScalarAttribute(f"{attr_path}.weight")
+        self.scale_weight = ScalarAttribute(f"{attr_path}.scaleWeight")
+        self.translate_weight = ScalarAttribute(f"{attr_path}.translateWeight")
+        self.rotate_weight = ScalarAttribute(f"{attr_path}.rotateWeight")
+        self.shear_weight = ScalarAttribute(f"{attr_path}.shearWeight")
+
+
+class IndexableBlendMatrixTargetAttribute(IndexableAttribute[BlendMatrixTargetAttribute]):
+    """A Maya attribute that supports indexing targets in a blendMatrix with bracket notation."""
+
+    def __getitem__(self, index: int) -> BlendMatrixTargetAttribute:
+        """Return the indexed attribute path: attr.input[0], attr.input[1], etc."""
+        return BlendMatrixTargetAttribute(attr_path=f"{self.attr_path}[{index}]")

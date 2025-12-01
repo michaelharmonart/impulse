@@ -5,6 +5,7 @@ import maya.cmds as cmds
 from impulse.maya_api.attribute import (
     Attribute,
     IndexableAttribute,
+    IndexableBlendMatrixTargetAttribute,
     IntegerAttribute,
     MatrixAttribute,
     ScalarAttribute,
@@ -88,6 +89,19 @@ class Node:
         return f"{self.__class__.__name__}(name='{self.name}')"
 
 
+class BlendMatrixNode(Node):
+    """Maya blendMatrix node with enhanced interface."""
+
+    def __init__(self, name: str = "blendMatrix") -> None:
+        super().__init__("blendMatrix", name)
+
+    def _setup_attributes(self) -> None:
+        self.input_matrix = MatrixAttribute(f"{self.name}.inputMatrix")
+        self.pose_space_matrix = MatrixAttribute(f"{self.name}.postSpaceMatrix")
+        self.pre_space_matrix = MatrixAttribute(f"{self.name}.preSpaceMatrix")
+        self.target = IndexableBlendMatrixTargetAttribute(f"{self.name}.target")
+
+
 class ClampRangeNode(Node):
     """Maya clampRange node with enhanced interface."""
 
@@ -160,6 +174,7 @@ class LengthNode(Node):
         self.input = Vector3Attribute(f"{self.name}.input")
         self.output = ScalarAttribute(f"{self.name}.output")
 
+
 class LerpNode(Node):
     """Maya lerp node with enhanced interface."""
 
@@ -171,6 +186,7 @@ class LerpNode(Node):
         self.input2 = ScalarAttribute(f"{self.name}.input2")
         self.weight = ScalarAttribute(f"{self.name}.weight")
         self.output = ScalarAttribute(f"{self.name}.output")
+
 
 class MultiplyNode(Node):
     """Maya multiply node with enhanced interface."""
@@ -206,6 +222,7 @@ class RowFromMatrixNode(Node):
         self.matrix = MatrixAttribute(f"{self.name}.matrix")
         self.output = Vector4Attribute(f"{self.name}.output")
 
+
 class SinNode(Node):
     """Maya sin node with enhanced interface."""
 
@@ -238,4 +255,3 @@ class SumNode(Node):
     def _setup_attributes(self) -> None:
         self.input: IndexableAttribute = IndexableAttribute(f"{self.name}.input")
         self.output: ScalarAttribute = ScalarAttribute(f"{self.name}.output")
-
