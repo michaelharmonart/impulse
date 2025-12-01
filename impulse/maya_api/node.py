@@ -100,6 +100,7 @@ class BlendMatrixNode(Node):
         self.pose_space_matrix = MatrixAttribute(f"{self.name}.postSpaceMatrix")
         self.pre_space_matrix = MatrixAttribute(f"{self.name}.preSpaceMatrix")
         self.target = IndexableBlendMatrixTargetAttribute(f"{self.name}.target")
+        self.output_matrix = MatrixAttribute(f"{self.name}.outputMatrix")
 
 
 class ClampRangeNode(Node):
