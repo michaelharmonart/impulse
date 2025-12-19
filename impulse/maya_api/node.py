@@ -4,8 +4,10 @@ import maya.cmds as cmds
 
 from impulse.maya_api.attribute import (
     Attribute,
+    BooleanAttribute,
     IndexableAttribute,
     IndexableBlendMatrixTargetAttribute,
+    IndexableMatrixAttribute,
     IntegerAttribute,
     MatrixAttribute,
     ScalarAttribute,
@@ -210,6 +212,31 @@ class MultiplyPointByMatrixNode(Node):
         self.input_point = Vector3Attribute(f"{self.name}.input")
         self.input_matrix = MatrixAttribute(f"{self.name}.matrix")
         self.output = Vector3Attribute(f"{self.name}.output")
+
+class MultMatrixNode(Node):
+    """Maya multMatrix node with enhanced interface."""
+
+    def __init__(self, name: str = "multMatrix") -> None:
+        super().__init__("multMatrix", name)
+
+    def _setup_attributes(self) -> None:
+        self.matrix_in = IndexableMatrixAttribute(f"{self.name}.matrixIn")
+        self.matrix_sum = MatrixAttribute(f"{self.name}.matrixSum")
+
+
+class PickMatrixNode(Node):
+    """Maya pickMatrix node with enhanced interface."""
+
+    def __init__(self, name: str = "pickMatrix") -> None:
+        super().__init__("pickMatrix", name)
+
+    def _setup_attributes(self) -> None:
+        self.input_matrix = MatrixAttribute(f"{self.name}.inputMatrix")
+        self.useTranslate = BooleanAttribute(f"{self.name}.useTranslate")
+        self.useRotate = BooleanAttribute(f"{self.name}.useRotate")
+        self.useScale = BooleanAttribute(f"{self.name}.useScale")
+        self.useShear = BooleanAttribute(f"{self.name}.useShear")
+        self.output_matrix = MatrixAttribute(f"{self.name}.outputMatrix")
 
 
 class RowFromMatrixNode(Node):

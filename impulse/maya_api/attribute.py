@@ -180,6 +180,14 @@ class IndexableAttribute(Attribute, Generic[AttributeType]):
             yield self[index]
 
 
+class IndexableMatrixAttribute(IndexableAttribute[MatrixAttribute]):
+    """A Maya attribute that supports indexing matrix attributes with bracket notation."""
+
+    def __getitem__(self, index: int) -> MatrixAttribute:
+        """Return the indexed attribute path: attr.input[0], attr.input[1], etc."""
+        return BlendMatrixTargetAttribute(attr_path=f"{self.attr_path}[{index}]")
+
+
 class BlendMatrixTargetAttribute(Attribute):
     """A Maya attribute of the same compound type as the targets in a blendMatrix node."""
 
