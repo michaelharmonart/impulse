@@ -103,6 +103,13 @@ class IntegerAttribute(ScalarAttribute):
         self.set(val)
 
 
+class EnumAttribute(IntegerAttribute):
+    """A Maya attribute of the enum type."""
+
+    def __init__(self, attr_path: str):
+        super().__init__(attr_path)
+
+
 class BooleanAttribute(IntegerAttribute):
     """A Maya attribute of a bool type."""
 
@@ -209,3 +216,21 @@ class IndexableBlendMatrixTargetAttribute(IndexableAttribute[BlendMatrixTargetAt
     def __getitem__(self, index: int) -> BlendMatrixTargetAttribute:
         """Return the indexed attribute path: attr.input[0], attr.input[1], etc."""
         return BlendMatrixTargetAttribute(attr_path=f"{self.attr_path}[{index}]")
+
+
+class WtMatrixAttribute(Attribute):
+    """A Maya attribute of the same compound type as the wtMatrix elements in a wrAddMatrix node."""
+
+    def __init__(self, attr_path: str):
+        super().__init__(attr_path)
+
+        self.matrix_in = MatrixAttribute(f"{attr_path}.matrixIn")
+        self.weight_in = ScalarAttribute(f"{attr_path}.weightIn")
+
+
+class IndexableWtMatrixAttribute(IndexableAttribute[WtMatrixAttribute]):
+    """A Maya attribute that supports indexing elements in a wtAddMatrix with bracket notation."""
+
+    def __getitem__(self, index: int) -> WtMatrixAttribute:
+        """Return the indexed attribute path: attr.input[0], attr.input[1], etc."""
+        return WtMatrixAttribute(attr_path=f"{self.attr_path}[{index}]")
