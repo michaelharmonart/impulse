@@ -1,9 +1,11 @@
-from typing import Any
+from typing import TypeVar
 
 import numpy as np
 
 from impulse.structs.transform import Vector3
 
+# CV can be anything: a Vector3, a transform name, etc.
+CV = TypeVar("CV")
 
 def generate_knots(count: int, degree: int = 3, periodic=False) -> list[float]:
     """
@@ -42,7 +44,7 @@ def is_periodic_knot_vector(knots: list[float], degree: int = 3) -> bool:
 
 
 def deBoor_setup(
-    cvs: list[Any],
+    cvs: list[CV],
     t: float,
     degree: int = 3,
     knots: list[float] | None = None,
@@ -103,13 +105,13 @@ def deBoor_setup(
 
 
 def deBoor_weights(
-    cvs: list[Any],
+    cvs: list[CV],
     knots: list[float],
     t: float,
     span: int,
     degree: int = 3,
-    cv_weights: dict[Any, float] | None = None,
-) -> dict[Any, float]:
+    cv_weights: dict[CV, float] | None = None,
+) -> dict[CV, float]:
     # Algorithm and code originally from Cole O'Brien
     # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
     # https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
@@ -153,7 +155,7 @@ def deBoor_weights(
 
     # Multiply each CVs basis function by it's weight
     # see: https://en.wikipedia.org/wiki/Non-uniform_rational_B-spline#General_form_of_a_NURBS_curve
-    numerator: dict[Any, float] = {i: finalBases[i] * cv_weights[i] for i in finalBases}
+    numerator = {i: finalBases[i] * cv_weights[i] for i in finalBases}
 
     # Sum all of the weights to normalize them such that they all total to 1
     denominator: float = sum(numerator.values())
@@ -161,19 +163,19 @@ def deBoor_weights(
         raise ZeroDivisionError("Zero sum of total weight values, unable to normalize.")
 
     # Actually do the normalization
-    rational_weights: dict[Any, float] = {i: numerator[i] / denominator for i in numerator}
+    rational_weights = {i: numerator[i] / denominator for i in numerator}
 
     return rational_weights
 
 
 def point_on_spline_weights(
-    cvs: list[Any],
+    cvs: list[CV],
     t: float,
     degree: int = 3,
     knots: list[float] | None = None,
     weights: list[float] | None = None,
     normalize: bool = True,
-) -> list[tuple[Any, float]]:
+) -> list[tuple[CV, float]]:
     # Algorithm and code originally from Cole O'Brien
     # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
     # https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
@@ -217,12 +219,12 @@ def point_on_spline_weights(
 
 
 def get_weights_along_spline(
-    cvs: list[Any],
+    cvs: list[CV],
     parameters: list[float],
     degree: int = 3,
     knots: list[float] | None = None,
     sample_points: int = 128,
-) -> list[list[tuple[Any, float]]]:
+) -> list[list[tuple[CV, float]]]:
     """
     Evaluates B-spline basis weights for a given list of parameters.
     Faster than calling point_on_spline_weights in a loop as this function uses a
@@ -243,11 +245,11 @@ def get_weights_along_spline(
     if not knots:
         knots = generate_knots(len(cvs), degree=degree)
 
-    result: list[list[tuple[Any, float]]] = []
+    result: list[list[tuple[CV, float]]] = []
     # If we have less points than samples don't bother using a lookup table
     if len(parameters) <= sample_points:
         for parameter in parameters:
-            weights: list[tuple[Any, float]] = point_on_spline_weights(
+            weights: list[tuple[CV, float]] = point_on_spline_weights(
                 cvs=cvs, t=parameter, degree=degree, knots=knots, normalize=False
             )
             result.append(weights)
@@ -268,7 +270,7 @@ def get_weights_along_spline(
     sample_params = np.linspace(min_t, max_t, sample_points, dtype=float)
     lut_weights = np.zeros((sample_points, len(cvs)), dtype=float)
     for sample_index, sample_parameter in enumerate(sample_params):
-        weights: list[tuple[Any, float]] = point_on_spline_weights(
+        weights: list[tuple[CV, float]] = point_on_spline_weights(
             cvs=cvs, t=sample_parameter, degree=degree, knots=knots, normalize=False
         )
         weight_dict = {cv: w for cv, w in weights}
@@ -293,12 +295,12 @@ def get_weights_along_spline(
 
 
 def tangent_on_spline_weights(
-    cvs: list[Any],
+    cvs: list[CV],
     t: float,
     degree: int = 3,
     knots: list[float] | None = None,
     normalize: bool = True,
-) -> list[tuple[Any, int]]:
+) -> list[tuple[CV, int]]:
     # Algorithm and code originally from Cole O'Brien
     # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
     # https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
@@ -325,17 +327,17 @@ def tangent_on_spline_weights(
     periodic: bool = curve_setup[3]
 
     # Convert cvs into hash-able indices
-    _cvs: list[Any] = cvs
-    cvs: list[Any] = [i for i in range(len(cvs))]
+    _cvs = cvs
+    cvs = [i for i in range(len(cvs))]
 
     # In order to find the tangent we need to find points on a lower degree curve
     degree: int = degree - 1
-    weights: dict[Any, float] = deBoor_weights(
+    weights = deBoor_weights(
         cvs=cvs, t=t, span=segment, degree=degree, knots=knots
     )
 
     # Take the lower order weights and match them to our actual cvs
-    remapped_weights: list[Any] = []
+    remapped_weights: list[CV] = []
     for j in range(0, degree + 1):
         weight: float = weights[j]
         cv0: int = j + segment - degree
