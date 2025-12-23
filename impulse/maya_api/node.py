@@ -48,6 +48,7 @@ class Node:
             "standard": "multiplyPointByMatrix",
             "DL": "multiplyPointByMatrixDL",
         },
+        "normalize": {"standard": "normalize", "DL": "normalizeDL"},
     }
 
     def __init__(self, node_type: str, name: str | None = None) -> None:
@@ -179,6 +180,7 @@ class DivideNode(Node):
         self.input2 = ScalarAttribute(f"{self.name}.input2")
         self.output = ScalarAttribute(f"{self.name}.output")
 
+
 class FourByFourMatrixNode(Node):
     """Maya fourByFourMatrix node with enhanced interface."""
 
@@ -261,6 +263,17 @@ class MultMatrixNode(Node):
     def _setup_attributes(self) -> None:
         self.matrix_in = IndexableMatrixAttribute(f"{self.name}.matrixIn")
         self.matrix_sum = MatrixAttribute(f"{self.name}.matrixSum")
+
+
+class NormalizeNode(Node):
+    """Maya normalize node with enhanced interface."""
+
+    def __init__(self, name: str = "normalize") -> None:
+        super().__init__("normalize", name)
+
+    def _setup_attributes(self) -> None:
+        self.input = Vector3Attribute(f"{self.name}.input")
+        self.output = Vector3Attribute(f"{self.name}.output")
 
 
 class PickMatrixNode(Node):
