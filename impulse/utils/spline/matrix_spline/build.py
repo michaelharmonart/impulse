@@ -87,10 +87,11 @@ def matrix_spline_from_curve(
         name: str = curve
 
     if not parent:
+        curve_parent: str | None
         if cmds.listRelatives(curve, parent=True):
-            curve_parent: str = cmds.listRelatives(curve, parent=True)[0]
+            curve_parent = cmds.listRelatives(curve, parent=True)[0]
         else:
-            curve_parent: str = None
+            curve_parent = None
         if curve_parent:
             container_group: str = cmds.group(
                 empty=True, parent=curve_parent, name=f"{name}_MatrixSpline_GRP"
@@ -214,7 +215,7 @@ def matrix_spline_from_transforms(
     transforms_to_pin: list[str] | None = [],
     periodic: bool = False,
     degree: int = 3,
-    knots: list[str] | None = None,
+    knots: list[float] | None = None,
     padded: bool = True,
     name: str | None = None,
     control_size: float = 0.1,
@@ -286,10 +287,11 @@ def matrix_spline_from_transforms(
         cv_positions.append(Vector3(*position))
     if not spline_group:
         if not parent:
+            curve_parent: str | None
             if cmds.listRelatives(transforms[0], parent=True):
-                curve_parent: str = cmds.listRelatives(transforms[0], parent=True)[0]
+                curve_parent = cmds.listRelatives(transforms[0], parent=True)[0]
             else:
-                curve_parent: str = None
+                curve_parent = None
             if curve_parent:
                 container_group: str = cmds.group(
                     empty=True, parent=curve_parent, name=f"{name}_MatrixSpline_GRP"

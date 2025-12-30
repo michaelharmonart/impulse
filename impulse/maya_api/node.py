@@ -1,7 +1,7 @@
-from typing import Final
+from typing import Final, cast
 
 import maya.cmds as cmds
-from rjg.libs.maya_api.attribute import (
+from impulse.maya_api.attribute import (
     Attribute,
     BooleanAttribute,
     EnumAttribute,
@@ -16,7 +16,7 @@ from rjg.libs.maya_api.attribute import (
     Vector4Attribute,
 )
 
-API_VERSION: Final[int] = cmds.about(apiVersion=True)
+API_VERSION: Final[int] = cast(int, cmds.about(apiVersion=True))
 TARGET_API_VERSION = 20242000
 
 
