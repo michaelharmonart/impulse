@@ -1,6 +1,6 @@
 from __future__ import annotations
-from abc import abstractmethod
 
+from abc import abstractmethod
 from typing import Any, Generic, Iterator, TypeVar, cast
 
 import maya.cmds as cmds
@@ -153,9 +153,41 @@ class Vector3Attribute(Attribute):
         self.y = ScalarAttribute(f"{attr_path}Y")
         self.z = ScalarAttribute(f"{attr_path}Z")
 
+    def get(self) -> tuple[float, float, float]:
+        """Get the value of this attribute."""
+        return_list = cmds.getAttr(self.attr_path)
+        tuple = return_list[0]
+        return tuple
+
+    def set(self, value: tuple[float, float, float]) -> None:
+        """Set the value of this attribute."""
+        cmds.setAttr(self.attr_path, *value) # type: ignore
+
+    @property
+    def value(self) -> tuple[float, float, float]:
+        """Get the value of this attribute."""
+        return self.get()
+
+    @value.setter
+    def value(self, val: tuple[float, float, float]) -> None:
+        """Set the value of this attribute."""
+        self.set(val)
+
 
 class Vector4Attribute(Attribute):
     """A Maya attribute of the type double4 (XYZW)"""
+
+    def __init__(self, attr_path: str):
+        super().__init__(attr_path)
+
+        self.x = ScalarAttribute(f"{attr_path}X")
+        self.y = ScalarAttribute(f"{attr_path}Y")
+        self.z = ScalarAttribute(f"{attr_path}Z")
+        self.w = ScalarAttribute(f"{attr_path}W")
+
+
+class QuatAttribute(Attribute):
+    """A Maya attribute of the compound Quaternion type (XYZW)"""
 
     def __init__(self, attr_path: str):
         super().__init__(attr_path)
@@ -235,3 +267,15 @@ class IndexableWtMatrixAttribute(IndexableAttribute[WtMatrixAttribute]):
     def __getitem__(self, index: int) -> WtMatrixAttribute:
         """Return the indexed attribute path: attr.input[0], attr.input[1], etc."""
         return WtMatrixAttribute(attr_path=f"{self.attr_path}[{index}]")
+
+
+class AimMatrixAxisAttribute(Attribute):
+    """A Maya attribute of the same compound type as the aimMatrix axes."""
+
+    def __init__(self, attr_path: str, axis_name: str):
+        super().__init__(attr_path)
+
+        self.input_axis = Vector3Attribute(f"{attr_path}.{axis_name}InputAxis")
+        self.mode = EnumAttribute(f"{attr_path}.{axis_name}Mode")
+        self.target_vector = EnumAttribute(f"{attr_path}.{axis_name}TargetVector")
+        self.target_matrix = MatrixAttribute(f"{attr_path}.{axis_name}TargetMatrix")
