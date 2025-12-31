@@ -5,10 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "debugpy>=1.8.14",
-    "maya-stubs>=0.4.1",
     "numpy>=2.3.1",
-    "ruff>=0.9.6",
 ]
 [tool.ruff]
 line-length = 100
@@ -19,3 +16,10 @@ extraPaths = [
     "/usr/autodesk/ApplicationPlugins/ngskintools2/Contents/scripts"
 ]
 typeCheckingMode = "off"
+
+[dependency-groups]
+dev = [
+    "debugpy>=1.8.19",
+    "maya-stubs>=0.4.2",
+    "ruff>=0.14.10",
+]
