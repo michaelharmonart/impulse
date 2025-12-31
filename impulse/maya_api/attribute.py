@@ -220,6 +220,15 @@ class IndexableAttribute(Attribute, Generic[AttributeType]):
             yield self[index]
 
 
+class IndexableScalarAttribute(IndexableAttribute[ScalarAttribute]):
+    """A Maya attribute that supports indexing matrix attributes with bracket notation."""
+
+    def __getitem__(self, index: int) -> ScalarAttribute:
+        """Return the indexed attribute path: attr.input[0], attr.input[1], etc."""
+        return ScalarAttribute(attr_path=f"{self.attr_path}[{index}]")
+
+
+
 class IndexableMatrixAttribute(IndexableAttribute[MatrixAttribute]):
     """A Maya attribute that supports indexing matrix attributes with bracket notation."""
 

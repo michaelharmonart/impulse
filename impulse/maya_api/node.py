@@ -13,7 +13,7 @@ from impulse.maya_api.attribute import (
     MatrixAttribute,
     ScalarAttribute,
     Vector3Attribute,
-    Vector4Attribute, QuatAttribute, AimMatrixAxisAttribute,
+    Vector4Attribute, QuatAttribute, AimMatrixAxisAttribute, IndexableScalarAttribute,
 )
 
 API_VERSION: Final[int] = cast(int, cmds.about(apiVersion=True))
@@ -272,7 +272,7 @@ class MultiplyNode(Node):
         super().__init__("multiply", name)
 
     def _setup_attributes(self) -> None:
-        self.input: IndexableAttribute = IndexableAttribute(f"{self.name}.input")
+        self.input: IndexableScalarAttribute = IndexableScalarAttribute(f"{self.name}.input")
         self.output: ScalarAttribute = ScalarAttribute(f"{self.name}.output")
 
 
@@ -412,7 +412,7 @@ class SumNode(Node):
         super().__init__("sum", name)
 
     def _setup_attributes(self) -> None:
-        self.input: IndexableAttribute = IndexableAttribute(f"{self.name}.input")
+        self.input: IndexableScalarAttribute = IndexableScalarAttribute(f"{self.name}.input")
         self.output: ScalarAttribute = ScalarAttribute(f"{self.name}.output")
 
 
