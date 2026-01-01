@@ -215,7 +215,7 @@ def point_on_spline_weights(
     cvWeights = deBoor_weights(
         cvs=cvs, t=t, span=segment, degree=degree, knots=knots, cv_weights=cv_weights
     )
-    return [(_cvs[index], weight) for index, weight in cvWeights.items() if weight != 0.0]
+    return [(_cvs[index], weight) for index, weight in reversed(cvWeights.items()) if weight != 0.0]
 
 
 def get_weights_along_spline(
