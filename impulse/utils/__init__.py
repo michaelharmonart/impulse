@@ -4,8 +4,9 @@ from . import deformer as deformer
 from . import ik as ik
 from . import naming as naming
 from . import pin as pin
+from . import pose_interpolator as pose_interpolator
 from . import ribbon as ribbon
 from . import skin as skin
 from . import spline as spline
+from . import symmetry as symmetry
 from . import transform as transform
-from . import pose_interpolator as pose_interpolator

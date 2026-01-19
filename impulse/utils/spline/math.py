@@ -7,6 +7,7 @@ from impulse.structs.transform import Vector3
 # CV can be anything: a Vector3, a transform name, etc.
 CV = TypeVar("CV")
 
+
 def generate_knots(count: int, degree: int = 3, periodic=False) -> list[float]:
     """
     Gets a default knot vector for a given number of cvs and degrees.
@@ -332,9 +333,7 @@ def tangent_on_spline_weights(
 
     # In order to find the tangent we need to find points on a lower degree curve
     degree: int = degree - 1
-    weights = deBoor_weights(
-        cvs=cvs, t=t, span=segment, degree=degree, knots=knots
-    )
+    weights = deBoor_weights(cvs=cvs, t=t, span=segment, degree=degree, knots=knots)
 
     # Take the lower order weights and match them to our actual cvs
     remapped_weights: list[CV] = []

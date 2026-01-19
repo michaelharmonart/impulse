@@ -48,6 +48,7 @@ def get_shapes(transform: str) -> list[str]:
 def mmatrix_to_list(matrix: MMatrix) -> list[float]:
     return [matrix.getElement(row, col) for row in range(4) for col in range(4)]
 
+
 def get_local_matrix(transform: str) -> MMatrix:
     """
     Returns the local matrix of a transform.
@@ -59,6 +60,7 @@ def get_local_matrix(transform: str) -> MMatrix:
     transformation: MTransformationMatrix = mfn_transform.transformation()
     return transformation.asMatrix()
 
+
 def get_parent_matrix(transform: str) -> MMatrix:
     """
     Returns the full world matrix of a transform up to it's parent, including rotateAxis, jointOrient, etc.
@@ -69,6 +71,7 @@ def get_parent_matrix(transform: str) -> MMatrix:
     dag_path: MDagPath = selection.getDagPath(0)
     return dag_path.exclusiveMatrix()
 
+
 def get_parent_inverse_matrix(transform: str) -> MMatrix:
     """
     Returns the full inverse world matrix of a transform up to it's parent, including rotateAxis, jointOrient, etc.
@@ -78,6 +81,7 @@ def get_parent_inverse_matrix(transform: str) -> MMatrix:
     selection.add(transform)
     dag_path: MDagPath = selection.getDagPath(0)
     return dag_path.exclusiveMatrixInverse()
+
 
 def get_world_matrix(transform: str) -> MMatrix:
     """
@@ -102,7 +106,6 @@ def set_world_matrix(transform: str, matrix: MMatrix, fallback=False) -> None:
     if fallback:
         cmds.xform(transform, worldSpace=True, matrix=mmatrix_to_list(matrix))
     else:
-
         inverse_matrix: MMatrix = get_parent_inverse_matrix(transform)
         local_matrix: MMatrix = matrix * inverse_matrix
 
@@ -229,7 +232,7 @@ def matrix_constraint(
     translate: bool = True,
     rotate: bool = True,
     scale: bool = True,
-    shear: bool = True
+    shear: bool = True,
 ) -> None:
     """
     Constrain a transform to another
@@ -313,7 +316,9 @@ def matrix_constraint(
                     orient_node: str = cmds.createNode(
                         "composeMatrix", name=f"{constraint_name}_OrientMatrix"
                     )
-                    cmds.connectAttr(f"{constrain_transform}.jointOrient", f"{orient_node}.inputRotate")
+                    cmds.connectAttr(
+                        f"{constrain_transform}.jointOrient", f"{orient_node}.inputRotate"
+                    )
                     orient_matrix = cmds.getAttr(f"{orient_node}.outputMatrix")
 
                     # We need to compose a different matrix to drive just the rotation due to the joint orient
@@ -401,7 +406,7 @@ def matrix_constraint(
                     rotate_attr = f"{orient_decompose_matrix}.outputRotate"
             else:
                 cmds.setAttr(f"{constrain_transform}.jointOrient", 0, 0, 0, type="float3")
-    
+
     if translate:
         cmds.connectAttr(f"{decompose_matrix}.outputTranslate", f"{constrain_transform}.translate")
     if rotate:
