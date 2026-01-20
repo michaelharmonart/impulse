@@ -164,11 +164,14 @@ def fast_sample_lch_gradient_as_linear_srgb(
 
 
 def color_from_symmetry_error(
-    mesh: str,
+    mesh_transform: str,
     symmetry_axis: Literal["x", "y", "z"] | int = "x",
     max_error: float = 0.01,
 ):
-    shape = get_shape(mesh)
+    # handle undo with janky duplication
+    viz_mesh = cmds.duplicate(mesh_transform, name=f"{mesh_transform}_VIZ")[0]
+
+    shape = get_shape(viz_mesh)
     msel: MSelectionList = om2.MSelectionList()
     msel.add(shape)
     shape_obj: MObject = msel.getDependNode(0)
@@ -194,11 +197,19 @@ def color_from_symmetry_error(
         positions=viz_errors, gradient=OKLCH_HEATMAP_GRADIENT
     )
 
+    msel.add(shape)
     # make sure the target shape can show vertex colors
+
+    cmds.sets(viz_mesh, edit=True, forceElement="initialShadingGroup")
+
     cmds.setAttr(f"{shape}.displayColors", 1)
     cmds.setAttr(f"{shape}.displayColorChannel", "Diffuse", type="string")
 
     mfn_mesh.setVertexColors(vertex_colors, vertex_indices)
+
+    # handle undo with duplicated mesh and deletion of original
+    cmds.delete(mesh_transform)
+    cmds.rename(viz_mesh, mesh_transform)
 
 
 def color_by_gradient(shape: str, gradient: Gradient = OKLCH_HEATMAP_GRADIENT):
