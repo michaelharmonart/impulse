@@ -143,7 +143,7 @@
             "code": [
                 "selection = cmds.ls(selection=True)",
                 "for object in selection:",
-                "    impulse.utils.color.face_color_from_texture(object, anti_alias=True)"
+                "    impulse.utils.color.bake.face_color_from_texture(object, anti_alias=True)"
             ]
         },
         "/main_window/manual_tab/Skinning": {
