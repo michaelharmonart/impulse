@@ -31,7 +31,8 @@ except ImportError:
     HAS_NG = False
 
 
-from impulse.utils import color, spline
+from impulse.utils import spline
+from impulse.utils.color.convert import lch_to_lab, oklab_to_linear_srgb
 from impulse.utils.math import remap
 
 
@@ -732,8 +733,8 @@ def visualize_weights_on_mesh(
         for transform, weight in weights:
             point_color += influence_colors[transform] * weight
         point_color_tuple: tuple[float, float, float, float] = tuple(point_color.getColor())
-        point_color_rgb = color.oklab_to_linear_srgb(color=point_color_tuple)
-        point_color = om2.MColor(point_color_rgb)
+        point_color_rgb = oklab_to_linear_srgb(color=point_color_tuple)
+        point_color = om2.MColor((point_color_rgb))
         vertex_colors.append(point_color)
         vertex_indices.append(i)
         # fn_mesh.setVertexColor(point_color, i)
@@ -773,7 +774,7 @@ def visualize_split_weights(mesh: str, cv_transforms: list[str], degree: int = 2
         position_tuple: tuple[float, float, float] = tuple(position)
 
         lab_color: om2.MColor = om2.MColor(
-            color.lch_to_lab(color=(0.7, 0.2, (index * color_spread) % 360))
+            lch_to_lab(color=(0.7, 0.2, (index * color_spread) % 360))
         )
         cv_colors[transform] = lab_color
 
@@ -820,7 +821,7 @@ def visualize_surface_split_weights(
 
     color_spread: float = 30
     for index, influence in enumerate(influences):
-        lab_color: MColor = MColor(color.lch_to_lab(color=(0.7, 0.2, (index * color_spread) % 360)))
+        lab_color: MColor = MColor(lch_to_lab(color=(0.7, 0.2, (index * color_spread) % 360)))
         influence_colors[influence] = lab_color
 
     surface_weights_per_vertex: list[list[tuple[Any, float]]] = get_mesh_surface_weights(

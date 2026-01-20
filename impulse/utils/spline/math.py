@@ -176,6 +176,7 @@ def point_on_spline_weights(
     knots: list[float] | None = None,
     weights: list[float] | None = None,
     normalize: bool = True,
+    return_zero_weights: bool = False,
 ) -> list[tuple[CV, float]]:
     # Algorithm and code originally from Cole O'Brien
     # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
@@ -216,7 +217,12 @@ def point_on_spline_weights(
     cvWeights = deBoor_weights(
         cvs=cvs, t=t, span=segment, degree=degree, knots=knots, cv_weights=cv_weights
     )
-    return [(_cvs[index], weight) for index, weight in reversed(cvWeights.items()) if weight != 0.0]
+
+    return [
+        (_cvs[index], weight)
+        for index, weight in reversed(cvWeights.items())
+        if (weight != 0.0) or return_zero_weights
+    ]
 
 
 def get_weights_along_spline(
@@ -243,15 +249,17 @@ def get_weights_along_spline(
     Returns:
         A (len(parameters), n_basis) matrix of spline weights.
     """
+    cv_ids = range(len(cvs))
+
     if not knots:
-        knots = generate_knots(len(cvs), degree=degree)
+        knots = generate_knots(len(cv_ids), degree=degree)
 
     result: list[list[tuple[CV, float]]] = []
     # If we have less points than samples don't bother using a lookup table
     if len(parameters) <= sample_points:
         for parameter in parameters:
             weights: list[tuple[CV, float]] = point_on_spline_weights(
-                cvs=cvs, t=parameter, degree=degree, knots=knots, normalize=False
+                cvs=cv_ids, t=parameter, degree=degree, knots=knots, normalize=False
             )
             result.append(weights)
         return result
@@ -263,20 +271,21 @@ def get_weights_along_spline(
     if t_range == 0:
         # All parameters are the same, just calculate the one weight
         weights = point_on_spline_weights(
-            cvs=cvs, t=min_t, degree=degree, knots=knots, normalize=False
+            cvs=cv_ids, t=min_t, degree=degree, knots=knots, normalize=False
         )
         return [weights for _ in parameters]
 
     # Get evenly spaced points from the minimum to maximum t value
     sample_params = np.linspace(min_t, max_t, sample_points, dtype=float)
-    lut_weights = np.zeros((sample_points, len(cvs)), dtype=float)
+    lut_weights = np.zeros((sample_points, len(cv_ids)), dtype=float)
+
     for sample_index, sample_parameter in enumerate(sample_params):
         weights: list[tuple[CV, float]] = point_on_spline_weights(
-            cvs=cvs, t=sample_parameter, degree=degree, knots=knots, normalize=False
+            cvs=cv_ids, t=sample_parameter, degree=degree, knots=knots, normalize=False
         )
-        weight_dict = {cv: w for cv, w in weights}
+        weight_dict = {cv_ids: w for cv_ids, w in weights}
         # Take the weights and put them into the correct row in the array
-        lut_weights[sample_index, :] = [weight_dict.get(cv, 0.0) for cv in cvs]
+        lut_weights[sample_index, :] = [weight_dict.get(cv_id, 0.0) for cv_id in cv_ids]
 
     # Map each parameter to LUT index positions
     normalized_positions = (parameter_array - min_t) / t_range * (sample_points - 1)
