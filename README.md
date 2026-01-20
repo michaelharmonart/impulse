@@ -2,6 +2,7 @@
 A set of rigging utilities for Maya.
 
 Notable current features/code snippets that might be useful to you:
+- symmetry.py has a function to visualize the symmetry error as a heatmap on a mesh, in order to quickly evaluate a model before rigging
 - pin.py has helper functions that allows for programmatic generation of uv_pin nodes for attaching transforms to either a NURBS surface or a mesh
 - pin.py has a helper function for generating a "matrixPin" which allows pinning a transform to a surface with stretch and shear
 - control.py has a helper function for generating a surface_control, which is a control that moves along the surface of a given NURBS or mesh
