@@ -5,6 +5,7 @@ import maya.cmds as cmds
 import numpy as np
 from maya.api.OpenMaya import (
     MColor,
+    MColorArray,
     MDagPath,
     MFnMesh,
     MIntArray,
@@ -18,6 +19,7 @@ from maya.api.OpenMaya import (
     MSpace,
     MVector,
 )
+from numpy.typing import NDArray
 
 from impulse.utils.color.convert import lch_to_lab, linear_srgb_to_rec2020, oklab_to_linear_srgb
 from impulse.utils.color.gradient import (
@@ -81,15 +83,37 @@ def oklch_to_linear_srgb(color: MColor) -> MColor:
     return MColor(linear_srgb_to_rec2020(oklab_to_linear_srgb(lch_to_lab(color.getColor()))))
 
 
+def numpy_array_to_colors(array: NDArray[float]) -> MColorArray:
+    color_array = MColorArray()
+    color_array.setLength(len(array))
+    for i, color_row in enumerate(array):
+        color_array[i] = MColor(list(color_row))
+    return color_array
+
+
 def fast_sample_lch_gradient_as_linear_srgb(
     positions: Sequence[float],
     gradient: Gradient = OKLCH_HEATMAP_GRADIENT,
     sample_points: int = 128,
-):
-    result: list[MColor] = []
+) -> MColorArray:
+    result: MColorArray = MColorArray()
+    result.setLength(len(positions))
     gradient_stop_colors = [MColor(stop.color) for stop in gradient.stops]
     gradient_stop_ids = list(range(len(gradient.stops)))
     gradient_knots = get_gradient_knots(gradient)
+
+    result: list[MColor] = []
+    if len(positions) <= sample_points:
+        for index, position in enumerate(positions):
+            weights = point_on_spline_weights(
+                cvs=gradient_stop_colors,
+                t=position,
+                degree=gradient.degree,
+                knots=gradient_knots,
+                normalize=False,
+            )
+            result[index] = oklch_to_linear_srgb(blend_colors_by_weight(weights))
+        return result
 
     # Precompute lookup table
     parameter_array = np.array(positions, dtype=float)
@@ -104,7 +128,9 @@ def fast_sample_lch_gradient_as_linear_srgb(
             knots=gradient_knots,
             normalize=False,
         )
-        return [oklch_to_linear_srgb(blend_colors_by_weight(weights)) for _ in positions]
+        for index, _ in enumerate(positions):
+            result[index] = oklch_to_linear_srgb(blend_colors_by_weight(weights))
+        return result
 
     # Get evenly spaced points from the minimum to maximum t value
     sample_params = np.linspace(min_t, max_t, sample_points, dtype=float)
@@ -134,15 +160,7 @@ def fast_sample_lch_gradient_as_linear_srgb(
     ] + interpolation_alphas * lut_colors[upper_indices, :]
 
     # Reattach CV references to each interpolated weight row
-    for color_row in interpolated_color_array:
-        result.append(list(MColor(color_row.tolist())))
-    return result
-
-
-def fast_sample_heatmap(
-    positions: Sequence[float], gradient: Gradient = OKLCH_HEATMAP_GRADIENT
-) -> list[MColor]:
-    return fast_sample_lch_gradient_as_linear_srgb(positions=positions, gradient=gradient)
+    return numpy_array_to_colors(interpolated_color_array)
 
 
 def color_from_symmetry_error(
@@ -172,7 +190,9 @@ def color_from_symmetry_error(
         viz_errors.append(remapped_error if remapped_error < 1 else 1)
         vertex_indices.append(i)
 
-    vertex_colors: list[MColor] = fast_sample_heatmap(viz_errors)
+    vertex_colors: MColorArray = fast_sample_lch_gradient_as_linear_srgb(
+        positions=viz_errors, gradient=OKLCH_HEATMAP_GRADIENT
+    )
 
     # make sure the target shape can show vertex colors
     cmds.setAttr(f"{shape}.displayColors", 1)
