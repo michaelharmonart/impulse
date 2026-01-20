@@ -283,7 +283,7 @@ def get_weights_along_spline(
         weights: list[tuple[CV, float]] = point_on_spline_weights(
             cvs=cv_ids, t=sample_parameter, degree=degree, knots=knots, normalize=False
         )
-        weight_dict = {cv_ids: w for cv_ids, w in weights}
+        weight_dict = {cv_id: w for cv_id, w in weights}
         # Take the weights and put them into the correct row in the array
         lut_weights[sample_index, :] = [weight_dict.get(cv_id, 0.0) for cv_id in cv_ids]
 

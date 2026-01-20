@@ -2,6 +2,7 @@ from typing import Literal, Sequence
 
 import maya.api.OpenMaya as om2
 import maya.cmds as cmds
+import numpy as np
 from maya.api.OpenMaya import (
     MColor,
     MDagPath,
@@ -76,22 +77,72 @@ def blend_colors_by_weight(color_weights: Sequence[tuple[MColor, float]]) -> MCo
     return final_color
 
 
+def oklch_to_linear_srgb(color: MColor) -> MColor:
+    return MColor(linear_srgb_to_rec2020(oklab_to_linear_srgb(lch_to_lab(color.getColor()))))
+
+
+def fast_sample_lch_gradient_as_linear_srgb(
+    positions: Sequence[float],
+    gradient: Gradient = OKLCH_HEATMAP_GRADIENT,
+    sample_points: int = 128,
+):
+    result: list[MColor] = []
+    gradient_stop_colors = [MColor(stop.color) for stop in gradient.stops]
+    gradient_stop_ids = list(range(len(gradient.stops)))
+    gradient_knots = get_gradient_knots(gradient)
+
+    # Precompute lookup table
+    parameter_array = np.array(positions, dtype=float)
+    min_t, max_t = min(positions), max(positions)
+    t_range: float = max_t - min_t
+    if t_range == 0:
+        # All parameters are the same, just calculate the one weight
+        weights = point_on_spline_weights(
+            cvs=gradient_stop_colors,
+            t=min_t,
+            degree=gradient.degree,
+            knots=gradient_knots,
+            normalize=False,
+        )
+        return [oklch_to_linear_srgb(blend_colors_by_weight(weights)) for _ in positions]
+
+    # Get evenly spaced points from the minimum to maximum t value
+    sample_params = np.linspace(min_t, max_t, sample_points, dtype=float)
+    lut_colors = np.zeros((sample_points, 4), dtype=float)
+
+    for sample_index, sample_parameter in enumerate(sample_params):
+        weights = point_on_spline_weights(
+            cvs=gradient_stop_colors,
+            t=sample_parameter,
+            degree=gradient.degree,
+            knots=gradient_knots,
+            normalize=False,
+        )
+        color = oklch_to_linear_srgb(blend_colors_by_weight(weights))
+        # Take the weights and put them into the correct row in the array
+        lut_colors[sample_index, :] = color.getColor()
+
+    # Map each parameter to LUT index positions
+    normalized_positions = (parameter_array - min_t) / t_range * (sample_points - 1)
+    lower_indices = np.floor(normalized_positions).astype(int)
+    upper_indices = np.clip(lower_indices + 1, 0, sample_points - 1)
+    interpolation_alphas = (normalized_positions - lower_indices)[:, None]
+
+    # Interpolate weights for all parameters in bulk
+    interpolated_color_array = (1 - interpolation_alphas) * lut_colors[
+        lower_indices, :
+    ] + interpolation_alphas * lut_colors[upper_indices, :]
+
+    # Reattach CV references to each interpolated weight row
+    for color_row in interpolated_color_array:
+        result.append(list(MColor(color_row.tolist())))
+    return result
+
+
 def fast_sample_heatmap(
     positions: Sequence[float], gradient: Gradient = OKLCH_HEATMAP_GRADIENT
 ) -> list[MColor]:
-    gradient_stop_colors = [MColor(stop.color) for stop in gradient.stops]
-    gradient_knots = get_gradient_knots(gradient)
-    position_color_weights = get_weights_along_spline(
-        cvs=gradient_stop_colors, parameters=positions, knots=gradient_knots, degree=gradient.degree
-    )
-    colors: list[MColor] = []
-    for color_weights in position_color_weights:
-        color = blend_colors_by_weight(color_weights)
-        point_color_lch = lch_to_lab(tuple(color.getColor()))
-        point_color_rgb = oklab_to_linear_srgb(color=point_color_lch)
-        point_color = MColor(point_color_rgb)
-        colors.append(point_color)
-    return colors
+    return fast_sample_lch_gradient_as_linear_srgb(positions=positions, gradient=gradient)
 
 
 def color_from_symmetry_error(
@@ -113,16 +164,12 @@ def color_from_symmetry_error(
     viz_errors: list[float] = []
     for i, point in enumerate(mesh_points):
         mirrored_point: MPoint = point * mirror_matrix
-        mirrored_vertex_id = get_closest_vertex_id(
-            mesh_intersector, mfn_mesh, mesh_points, mirrored_point
-        )
-        mirrored_vertex_position: MPoint = mfn_mesh.getPoint(mirrored_vertex_id, MSpace.kObject)
-        error_vector: MVector = mirrored_vertex_position - mirrored_point
+        mirrored_position: MPoint = MPoint(mesh_intersector.getClosestPoint(mirrored_point).point)
+        error_vector: MVector = mirrored_position - mirrored_point
         error: float = error_vector.length()
         remapped_error = remap(input=error, input_range=(0, max_error), output_range=(0, 1))
-        clamped_error = min(remapped_error, 1.0)
         vertex_symmetry_error.append(error)
-        viz_errors.append(clamped_error)
+        viz_errors.append(remapped_error if remapped_error < 1 else 1)
         vertex_indices.append(i)
 
     vertex_colors: list[MColor] = fast_sample_heatmap(viz_errors)
