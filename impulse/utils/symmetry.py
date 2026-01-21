@@ -169,7 +169,7 @@ def color_from_symmetry_error(
     max_error: float = 0.01,
 ):
     # handle undo with janky duplication
-    viz_mesh = cmds.duplicate(mesh_transform, name=f"{mesh_transform}_VIZ")[0]
+    viz_mesh = cmds.duplicate(mesh_transform, name=f"{mesh_transform}_SYM")[0]
 
     shape = get_shape(viz_mesh)
     msel: MSelectionList = om2.MSelectionList()
@@ -208,8 +208,7 @@ def color_from_symmetry_error(
     mfn_mesh.setVertexColors(vertex_colors, vertex_indices)
 
     # handle undo with duplicated mesh and deletion of original
-    cmds.delete(mesh_transform)
-    cmds.rename(viz_mesh, mesh_transform)
+    cmds.hide(mesh_transform)
 
 
 def color_by_gradient(shape: str, gradient: Gradient = OKLCH_HEATMAP_GRADIENT):
