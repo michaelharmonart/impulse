@@ -310,7 +310,7 @@ def tangent_on_spline_weights(
     degree: int = 3,
     knots: list[float] | None = None,
     normalize: bool = True,
-) -> list[tuple[CV, int]]:
+) -> list[tuple[CV, float]]:
     # Algorithm and code originally from Cole O'Brien
     # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
     # https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
@@ -338,14 +338,14 @@ def tangent_on_spline_weights(
 
     # Convert cvs into hash-able indices
     _cvs = cvs
-    cvs = [i for i in range(len(cvs))]
+    cvs: list[int] = [i for i in range(len(cvs))]
 
     # In order to find the tangent we need to find points on a lower degree curve
     degree: int = degree - 1
     weights = deBoor_weights(cvs=cvs, t=t, span=segment, degree=degree, knots=knots)
 
     # Take the lower order weights and match them to our actual cvs
-    remapped_weights: list[CV] = []
+    remapped_weights: list[tuple[int, float]] = []
     for j in range(0, degree + 1):
         weight: float = weights[j]
         cv0: int = j + segment - degree
@@ -353,11 +353,11 @@ def tangent_on_spline_weights(
         alpha: float = (
             weight * (degree + 1) / (knots[j + segment + 1] - knots[j + segment - degree])
         )
-        remapped_weights.append([cvs[cv0], alpha])
-        remapped_weights.append([cvs[cv1], -alpha])
+        remapped_weights.append((cvs[cv0], alpha))
+        remapped_weights.append((cvs[cv1], -alpha))
 
     # Add weights of corresponding CVs and only return those that are > 0
-    deduplicated_weights = {i: 0 for i in cvs}
+    deduplicated_weights = {i: 0.0 for i in cvs}
     for item in remapped_weights:
         deduplicated_weights[item[0]] += item[1]
     deduplicated_weights = {key: value for key, value in deduplicated_weights.items() if value != 0}

@@ -1,9 +1,3 @@
-import maya.cmds as cmds
-from maya.api.OpenMaya import MDoubleArray, MFnNurbsCurve, MPointArray, MSelectionList, MSpace
-
-from impulse.structs.transform import Vector3
-
-
 def maya_to_standard_knots(
     knots: list[float], degree: int = 3, periodic: bool = False
 ) -> list[float]:
@@ -23,7 +17,7 @@ def maya_to_standard_knots(
     Returns:
         list[float]: Adjusted knot sequence.
     """
-    
+
     new_knots: list[float] = knots.copy()
 
     # add placeholders for first/last values
@@ -31,13 +25,13 @@ def maya_to_standard_knots(
     new_knots.append(0.0)
 
     # A cubic periodic knot vector looks like: [a,b,c,d,e, ...,  p+a,p+b,p+c,p+d,p+e]
-    # offset is the length of the repeated indices, in the above case it would be 5 
+    # offset is the length of the repeated indices, in the above case it would be 5
     # (degree is multiplied by 2 since degree is both part of the iterator and the indexing equation):
     # -degree < i < degree (max i here is used to calculate p)
     # k[(degree-1)+i+1] - k[(degree-1)+i] = k[(cv_count-1)+i+1] - k[(cv_count-1)+i]
     # (degree-1)+i and (cv_count-1)+i can now both be substituted with the offset
 
-    offset: int = (degree * 2) - 1 
+    offset: int = (degree * 2) - 1
 
     if periodic:
         new_knots[0] = new_knots[1] - (new_knots[-(offset - 1)] - new_knots[-offset])

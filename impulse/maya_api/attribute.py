@@ -66,7 +66,7 @@ class ScalarAttribute(Attribute):
 
     def set(self, value: float | int) -> None:
         """Set the value of this attribute."""
-        cmds.setAttr(self.attr_path, cast(Any,value))
+        cmds.setAttr(self.attr_path, cast(Any, value))
 
     @property
     def value(self) -> float:
@@ -161,7 +161,7 @@ class Vector3Attribute(Attribute):
 
     def set(self, value: tuple[float, float, float]) -> None:
         """Set the value of this attribute."""
-        cmds.setAttr(self.attr_path, *value) # type: ignore
+        cmds.setAttr(self.attr_path, *value)  # type: ignore
 
     @property
     def value(self) -> tuple[float, float, float]:
@@ -228,7 +228,6 @@ class IndexableScalarAttribute(IndexableAttribute[ScalarAttribute]):
         return ScalarAttribute(attr_path=f"{self.attr_path}[{index}]")
 
 
-
 class IndexableMatrixAttribute(IndexableAttribute[MatrixAttribute]):
     """A Maya attribute that supports indexing matrix attributes with bracket notation."""
 
@@ -286,5 +285,5 @@ class AimMatrixAxisAttribute(Attribute):
 
         self.input_axis = Vector3Attribute(f"{attr_path}.{axis_name}InputAxis")
         self.mode = EnumAttribute(f"{attr_path}.{axis_name}Mode")
-        self.target_vector = EnumAttribute(f"{attr_path}.{axis_name}TargetVector")
+        self.target_vector = Vector3Attribute(f"{attr_path}.{axis_name}TargetVector")
         self.target_matrix = MatrixAttribute(f"{attr_path}.{axis_name}TargetMatrix")
