@@ -459,7 +459,6 @@ def set_weights(
     existing_influences = set(cmds.skinCluster(skin_cluster, query=True, influence=True) or [])
     # Add missing influences to the skinCluster
     influences_to_add: set[str] = all_influences_in_data - existing_influences
-    print([influence for influence in influences_to_add])
     cmds.skinCluster(skin_cluster, edit=True, addInfluence=sorted(influences_to_add), weight=0.0)
 
     # Get the actual MFnSkinCluster to apply weights with
