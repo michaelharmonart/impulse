@@ -249,7 +249,7 @@ def get_weights_along_spline(
     Returns:
         A (len(parameters), n_basis) matrix of spline weights.
     """
-    cv_ids = range(len(cvs))
+    cv_ids = list(range(len(cvs)))
 
     if not knots:
         knots = generate_knots(len(cv_ids), degree=degree)
@@ -259,7 +259,7 @@ def get_weights_along_spline(
     if len(parameters) <= sample_points:
         for parameter in parameters:
             weights: list[tuple[CV, float]] = point_on_spline_weights(
-                cvs=cv_ids, t=parameter, degree=degree, knots=knots, normalize=False
+                cvs=cvs, t=parameter, degree=degree, knots=knots, normalize=False
             )
             result.append(weights)
         return result
@@ -271,7 +271,7 @@ def get_weights_along_spline(
     if t_range == 0:
         # All parameters are the same, just calculate the one weight
         weights = point_on_spline_weights(
-            cvs=cv_ids, t=min_t, degree=degree, knots=knots, normalize=False
+            cvs=cvs, t=min_t, degree=degree, knots=knots, normalize=False
         )
         return [weights for _ in parameters]
 
@@ -280,7 +280,7 @@ def get_weights_along_spline(
     lut_weights = np.zeros((sample_points, len(cv_ids)), dtype=float)
 
     for sample_index, sample_parameter in enumerate(sample_params):
-        weights: list[tuple[CV, float]] = point_on_spline_weights(
+        weights: list[tuple[int, float]] = point_on_spline_weights(
             cvs=cv_ids, t=sample_parameter, degree=degree, knots=knots, normalize=False
         )
         weight_dict = {cv_id: w for cv_id, w in weights}

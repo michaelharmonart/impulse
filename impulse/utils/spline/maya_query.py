@@ -1,3 +1,9 @@
+from maya import cmds
+from maya.api.OpenMaya import MDoubleArray, MFnNurbsCurve, MPointArray, MSelectionList, MSpace
+
+from impulse.structs.transform import Vector3
+
+
 def maya_to_standard_knots(
     knots: list[float], degree: int = 3, periodic: bool = False
 ) -> list[float]:
