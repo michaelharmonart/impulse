@@ -1,4 +1,4 @@
-from typing import TypeVar
+from typing import Sequence, TypeVar
 
 import numpy as np
 
@@ -29,7 +29,7 @@ def generate_knots(count: int, degree: int = 3, periodic=False) -> list[float]:
     return [float(knot) for knot in knots]
 
 
-def is_periodic_knot_vector(knots: list[float], degree: int = 3) -> bool:
+def is_periodic_knot_vector(knots: Sequence[float], degree: int = 3) -> bool:
     # Based on this equation k[(degree-1)+i+1] - k[(degree-1)+i] = k[(cv_count-1)+i+1] - k[(cv_count)+i]
     # See https://developer.rhino3d.com/guides/opennurbs/periodic-curves-and-surfaces/
     # Although there is a typo in the above doc, k[(cv_count)+i] should be k[(cv_count - 1)+i]
@@ -44,18 +44,18 @@ def is_periodic_knot_vector(knots: list[float], degree: int = 3) -> bool:
     return True
 
 
-def deBoor_setup(
-    cvs: list[CV],
+def deboor_setup(
+    cvs: Sequence[CV],
     t: float,
     degree: int = 3,
-    knots: list[float] | None = None,
+    knots: Sequence[float] | None = None,
     normalize: bool = True,
 ) -> tuple[list[float], int, float, bool]:
     # Algorithm and code originally from Cole O'Brien. Modified to support periodic splines.
     # https://coleobrien.medium.com/matrix-splines-in-maya-ec17f3b3741
     # https://gist.github.com/obriencole11/354e6db8a55738cb479523f15f1fd367
     """
-    Extracts information needed for DeBoors Algorithm
+    find the span index needed for DeBoors Algorithm
     Args:
         cvs(list): A list of cvs, these are used for the return value.
         t(float): A parameter value.
@@ -102,12 +102,12 @@ def deBoor_setup(
     if segment is None:
         # If t == last knot, use the last valid span
         segment = len(knots) - order - 1
-    return (knots, segment, t, periodic)
+    return (list(knots), segment, t, periodic)
 
 
-def deBoor_weights(
-    cvs: list[CV],
-    knots: list[float],
+def deboor_weights(
+    cvs: Sequence[CV],
+    knots: Sequence[float],
     t: float,
     span: int,
     degree: int = 3,
@@ -170,11 +170,11 @@ def deBoor_weights(
 
 
 def point_on_spline_weights(
-    cvs: list[CV],
+    cvs: Sequence[CV],
     t: float,
     degree: int = 3,
-    knots: list[float] | None = None,
-    weights: list[float] | None = None,
+    knots: Sequence[float] | None = None,
+    weights: Sequence[float] | None = None,
     normalize: bool = True,
     return_zero_weights: bool = False,
 ) -> list[tuple[CV, float]]:
@@ -196,40 +196,42 @@ def point_on_spline_weights(
         list: A list of control point, weight pairs.
     """
 
-    curve_setup = deBoor_setup(cvs=cvs, t=t, degree=degree, knots=knots, normalize=normalize)
-    knots = curve_setup[0]
-    segment = curve_setup[1]
-    t = curve_setup[2]
-    periodic = curve_setup[3]
+    new_knots, segment, mapped_t, periodic = deboor_setup(
+        cvs=cvs, t=t, degree=degree, knots=knots, normalize=normalize
+    )
 
     # Convert cvs into hash-able indices
-    _cvs = cvs
-    cvs: list[int] = [i for i in range(len(cvs))]
+    cvs_ids: list[int] = [i for i in range(len(cvs))]
     if weights:
-        cv_weights = {cvs[i]: weights[i] for i in range(len(cvs))}
+        cv_weights = {cvs_ids[i]: weights[i] for i in range(len(cvs_ids))}
     else:
         cv_weights = None
 
     # Filter out cvs we won't be using
-    cvs = [cvs[j + segment - degree] for j in range(0, degree + 1)]
+    filtered_ids = [cvs_ids[j + segment - degree] for j in range(0, degree + 1)]
 
     # Run a modified version of de Boors algorithm
-    cvWeights = deBoor_weights(
-        cvs=cvs, t=t, span=segment, degree=degree, knots=knots, cv_weights=cv_weights
+    out_weights = deboor_weights(
+        cvs=filtered_ids,
+        t=mapped_t,
+        span=segment,
+        degree=degree,
+        knots=new_knots,
+        cv_weights=cv_weights,
     )
 
     return [
-        (_cvs[index], weight)
-        for index, weight in reversed(cvWeights.items())
+        (cvs[index], weight)
+        for index, weight in reversed(out_weights.items())
         if (weight != 0.0) or return_zero_weights
     ]
 
 
 def get_weights_along_spline(
-    cvs: list[CV],
-    parameters: list[float],
+    cvs: Sequence[CV],
+    parameters: Sequence[float],
     degree: int = 3,
-    knots: list[float] | None = None,
+    knots: Sequence[float] | None = None,
     sample_points: int = 128,
 ) -> list[list[tuple[CV, float]]]:
     """
@@ -258,10 +260,10 @@ def get_weights_along_spline(
     # If we have less points than samples don't bother using a lookup table
     if len(parameters) <= sample_points:
         for parameter in parameters:
-            weights: list[tuple[CV, float]] = point_on_spline_weights(
+            sample_weights: list[tuple[CV, float]] = point_on_spline_weights(
                 cvs=cvs, t=parameter, degree=degree, knots=knots, normalize=False
             )
-            result.append(weights)
+            result.append(sample_weights)
         return result
 
     # Precompute lookup table
@@ -270,10 +272,10 @@ def get_weights_along_spline(
     t_range: float = max_t - min_t
     if t_range == 0:
         # All parameters are the same, just calculate the one weight
-        weights = point_on_spline_weights(
+        single_weights = point_on_spline_weights(
             cvs=cvs, t=min_t, degree=degree, knots=knots, normalize=False
         )
-        return [weights for _ in parameters]
+        return [single_weights for _ in parameters]
 
     # Get evenly spaced points from the minimum to maximum t value
     sample_params = np.linspace(min_t, max_t, sample_points, dtype=float)
@@ -305,10 +307,10 @@ def get_weights_along_spline(
 
 
 def tangent_on_spline_weights(
-    cvs: list[CV],
+    cvs: Sequence[CV],
     t: float,
     degree: int = 3,
-    knots: list[float] | None = None,
+    knots: Sequence[float] | None = None,
     normalize: bool = True,
 ) -> list[tuple[CV, float]]:
     # Algorithm and code originally from Cole O'Brien
@@ -330,47 +332,46 @@ def tangent_on_spline_weights(
         list: A list of control point, weight pairs.
     """
 
-    curve_setup = deBoor_setup(cvs=cvs, t=t, degree=degree, knots=knots, normalize=normalize)
-    knots: list[float] = curve_setup[0]
-    segment: int = curve_setup[1]
-    t: float = curve_setup[2]
-    periodic: bool = curve_setup[3]
+    new_knots, segment, t, periodic = deboor_setup(
+        cvs=cvs, t=t, degree=degree, knots=knots, normalize=normalize
+    )
 
     # Convert cvs into hash-able indices
-    _cvs = cvs
-    cvs: list[int] = [i for i in range(len(cvs))]
+    cv_ids: list[int] = [i for i in range(len(cvs))]
 
     # In order to find the tangent we need to find points on a lower degree curve
-    degree: int = degree - 1
-    weights = deBoor_weights(cvs=cvs, t=t, span=segment, degree=degree, knots=knots)
+    lower_degree: int = degree - 1
+    weights = deboor_weights(cvs=cv_ids, t=t, span=segment, degree=lower_degree, knots=new_knots)
 
     # Take the lower order weights and match them to our actual cvs
     remapped_weights: list[tuple[int, float]] = []
-    for j in range(0, degree + 1):
+    for j in range(0, lower_degree + 1):
         weight: float = weights[j]
-        cv0: int = j + segment - degree
-        cv1: int = j + segment - degree - 1
+        cv0: int = j + segment - lower_degree
+        cv1: int = j + segment - lower_degree - 1
         alpha: float = (
-            weight * (degree + 1) / (knots[j + segment + 1] - knots[j + segment - degree])
+            weight
+            * (lower_degree + 1)
+            / (new_knots[j + segment + 1] - new_knots[j + segment - lower_degree])
         )
-        remapped_weights.append((cvs[cv0], alpha))
-        remapped_weights.append((cvs[cv1], -alpha))
+        remapped_weights.append((cv_ids[cv0], alpha))
+        remapped_weights.append((cv_ids[cv1], -alpha))
 
     # Add weights of corresponding CVs and only return those that are > 0
-    deduplicated_weights = {i: 0.0 for i in cvs}
+    deduplicated_weights = {i: 0.0 for i in cv_ids}
     for item in remapped_weights:
         deduplicated_weights[item[0]] += item[1]
     deduplicated_weights = {key: value for key, value in deduplicated_weights.items() if value != 0}
 
-    return [(_cvs[index], weight) for index, weight in deduplicated_weights.items()]
+    return [(cvs[index], weight) for index, weight in deduplicated_weights.items()]
 
 
 def get_point_on_spline(
-    cv_positions: list[Vector3],
+    cv_positions: Sequence[Vector3],
     t: float,
     degree: int = 3,
-    knots: list[float] | None = None,
-    weights: list[float] | None = None,
+    knots: Sequence[float] | None = None,
+    weights: Sequence[float] | None = None,
     normalize_parameter: bool = True,
 ) -> Vector3:
     position: Vector3 = Vector3()
@@ -387,7 +388,7 @@ def get_point_on_spline(
 
 
 def get_tangent_on_spline(
-    cv_positions: list[Vector3], t: float, degree: int = 3, knots: list[float] | None = None
+    cv_positions: Sequence[Vector3], t: float, degree: int = 3, knots: Sequence[float] | None = None
 ) -> Vector3:
     tangent: Vector3 = Vector3()
     for control_point, weight in tangent_on_spline_weights(
@@ -398,11 +399,11 @@ def get_tangent_on_spline(
 
 
 def resample(
-    cv_positions: list[Vector3],
+    cv_positions: Sequence[Vector3],
     number_of_points: int,
     degree: int = 3,
-    knots: list[float] | None = None,
-    weights: list[float] | None = None,
+    knots: Sequence[float] | None = None,
+    weights: Sequence[float] | None = None,
     periodic=False,
     padded: bool = True,
     arc_length: bool = True,
@@ -432,25 +433,31 @@ def resample(
     """
 
     if not knots:
-        knots: list[float] = generate_knots(
-            count=len(cv_positions), degree=degree, periodic=periodic
-        )
-
-    if normalize_parameter:
-        domain_start: float = 0.0
-        domain_end: float = 1.0
+        new_knots = generate_knots(count=len(cv_positions), degree=degree, periodic=periodic)
     else:
-        domain_start: float = knots[degree]
-        domain_end: float = knots[-degree - 1]
+        new_knots = knots
+
+    domain_start: float
+    domain_end: float
+    if normalize_parameter:
+        domain_start = 0.0
+        domain_end = 1.0
+    else:
+        domain_start = new_knots[degree]
+        domain_end = new_knots[-degree - 1]
 
     if not u_min:
-        u_min: float = domain_start
+        new_u_min = domain_start
+    else:
+        new_u_min = u_min
     if not u_max:
-        u_max: float = domain_end
+        new_u_max = domain_end
+    else:
+        new_u_max = u_max
 
-    if not u_min < u_max:
+    if not new_u_min < new_u_max:
         raise ValueError(
-            f"The minimum U value ({u_min}) must be less than the maximum U value ({u_max})"
+            f"The minimum U value ({new_u_min}) must be less than the maximum U value ({new_u_max})"
         )
 
     def get_normalized_u(index):
@@ -464,21 +471,18 @@ def resample(
         return base_u
 
     def get_target_u(index: int) -> float:
-        return u_min + (u_max - u_min) * get_normalized_u(index)
+        return new_u_min + (new_u_max - new_u_min) * get_normalized_u(index)
 
     if not arc_length:
-        point_parameters: list[float] = []
-        for i in range(number_of_points):
-            u = get_target_u(i)
-            point_parameters.append(u)
-        return point_parameters
+        return [get_target_u(i) for i in range(number_of_points)]
 
     # Arc length based resampling
     if sample_points < 2:
         raise ValueError("sample_points must be >= 2")
 
     sample_params: list[float] = [
-        u_min + (u_max - u_min) * (i / (sample_points - 1)) for i in range(sample_points)
+        new_u_min + (new_u_max - new_u_min) * (i / (sample_points - 1))
+        for i in range(sample_points)
     ]
 
     samples: list[Vector3] = [
@@ -486,7 +490,7 @@ def resample(
             cv_positions=cv_positions,
             t=param,
             degree=degree,
-            knots=knots,
+            knots=new_knots,
             weights=weights,
             normalize_parameter=normalize_parameter,
         )
@@ -532,9 +536,9 @@ def resample(
 
         # If the sample is exactly our target point return it, if it's the last, return the end point, otherwise interpolate between the closest samples
         if arc_lengths[prev_index] == target_length:
-            mapped_t: float = sample_params[next_index]
+            mapped_t = sample_params[next_index]
         elif i == number_of_points - 1:
-            mapped_t: float = get_target_u(number_of_points)
+            mapped_t = get_target_u(number_of_points)
         else:
             length_before: float = arc_lengths[prev_index]
             sample_distance: float = arc_lengths[next_index] - arc_lengths[prev_index]
